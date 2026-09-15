@@ -9,9 +9,10 @@ import net.minestom.server.network.NetworkBufferTemplate;
 import net.minestom.server.registry.Registries;
 
 import java.util.Objects;
+import java.util.function.BiPredicate;
 
 public record DataComponentPredicates(DataComponentMap exact,
-                                      ComponentPredicateSet predicates) {
+                                      ComponentPredicateSet predicates) implements BiPredicate<Registries, DataComponent.Holder> {
 
     public DataComponentPredicates {
         Objects.requireNonNull(exact, "Exact cannot be null. Use DataComponentMap.EMPTY to skip exact data component checks.");
@@ -32,6 +33,7 @@ public record DataComponentPredicates(DataComponentMap exact,
             DataComponentPredicates::new
     );
 
+    @Override
     public boolean test(Registries registries, DataComponent.Holder holder) {
         for (DataComponent.Value entry : exact.entrySet()) {
             if (!Objects.equals(holder.get(entry.component()), entry.value())) {

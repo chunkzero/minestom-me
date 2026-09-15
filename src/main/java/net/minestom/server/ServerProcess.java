@@ -27,7 +27,7 @@ import org.jetbrains.annotations.ApiStatus;
 import java.net.SocketAddress;
 
 @ApiStatus.NonExtendable
-public interface ServerProcess extends Registries, Snapshotable, AutoCloseable {
+public interface ServerProcess extends Snapshotable, AutoCloseable {
     /**
      * Creates a process with its own managers, configuration, and registries, without changing
      * {@link MinecraftServer#process()}.
@@ -67,6 +67,7 @@ public interface ServerProcess extends Registries, Snapshotable, AutoCloseable {
 
     /** Sets the compression threshold before the process starts. */
     void setCompressionThreshold(int compressionThreshold);
+
     /**
      * Gets the registries owned by this process.
      *

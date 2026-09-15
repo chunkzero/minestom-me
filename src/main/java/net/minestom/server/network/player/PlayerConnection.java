@@ -46,10 +46,10 @@ public abstract class PlayerConnection {
     // "client" state means the state the client thinks its in.
     // For example, after sending start configuration but before receiving the ack,
     // the server will be in CONFIGURATION while the client is still in PLAY.
-    private volatile ConnectionState serverState = ConnectionState.HANDSHAKE, clientState = ConnectionState.HANDSHAKE;
+    private volatile ConnectionState serverState, clientState;
 
     private @Nullable PlayerPublicKey playerPublicKey;
-    volatile boolean online = true;
+    volatile boolean online;
     private volatile boolean wasTransferred;
     private boolean statusRequestReceived;
 
@@ -62,6 +62,9 @@ public abstract class PlayerConnection {
 
     public PlayerConnection(ServerProcess process) {
         this.process = Objects.requireNonNull(process);
+        this.online = true;
+        this.serverState = ConnectionState.HANDSHAKE;
+        this.clientState = ConnectionState.HANDSHAKE;
     }
 
     /** The process captured when this connection was constructed. */

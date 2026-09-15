@@ -50,6 +50,16 @@ public record Tool(List<Rule> rules, float defaultMiningSpeed, int damagePerBloc
                 Rule::new);
     }
 
+    /**
+     * Tests the first matching rule against the supplied block registry.
+     *
+     * @deprecated use {@link #isCorrectForDrops(Registry, RegistryKey)} with {@link Block#registryKey()}
+     */
+    @Deprecated(forRemoval = true)
+    public boolean isCorrectForDrops(Registry<Block> registry, Block block) {
+        return isCorrectForDrops(registry, block.registryKey());
+    }
+
     /** Tests the first matching rule against the supplied block registry. */
     public boolean isCorrectForDrops(Registry<Block> registry, RegistryKey<Block> block) {
         for (Rule rule : rules) {
@@ -58,6 +68,16 @@ public record Tool(List<Rule> rules, float defaultMiningSpeed, int damagePerBloc
             }
         }
         return false;
+    }
+
+    /**
+     * Returns the first matching rule's speed in the supplied block registry.
+     *
+     * @deprecated use {@link #getSpeed(Registry, RegistryKey)} with {@link Block#registryKey()}
+     */
+    @Deprecated(forRemoval = true)
+    public float getSpeed(Registry<Block> registry, Block block) {
+        return getSpeed(registry, block.registryKey());
     }
 
     /** Returns the first matching rule's speed in the supplied block registry. */

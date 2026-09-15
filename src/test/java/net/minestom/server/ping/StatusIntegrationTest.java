@@ -93,7 +93,7 @@ public class StatusIntegrationTest {
         var selectedInfo = Status.PlayerInfo.online(List.of(player1), 20);
         assertEquals(1, selectedInfo.onlinePlayers());
         assertEquals(List.of(player1), selectedInfo.sample());
-        assertEquals(1, Status.PlayerInfo.onlineCount(List.of(player1)).onlinePlayers());
+        assertEquals(1, Status.PlayerInfo.onlineCount(1).onlinePlayers());
         assertNull(Status.builder().build().playerInfo());
 
         try (var other = ServerProcess.create()) {
@@ -102,6 +102,16 @@ public class StatusIntegrationTest {
                     ServerListPingType.fromModernProtocolVersion(connection.getProtocolVersion()));
             assertEquals(0, ping.getStatus().playerInfo().onlinePlayers());
         }
+    }
+
+    @Test
+    void connectionlessPingDoesNotUseDefaultPlayers(Env env) {
+        env.createPlayer(env.createEmptyInstance(), Pos.ZERO);
+
+        var ping = new ServerListPingEvent(ServerListPingType.OPEN_TO_LAN);
+        assertNull(ping.getConnection());
+        assertNull(ping.getStatus().playerInfo());
+        assertEquals(Status.Builder.DEFAULT_DESCRIPTION, ping.getStatus().description());
     }
 
     private static final class TestConnection extends PlayerConnection {

@@ -96,17 +96,17 @@ class ServerProcessIsolationTest {
         ServerFlag.INSIDE_TEST = false;
         try (var first = ServerProcess.create()) {
             first.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-            assertTrue(first.dimensionType().isFrozen());
+            assertTrue(first.registries().dimensionType().isFrozen());
             assertThrows(UnsupportedOperationException.class, () ->
-                    first.dimensionType().register("test:frozen", DimensionType.builder().build()));
+                    first.registries().dimensionType().register("test:frozen", DimensionType.builder().build()));
             assertThrows(IllegalStateException.class, () -> first.setCompressionThreshold(64));
 
             try (var second = ServerProcess.create()) {
                 var dimension = DimensionType.builder().ambientLight(0.5f).build();
-                var key = second.dimensionType().register("test:second", dimension);
-                assertSame(dimension, second.dimensionType().get(key));
-                assertNull(first.dimensionType().get(key));
-                assertFalse(second.dimensionType().isFrozen());
+                var key = second.registries().dimensionType().register("test:second", dimension);
+                assertSame(dimension, second.registries().dimensionType().get(key));
+                assertNull(first.registries().dimensionType().get(key));
+                assertFalse(second.registries().dimensionType().isFrozen());
                 assertDoesNotThrow(() -> Registries.vanilla().dimensionType()
                         .register("test:standalone", dimension));
             }

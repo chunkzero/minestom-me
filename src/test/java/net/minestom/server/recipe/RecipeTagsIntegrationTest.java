@@ -35,15 +35,15 @@ class RecipeTagsIntegrationTest {
             }
         };
         try (var second = ServerProcess.create()) {
-            env.process().material().getOrCreateTag(key);
-            second.material().getOrCreateTag(key);
+            env.process().registries().material().getOrCreateTag(key);
+            second.registries().material().getOrCreateTag(key);
             env.process().recipe().addRecipe(recipe);
             second.recipe().addRecipe(recipe);
             var firstPacket = packet(env.process());
             assertEquals(1, firstPacket.stonecutterRecipes().size());
             assertEquals(1, packet(second).stonecutterRecipes().size());
 
-            second.material().removeTag(key);
+            second.registries().material().removeTag(key);
             assertEquals(0, packet(second).stonecutterRecipes().size());
             assertSame(firstPacket, packet(env.process()));
         }

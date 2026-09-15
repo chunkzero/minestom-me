@@ -88,11 +88,11 @@ class RegistryIsolationTest {
 
         var tool = Material.DIAMOND_PICKAXE.prototype().get(DataComponents.TOOL);
         assertNotNull(tool);
-        float vanillaSpeed = tool.getSpeed(second.blocks(), Block.STONE);
+        float vanillaSpeed = tool.getSpeed(second.blocks(), Block.STONE.registryKey());
         assertTrue(vanillaSpeed > tool.defaultMiningSpeed());
         first.blocks().removeTag(TagKey.ofHash("#minecraft:mineable/pickaxe"));
-        assertEquals(tool.defaultMiningSpeed(), tool.getSpeed(first.blocks(), Block.STONE));
-        assertEquals(vanillaSpeed, tool.getSpeed(second.blocks(), Block.STONE));
+        assertEquals(tool.defaultMiningSpeed(), tool.getSpeed(first.blocks(), Block.STONE.registryKey()));
+        assertEquals(vanillaSpeed, tool.getSpeed(second.blocks(), Block.STONE.registryKey()));
     }
 
     @Test
@@ -109,12 +109,13 @@ class RegistryIsolationTest {
                         .build());
         var predicates = new DataComponentPredicates(DataComponentMap.EMPTY,
                 new ComponentPredicateSet(List.of(bundlePredicate)));
+        var predicate = new ItemPredicate(List.of(Material.BUNDLE)).and(predicates);
         var bundle = ItemStack.of(Material.BUNDLE).with(DataComponents.BUNDLE_CONTENTS,
                 List.of(ItemStack.of(Material.DIAMOND)));
-        assertTrue(predicates.test(first, bundle));
+        assertTrue(predicate.test(first, bundle));
         assertNotNull(materials.key());
         first.material().removeTag(materials.key());
-        assertFalse(predicates.test(first, bundle));
-        assertTrue(predicates.test(second, bundle));
+        assertFalse(predicate.test(first, bundle));
+        assertTrue(predicate.test(second, bundle));
     }
 }

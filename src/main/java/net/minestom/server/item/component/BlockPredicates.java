@@ -7,8 +7,9 @@ import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.registry.Registries;
 
 import java.util.List;
+import java.util.function.BiPredicate;
 
-public record BlockPredicates(List<BlockPredicate> predicates) {
+public record BlockPredicates(List<BlockPredicate> predicates) implements BiPredicate<Registries, Block> {
     /**
      * Will never match any block.
      */
@@ -27,6 +28,7 @@ public record BlockPredicates(List<BlockPredicate> predicates) {
         this(List.of(predicate));
     }
 
+    @Override
     public boolean test(Registries registries, Block block) {
         for (BlockPredicate predicate : predicates) {
             if (predicate.test(registries, block)) {

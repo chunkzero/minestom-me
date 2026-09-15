@@ -366,227 +366,227 @@ public final class MinecraftServer implements MinecraftConstants {
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#chatType()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#chatType()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<ChatType> getChatTypeRegistry() {
-        return serverProcess.chatType();
+        return serverProcess.registries().chatType();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#dialog()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#dialog()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<Dialog> getDialogRegistry() {
-        return serverProcess.dialog();
+        return serverProcess.registries().dialog();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#dimensionType()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#dimensionType()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<DimensionType> getDimensionTypeRegistry() {
-        return serverProcess.dimensionType();
+        return serverProcess.registries().dimensionType();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#biome()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#biome()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<Biome> getBiomeRegistry() {
-        return serverProcess.biome();
+        return serverProcess.registries().biome();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#damageType()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#damageType()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<DamageType> getDamageTypeRegistry() {
-        return serverProcess.damageType();
+        return serverProcess.registries().damageType();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#trimMaterial()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#trimMaterial()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<TrimMaterial> getTrimMaterialRegistry() {
-        return serverProcess.trimMaterial();
+        return serverProcess.registries().trimMaterial();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#trimPattern()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#trimPattern()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<TrimPattern> getTrimPatternRegistry() {
-        return serverProcess.trimPattern();
+        return serverProcess.registries().trimPattern();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#bannerPattern()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#bannerPattern()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<BannerPattern> getBannerPatternRegistry() {
-        return serverProcess.bannerPattern();
+        return serverProcess.registries().bannerPattern();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#wolfVariant()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#wolfVariant()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<WolfVariant> getWolfVariantRegistry() {
-        return serverProcess.wolfVariant();
+        return serverProcess.registries().wolfVariant();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#wolfSoundVariant()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#wolfSoundVariant()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<WolfSoundVariant> getWolfSoundVariantRegistry() {
-        return serverProcess.wolfSoundVariant();
+        return serverProcess.registries().wolfSoundVariant();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#catVariant()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#catVariant()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<CatVariant> getCatVariantRegistry() {
-        return serverProcess.catVariant();
+        return serverProcess.registries().catVariant();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#chickenVariant()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#chickenVariant()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<ChickenVariant> getChickenVariantRegistry() {
-        return serverProcess.chickenVariant();
+        return serverProcess.registries().chickenVariant();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#cowVariant()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#cowVariant()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<CowVariant> getCowVariantRegistry() {
-        return serverProcess.cowVariant();
+        return serverProcess.registries().cowVariant();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#frogVariant()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#frogVariant()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<FrogVariant> getFrogVariantRegistry() {
-        return serverProcess.frogVariant();
+        return serverProcess.registries().frogVariant();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#pigVariant()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#pigVariant()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<PigVariant> getPigVariantRegistry() {
-        return serverProcess.pigVariant();
+        return serverProcess.registries().pigVariant();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#zombieNautilusVariant()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#zombieNautilusVariant()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<ZombieNautilusVariant> getZombieNautilusVariantRegistry() {
-        return serverProcess.zombieNautilusVariant();
+        return serverProcess.registries().zombieNautilusVariant();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#enchantment()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#enchantment()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<Enchantment> getEnchantmentRegistry() {
-        return serverProcess.enchantment();
+        return serverProcess.registries().enchantment();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#paintingVariant()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#paintingVariant()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<PaintingVariant> getPaintingVariantRegistry() {
-        return serverProcess.paintingVariant();
+        return serverProcess.registries().paintingVariant();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#jukeboxSong()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#jukeboxSong()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<JukeboxSong> getJukeboxSongRegistry() {
-        return serverProcess.jukeboxSong();
+        return serverProcess.registries().jukeboxSong();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#instrument()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#instrument()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<Instrument> getInstrumentRegistry() {
-        return serverProcess.instrument();
+        return serverProcess.registries().instrument();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#timeline()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#timeline()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<Timeline> getTimelineRegistry() {
-        return serverProcess.timeline();
+        return serverProcess.registries().timeline();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#worldClock()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#worldClock()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<WorldClock> getWorldClockRegistry() {
-        return serverProcess.worldClock();
+        return serverProcess.registries().worldClock();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#sulfurCubeArchetype()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#sulfurCubeArchetype()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<SulfurCubeArchetype> getSulfurCubeArchetypeRegistry() {
-        return serverProcess.sulfurCubeArchetype();
+        return serverProcess.registries().sulfurCubeArchetype();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#enchantmentLevelBasedValues()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#enchantmentLevelBasedValues()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<StructCodec<? extends LevelBasedValue>> enchantmentLevelBasedValues() {
-        return serverProcess.enchantmentLevelBasedValues();
+        return serverProcess.registries().enchantmentLevelBasedValues();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#enchantmentValueEffects()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#enchantmentValueEffects()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<StructCodec<? extends ValueEffect>> enchantmentValueEffects() {
-        return serverProcess.enchantmentValueEffects();
+        return serverProcess.registries().enchantmentValueEffects();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#enchantmentEntityEffects()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#enchantmentEntityEffects()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<StructCodec<? extends EntityEffect>> enchantmentEntityEffects() {
-        return serverProcess.enchantmentEntityEffects();
+        return serverProcess.registries().enchantmentEntityEffects();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#enchantmentLocationEffects()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#enchantmentLocationEffects()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<StructCodec<? extends LocationEffect>> enchantmentLocationEffects() {
-        return serverProcess.enchantmentLocationEffects();
+        return serverProcess.registries().enchantmentLocationEffects();
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link ServerProcess#componentPredicateTypes()} on the owning process.
+     * @deprecated Scheduled for deletion. Use {@link Registries#componentPredicateTypes()} through {@link ServerProcess#registries()}.
      */
     @Deprecated(forRemoval = true)
     public static DynamicRegistry<Codec<? extends DataComponentPredicate>> componentPredicateTypes() {
-        return serverProcess.componentPredicateTypes();
+        return serverProcess.registries().componentPredicateTypes();
     }
 
     /**

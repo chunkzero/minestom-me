@@ -210,7 +210,7 @@ public class AnvilLoaderIntegrationTest {
             Section originalSection = originalChunk.getSection(section);
             Section reloadedSection = reloadedChunk.getSection(section);
 
-            NetworkBuffer.Type<ChunkData.Section> sectionSerializer = ChunkData.Section.networkType(env.process().biome().size());
+            NetworkBuffer.Type<ChunkData.Section> sectionSerializer = ChunkData.Section.networkType(env.process().registries().biome().size());
             // easiest equality check to write is a memory compare on written output
             var original = NetworkBuffer.makeArray(buffer ->
                     buffer.write(sectionSerializer, new ChunkData.Section((short) originalSection.blockPalette().count(), (short) 0, originalSection.blockPalette(), originalSection.biomePalette())));

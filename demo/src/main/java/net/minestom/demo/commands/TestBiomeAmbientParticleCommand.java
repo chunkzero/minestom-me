@@ -43,7 +43,7 @@ public class TestBiomeAmbientParticleCommand extends Command {
         Biome biome = Biome.builder()
                 .setAttribute(EnvironmentAttribute.AMBIENT_PARTICLES, List.of(new AmbientParticle(particle, 0.005f)))
                 .build();
-        RegistryKey<Biome> key = process.biome().register("testbiome", biome);
+        RegistryKey<Biome> key = process.registries().biome().register("testbiome", biome);
         instance.setGenerator(unit -> {
             unit.modifier().fillBiome(key);
             unit.fork(unit.absoluteStart().withY(63), unit.absoluteEnd().withY(63)).modifier().fill(Block.STONE);

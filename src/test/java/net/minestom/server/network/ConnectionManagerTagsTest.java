@@ -22,7 +22,7 @@ class ConnectionManagerTagsTest {
                 assertSame(firstPacket, tags(first));
                 var secondPacket = tags(second);
                 var key = TagKey.<Block>ofHash("#test:first");
-                first.blocks().getOrCreateTag(key);
+                first.registries().blocks().getOrCreateTag(key);
 
                 var updated = tags(first);
                 assertNotSame(firstPacket, updated);
@@ -30,7 +30,7 @@ class ConnectionManagerTagsTest {
                 assertFalse(hasTag(secondPacket, "test:first"));
                 assertSame(secondPacket, tags(second));
 
-                first.blocks().removeTag(key);
+                first.registries().blocks().removeTag(key);
                 assertFalse(hasTag(tags(first), "test:first"));
                 assertSame(secondPacket, tags(second));
             }

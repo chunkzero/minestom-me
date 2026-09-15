@@ -49,10 +49,9 @@ import org.jetbrains.annotations.ApiStatus;
 import java.util.List;
 
 /**
- * <p>Provides access to all the dynamic registries. {@link net.minestom.server.ServerProcess} is the most relevant
- * implementation of this interface.</p>
+ * Provides access to a collection of game registries.
  *
- * @see net.minestom.server.MinecraftServer for static access to these
+ * @see net.minestom.server.ServerProcess#registries()
  */
 public interface Registries {
     static Registries vanilla() {
@@ -80,7 +79,6 @@ public interface Registries {
 
     // Static registries
 
-    // The name block conflicts with blockmanager :(
     Registry<Block> blocks();
 
     Registry<Material> material();

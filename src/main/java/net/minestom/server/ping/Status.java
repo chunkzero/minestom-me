@@ -90,8 +90,9 @@ public record Status(
             this(onlinePlayers, maxPlayers, List.of());
         }
 
-        public static PlayerInfo onlineCount(Collection<? extends Player> players) {
-            return new PlayerInfo(players.size(), players.size() + 1, List.of());
+        /** Creates player information with no sample and a maximum one above the online count. */
+        public static PlayerInfo onlineCount(int onlinePlayers) {
+            return new PlayerInfo(onlinePlayers, onlinePlayers + 1);
         }
 
         /**

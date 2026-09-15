@@ -93,13 +93,13 @@ public class TagItemIntegrationTest {
         {
             handler.setTag(itemTag, item);
             assertEquals(item, handler.getTag(itemTag));
-            assertEquals(item.toItemNBT(env.process()), handler.getTag(nbtTag));
+            assertEquals(item.toItemNBT(env.process().registries()), handler.getTag(nbtTag));
         }
         // Override it with an NBT tag
         {
-            handler.setTag(nbtTag, item2.toItemNBT(env.process()));
+            handler.setTag(nbtTag, item2.toItemNBT(env.process().registries()));
             assertEquals(item2, handler.getTag(itemTag));
-            assertEquals(item2.toItemNBT(env.process()), handler.getTag(nbtTag));
+            assertEquals(item2.toItemNBT(env.process().registries()), handler.getTag(nbtTag));
         }
     }
 

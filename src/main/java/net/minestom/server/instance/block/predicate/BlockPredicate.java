@@ -21,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiPredicate;
 
 /**
  * <p>A predicate to filter blocks based on their name, properties, and/or nbt.</p>
@@ -43,7 +44,7 @@ public record BlockPredicate(
         @Nullable PropertiesPredicate state,
         @Nullable NbtPredicate nbt,
         DataComponentPredicates components
-) {
+) implements BiPredicate<Registries, Block> {
     /**
      * Matches all blocks.
      */
@@ -111,6 +112,7 @@ public record BlockPredicate(
         Objects.requireNonNull(components, "Component predicates cannot be null");
     }
 
+    @Override
     public boolean test(Registries registries, Block block) {
         if (blocks != null && !blocks.contains(registries.blocks(), block.registryKey()))
             return false;

@@ -37,6 +37,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 /**
@@ -44,11 +45,11 @@ import java.util.function.Predicate;
  *
  * <p>Registered predicates inspect the value of a particular component, while {@link Exists}
  * only requires that a component be present.</p>
- * <p>Pass registries to {@link #test(Registries, DataComponent.Holder)} when evaluating named tags.
- * Tag-dependent {@link Predicate} adapters use the initialized default server.</p>
+ * <p>Pass registries to {@link #test(Registries, DataComponent.Holder)} when evaluating named tags.</p>
  */
-public sealed interface DataComponentPredicate {
+public sealed interface DataComponentPredicate extends BiPredicate<Registries, DataComponent.Holder> {
 
+    @Override
     boolean test(Registries registries, DataComponent.Holder holder);
 
     @ApiStatus.Internal
