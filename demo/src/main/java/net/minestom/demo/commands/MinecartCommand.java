@@ -28,7 +28,7 @@ public class MinecartCommand extends Command {
     private void execute(CommandSender sender, CommandContext context) {
         var player = (Player) sender;
 
-        var minecart = new Entity(switch (context.get(type)) {
+        var minecart = new Entity(player.process(), switch (context.get(type)) {
             case NORMAL -> EntityType.MINECART;
             case CHEST -> EntityType.CHEST_MINECART;
             case FURNACE -> EntityType.FURNACE_MINECART;

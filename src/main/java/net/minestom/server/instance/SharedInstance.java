@@ -22,7 +22,7 @@ public class SharedInstance extends Instance {
     private final InstanceContainer instanceContainer;
 
     public SharedInstance(UUID uuid, InstanceContainer instanceContainer) {
-        super(uuid, instanceContainer.getDimensionType());
+        super(instanceContainer.process(), uuid, instanceContainer.getDimensionType());
         this.instanceContainer = instanceContainer;
     }
 

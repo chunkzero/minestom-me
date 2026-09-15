@@ -2,6 +2,7 @@ package net.minestom.server.instance;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minestom.server.ServerFlag;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.Viewable;
 import net.minestom.server.coordinate.ChunkRange;
 import net.minestom.server.coordinate.CoordConversion;
@@ -24,6 +25,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,9 +50,21 @@ final class EntityTrackerImpl implements EntityTracker {
     private final Int2ObjectSyncMap<EntityTrackerEntry> entriesByEntityId = Int2ObjectSyncMap.hashmap();
     private final Map<UUID, EntityTrackerEntry> entriesByEntityUuid = new ConcurrentHashMap<>();
 
+    private final ServerProcess process;
+
+    EntityTrackerImpl(ServerProcess process) {
+        this.process = Objects.requireNonNull(process);
+    }
+
+    @Override
+    public ServerProcess process() {
+        return process;
+    }
+
     @Override
     public <T extends Entity> void register(Entity entity, Point point,
                                             Target<T> target, @Nullable Update<T> update) {
+        Check.argCondition(entity.process() != process, "Entity belongs to another process");
         EntityTrackerEntry newEntry = new EntityTrackerEntry(entity, point);
 
         EntityTrackerEntry prevEntryWithId = entriesByEntityId.putIfAbsent(entity.getEntityId(), newEntry);
@@ -77,6 +91,7 @@ final class EntityTrackerImpl implements EntityTracker {
     @Override
     public <T extends Entity> void unregister(Entity entity,
                                               Target<T> target, @Nullable Update<T> update) {
+        Check.argCondition(entity.process() != process, "Entity belongs to another process");
         EntityTrackerEntry entry = entriesByEntityId.remove(entity.getEntityId());
         entriesByEntityUuid.remove(entity.getUuid());
         final Point point = entry == null ? null : entry.getLastPosition();
@@ -113,6 +128,7 @@ final class EntityTrackerImpl implements EntityTracker {
     @Override
     public <T extends Entity> void move(Entity entity, Point newPoint,
                                         Target<T> target, @Nullable Update<T> update) {
+        Check.argCondition(entity.process() != process, "Entity belongs to another process");
         EntityTrackerEntry entry = entriesByEntityId.get(entity.getEntityId());
         if (entry == null) {
             LOGGER.warn("Attempted to move unregistered entity {} in the entity tracker", entity.getEntityId());

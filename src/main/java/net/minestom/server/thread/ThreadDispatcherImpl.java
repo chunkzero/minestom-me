@@ -1,9 +1,14 @@
 package net.minestom.server.thread;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.Tickable;
+import net.minestom.server.entity.Entity;
+import net.minestom.server.instance.Chunk;
 import net.minestom.server.utils.collection.ConcurrentMessageQueues;
+import net.minestom.server.utils.validate.Check;
 import org.jctools.queues.MessagePassingQueue;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.ArrayDeque;
@@ -16,6 +21,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.function.IntFunction;
 
 final class ThreadDispatcherImpl<P, E extends Tickable> implements ThreadDispatcher<P, E> {
+    private final @Nullable ServerProcess process;
     private final ThreadProvider<P> provider;
     private final List<TickThread> threads;
 
@@ -32,6 +38,13 @@ final class ThreadDispatcherImpl<P, E extends Tickable> implements ThreadDispatc
 
     ThreadDispatcherImpl(ThreadProvider<P> provider, int threadCount,
                          IntFunction<? extends TickThread> threadGenerator) {
+        this(null, provider, threadCount, threadGenerator);
+    }
+
+    ThreadDispatcherImpl(@Nullable ServerProcess process, ThreadProvider<P> provider, int threadCount,
+                         IntFunction<? extends TickThread> threadGenerator) {
+        Check.argCondition(threadCount <= 0, "Dispatcher needs at least one thread");
+        this.process = process;
         this.provider = provider;
         TickThread[] threads = new TickThread[threadCount];
         Arrays.setAll(threads, threadGenerator);
@@ -120,7 +133,7 @@ final class ThreadDispatcherImpl<P, E extends Tickable> implements ThreadDispatc
     }
 
     @Override
-    public synchronized void shutdown() {
+    public void shutdown() {
         this.threads.forEach(TickThread::shutdown);
     }
 
@@ -132,7 +145,25 @@ final class ThreadDispatcherImpl<P, E extends Tickable> implements ThreadDispatc
 
     @Override
     public void signalUpdate(ThreadDispatcher.Update<P, E> update) {
+        switch (update) {
+            case Update.PartitionLoad<P, E> load -> checkOwner(load.partition());
+            case Update.PartitionUnload<P, E> unload -> checkOwner(unload.partition());
+            case Update.ElementUpdate<P, E> move -> {
+                checkOwner(move.element());
+                checkOwner(move.partition());
+            }
+            case Update.ElementRemove<P, E> remove -> checkOwner(remove.element());
+        }
         this.updates.relaxedOffer(update);
+    }
+
+    private void checkOwner(Object value) {
+        final ServerProcess owner = switch (value) {
+            case Entity entity -> entity.process();
+            case Chunk chunk -> chunk.getInstance().process();
+            default -> null;
+        };
+        Check.argCondition(owner != null && owner != process, "Game object belongs to another process");
     }
 
     private void processLoadedPartition(P partition) {
@@ -160,7 +191,7 @@ final class ThreadDispatcherImpl<P, E extends Tickable> implements ThreadDispatc
     }
 
     private void processRemovedElement(Tickable tickable) {
-        Partition partition = elements.get(tickable);
+        Partition partition = elements.remove(tickable);
         if (partition != null) {
             partition.elements.remove(tickable);
         }

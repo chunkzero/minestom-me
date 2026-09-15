@@ -46,8 +46,8 @@ import net.minestom.demo.commands.SleepCommand;
 import net.minestom.demo.commands.SummonCommand;
 import net.minestom.demo.commands.TeleportCommand;
 import net.minestom.demo.commands.TestBiomeAmbientParticleCommand;
-import net.minestom.demo.commands.TestCommand;
 import net.minestom.demo.commands.TestCommand2;
+import net.minestom.demo.commands.TestCommand;
 import net.minestom.demo.commands.TestInstabreakCommand;
 import net.minestom.demo.commands.TitleCommand;
 import net.minestom.demo.commands.TransferCommand;
@@ -75,18 +75,18 @@ import net.minestom.server.utils.time.TimeUnit;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 
 public class Main {
 
-    @SuppressWarnings("removal") // Default-process bootstrap until engine ownership and ticking are migrated.
+    @SuppressWarnings("removal") // Default-process bootstrap until the remaining default-process services are migrated.
     static void main(String[] args) {
         System.setProperty("minestom.new-socket-write-lock", "true");
         System.setProperty("minestom.registry.unsafe-ops", "true");
-        MinecraftServer minecraftServer = MinecraftServer.init(new Auth.Offline());
-        ServerProcess process = Objects.requireNonNull(MinecraftServer.process());
+        ServerProcess process = MinecraftServer.updateProcess(new Auth.Offline());
         process.setCompressionThreshold(0);
 
         BlockManager blockManager = process.block();
@@ -160,8 +160,8 @@ public class Main {
             throw new RuntimeException(e);
         }
 
-        process.eventHandler().addListener(ServerListPingEvent.class, event -> {
-            Status.PlayerInfo.Builder builder = Status.PlayerInfo.builder(Status.PlayerInfo.online(process.connection().getOnlinePlayers(), 20))
+        process.eventHandler().addListener(ServerListPingEvent.class, (owner, event) -> {
+            Status.PlayerInfo.Builder builder = Status.PlayerInfo.builder(Status.PlayerInfo.online(owner.connection().getOnlinePlayers(), 20))
                     .sample("The first line is separated from the others")
                     .sample("Could be a name, or a message");
 
@@ -217,7 +217,7 @@ public class Main {
         OpenToLAN.open(new OpenToLANConfig().eventCallDelay(Duration.of(1, TimeUnit.DAY)));
         process.scheduler().buildShutdownTask(OpenToLAN::close);
 
-        minecraftServer.start("0.0.0.0", 25565);
-//        minecraftServer.start(java.net.UnixDomainSocketAddress.of("minestom-demo.sock"));
+        process.start(new InetSocketAddress("0.0.0.0", 25565));
+//        process.start(java.net.UnixDomainSocketAddress.of("minestom-demo.sock"));
     }
 }

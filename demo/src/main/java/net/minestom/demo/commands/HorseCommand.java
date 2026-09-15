@@ -60,7 +60,7 @@ public class HorseCommand extends Command {
         boolean baby = context.get("baby");
         HorseMeta.Marking marking = context.get("marking");
         HorseMeta.Variant variant = context.get("variant");
-        var horse = new EntityCreature(EntityType.HORSE);
+        var horse = new EntityCreature(player.process(), EntityType.HORSE);
         var meta = (HorseMeta) horse.getEntityMeta();
         meta.setBaby(baby);
         meta.setVariantAndMarking(variant, marking);

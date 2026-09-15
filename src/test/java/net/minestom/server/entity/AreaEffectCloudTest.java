@@ -1,11 +1,13 @@
 package net.minestom.server.entity;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.color.Color;
 import net.minestom.server.entity.metadata.other.AreaEffectCloudMeta;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.particle.Particle;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,6 +15,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 public class AreaEffectCloudTest {
+    private final ServerProcess process = ServerProcess.create();
+
+    @AfterEach
+    void closeProcess() {
+        process.close();
+    }
+
     @Test
     public void createWithDustParticle() {
         int colour = 0x5505FF01;
@@ -25,7 +34,7 @@ public class AreaEffectCloudTest {
 
         Particle particle = Particle.DUST.withProperties(new Color(r, g, b), size);
 
-        Entity entity = new Entity(EntityTypes.AREA_EFFECT_CLOUD);
+        Entity entity = new Entity(process, EntityTypes.AREA_EFFECT_CLOUD);
         AreaEffectCloudMeta meta = (AreaEffectCloudMeta) entity.getEntityMeta();
         meta.setParticle(particle);
 
@@ -57,7 +66,7 @@ public class AreaEffectCloudTest {
 
         Particle particle = Particle.DUST_COLOR_TRANSITION.withProperties(new Color(r, g, b), new Color(r2, g2, b2), size);
 
-        Entity entity = new Entity(EntityTypes.AREA_EFFECT_CLOUD);
+        Entity entity = new Entity(process, EntityTypes.AREA_EFFECT_CLOUD);
         AreaEffectCloudMeta meta = (AreaEffectCloudMeta) entity.getEntityMeta();
         meta.setParticle(particle);
 
@@ -80,7 +89,7 @@ public class AreaEffectCloudTest {
         Block block = Block.GRASS_BLOCK;
         Particle particle = Particle.BLOCK.withBlock(block);
 
-        Entity entity = new Entity(EntityTypes.AREA_EFFECT_CLOUD);
+        Entity entity = new Entity(process, EntityTypes.AREA_EFFECT_CLOUD);
         AreaEffectCloudMeta meta = (AreaEffectCloudMeta) entity.getEntityMeta();
         meta.setParticle(particle);
 
@@ -96,7 +105,7 @@ public class AreaEffectCloudTest {
         Block block = Block.GRASS_BLOCK;
         Particle particle = Particle.BLOCK_MARKER.withBlock(block);
 
-        Entity entity = new Entity(EntityTypes.AREA_EFFECT_CLOUD);
+        Entity entity = new Entity(process, EntityTypes.AREA_EFFECT_CLOUD);
         AreaEffectCloudMeta meta = (AreaEffectCloudMeta) entity.getEntityMeta();
         meta.setParticle(particle);
 
@@ -111,7 +120,7 @@ public class AreaEffectCloudTest {
     public void createWithItemParticle() {
         Particle particle = Particle.ITEM.withItem(ItemStack.of(Material.ACACIA_LOG));
 
-        Entity entity = new Entity(EntityTypes.AREA_EFFECT_CLOUD);
+        Entity entity = new Entity(process, EntityTypes.AREA_EFFECT_CLOUD);
         AreaEffectCloudMeta meta = (AreaEffectCloudMeta) entity.getEntityMeta();
         meta.setParticle(particle);
 
@@ -126,7 +135,7 @@ public class AreaEffectCloudTest {
     public void createWithSculkChargeParticle() {
         Particle particle = Particle.SCULK_CHARGE.withRoll(3);
 
-        Entity entity = new Entity(EntityTypes.AREA_EFFECT_CLOUD);
+        Entity entity = new Entity(process, EntityTypes.AREA_EFFECT_CLOUD);
         AreaEffectCloudMeta meta = (AreaEffectCloudMeta) entity.getEntityMeta();
         meta.setParticle(particle);
 

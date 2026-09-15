@@ -1,5 +1,6 @@
 package net.minestom.server.event;
 
+import net.minestom.server.ServerProcess;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -10,6 +11,7 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 
 import java.util.concurrent.TimeUnit;
@@ -26,6 +28,7 @@ public class SingleNodeBenchmark {
     public int listenerCount;
 
     private EventNode<Event> node;
+    private ServerProcess process;
     private ListenerHandle<TestEvent> handle;
 
     record TestEvent() implements Event {
@@ -36,6 +39,7 @@ public class SingleNodeBenchmark {
 
     @Setup
     public void setup() {
+        process = ServerProcess.create();
         node = EventNode.all("node");
         for (int i = 0; i < listenerCount; i++) {
             node.addListener(TestEvent.class, _ -> {
@@ -47,18 +51,23 @@ public class SingleNodeBenchmark {
         node.addListener(TestEvent2.class, _ -> {
             // Empty
         });
-        node.call(new TestEvent2());
+        node.call(process, new TestEvent2());
 
         this.handle = node.getHandle(TestEvent.class);
     }
 
+    @TearDown
+    public void close() {
+        process.close();
+    }
+
     @Benchmark
     public void call() {
-        node.call(new TestEvent());
+        node.call(process, new TestEvent());
     }
 
     @Benchmark
     public void handleCall() {
-        handle.call(new TestEvent());
+        handle.call(process, new TestEvent());
     }
 }

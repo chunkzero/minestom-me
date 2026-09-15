@@ -1,0 +1,238 @@
+package net.minestom.server;
+
+import net.minestom.server.coordinate.Pos;
+import net.minestom.server.entity.Entity;
+import net.minestom.server.entity.EntityCreature;
+import net.minestom.server.entity.EntityProjectile;
+import net.minestom.server.entity.EntityType;
+import net.minestom.server.entity.Player;
+import net.minestom.server.event.entity.EntityTickEvent;
+import net.minestom.server.event.instance.AddEntityToInstanceEvent;
+import net.minestom.server.event.instance.InstanceTickEvent;
+import net.minestom.server.event.server.ServerTickMonitorEvent;
+import net.minestom.server.instance.ChunkLoader;
+import net.minestom.server.instance.EntityTracker;
+import net.minestom.server.instance.SharedInstance;
+import net.minestom.server.network.packet.server.SendablePacket;
+import net.minestom.server.network.player.GameProfile;
+import net.minestom.server.network.player.PlayerConnection;
+import net.minestom.server.world.DimensionType;
+import net.minestom.testing.ServerProcessPair;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+@Timeout(15)
+class ProcessTickIntegrationTest {
+    @Test
+    void instancesEntitiesAndTickEventsUseTheirOwner() {
+        try (var pair = new ServerProcessPair()) {
+            var first = pair.first();
+            var second = pair.second();
+            var errors = new CopyOnWriteArrayList<Throwable>();
+            first.exception().setExceptionHandler(errors::add);
+            second.exception().setExceptionHandler(errors::add);
+            var firstInstance = first.instance().createInstanceContainer(ChunkLoader.noop());
+            var dimension = second.registries().dimensionType().register("test:second", DimensionType.builder().ambientLight(0.7f).build());
+            var secondInstance = second.instance().createInstanceContainer(dimension, ChunkLoader.noop());
+            var shared = second.instance().createSharedInstance(secondInstance);
+            var copy = secondInstance.copy();
+            assertSame(second, shared.process());
+            assertSame(second, copy.process());
+            assertSame(second.registries(), shared.registries());
+            assertSame(secondInstance.getCachedDimensionType(), shared.getCachedDimensionType());
+
+            var firstEntity = entity(first);
+            var secondEntity = entity(second);
+            firstEntity.setInstance(firstInstance, Pos.ZERO).join();
+            secondEntity.setInstance(shared, Pos.ZERO).join();
+            var instanceCalls = new CopyOnWriteArrayList<ServerProcess>();
+            var entityCalls = new CopyOnWriteArrayList<ServerProcess>();
+            var monitors = new CopyOnWriteArrayList<ServerProcess>();
+            firstInstance.eventNode().addListener(InstanceTickEvent.class, (owner, _) -> instanceCalls.add(owner));
+            shared.eventNode().addListener(InstanceTickEvent.class, (owner, _) -> instanceCalls.add(owner));
+            firstEntity.eventNode().addListener(EntityTickEvent.class, (owner, _) -> entityCalls.add(owner));
+            secondEntity.eventNode().addListener(EntityTickEvent.class, (owner, _) -> entityCalls.add(owner));
+            first.eventHandler().addListener(ServerTickMonitorEvent.class, (owner, _) -> monitors.add(owner));
+            second.eventHandler().addListener(ServerTickMonitorEvent.class, (owner, _) -> monitors.add(owner));
+
+            first.ticker().tick(System.nanoTime());
+            assertEquals(List.of(first), instanceCalls);
+            assertEquals(List.of(first), entityCalls);
+            assertEquals(List.of(first), monitors);
+            assertNull(secondEntity.acquirable().assignedThread());
+            second.ticker().tick(System.nanoTime());
+            assertEquals(List.of(first, second), instanceCalls);
+            assertEquals(List.of(first, second), entityCalls);
+            assertEquals(List.of(first, second), monitors);
+            assertTrue(first.dispatcher().threads().contains(firstEntity.acquirable().assignedThread()));
+            assertTrue(second.dispatcher().threads().contains(secondEntity.acquirable().assignedThread()));
+
+            first.close();
+            assertFalse(first.dispatcher().isAlive());
+            assertThrows(IllegalStateException.class, () -> first.ticker().tick(System.nanoTime()));
+            second.ticker().tick(System.nanoTime());
+            assertEquals(List.of(first, second, second), entityCalls);
+            secondEntity.remove();
+            second.ticker().tick(System.nanoTime());
+            assertEquals(List.of(first, second, second), entityCalls);
+            assertTrue(errors.isEmpty(), errors::toString);
+        }
+    }
+
+    @Test
+    void foreignPlacementAndRegistrationFailBeforeSideEffects() {
+        try (var pair = new ServerProcessPair()) {
+            var first = pair.first();
+            var second = pair.second();
+            var source = first.instance().createInstanceContainer(ChunkLoader.noop());
+            var destination = second.instance().createInstanceContainer(ChunkLoader.noop());
+            var calls = new AtomicInteger();
+            first.eventHandler().addListener(AddEntityToInstanceEvent.class, _ -> calls.incrementAndGet());
+            second.eventHandler().addListener(AddEntityToInstanceEvent.class, _ -> calls.incrementAndGet());
+            var entity = entity(first);
+            entity.setInstance(source, Pos.ZERO).join();
+            calls.set(0);
+            var creature = new EntityCreature(first, EntityType.ZOMBIE);
+            var player = new Player(new EmptyConnection(first), new GameProfile(UUID.randomUUID(), "test"));
+            assertSame(first, player.process());
+            for (var candidate : List.of(entity, creature, player)) {
+                assertThrows(IllegalArgumentException.class, () -> candidate.setInstance(destination, new Pos(32, 0, 32)));
+            }
+            assertSame(source, entity.getInstance());
+            assertEquals(Pos.ZERO, entity.getPosition());
+            assertTrue(source.getEntities().contains(entity));
+            assertNull(creature.getInstance());
+            assertNull(player.getInstance());
+            assertTrue(destination.getChunks().isEmpty());
+            assertTrue(destination.getEntities().isEmpty());
+            assertEquals(0, calls.get());
+            assertSame(second, destination.getEntityTracker().process());
+            assertThrows(IllegalArgumentException.class, () -> destination.getEntityTracker()
+                    .register(entity, Pos.ZERO, EntityTracker.Target.ENTITIES, null));
+            assertThrows(IllegalArgumentException.class, () -> destination.getEntityTracker()
+                    .move(entity, Pos.ZERO, EntityTracker.Target.ENTITIES, null));
+            assertThrows(IllegalArgumentException.class, () -> destination.getEntityTracker()
+                    .unregister(entity, EntityTracker.Target.ENTITIES, null));
+            assertThrows(IllegalArgumentException.class, () -> second.instance().registerInstance(source));
+            assertThrows(IllegalArgumentException.class, () -> second.instance().unregisterInstance(source));
+            assertThrows(IllegalArgumentException.class, () -> second.instance().createSharedInstance(source));
+            var shared = new SharedInstance(UUID.randomUUID(), source);
+            assertThrows(IllegalArgumentException.class, () -> second.instance().registerSharedInstance(shared));
+            assertTrue(source.getSharedInstances().isEmpty());
+            assertTrue(source.isRegistered());
+            var foreign = entity(second);
+            assertThrows(IllegalArgumentException.class, () -> entity.addPassenger(foreign));
+            assertTrue(entity.getPassengers().isEmpty());
+            assertNull(foreign.getVehicle());
+            assertThrows(IllegalArgumentException.class, () -> new EntityProjectile(first, foreign, EntityType.ARROW));
+            assertThrows(IllegalArgumentException.class, () -> second.dispatcher().createPartition(entity.getChunk()));
+            assertThrows(IllegalArgumentException.class, () -> second.dispatcher().updateElement(entity, entity.getChunk()));
+            assertThrows(IllegalArgumentException.class, () -> second.dispatcher().removeElement(entity));
+        }
+    }
+
+    @Test
+    void tickFailuresGoToOwner() {
+        try (var pair = new ServerProcessPair()) {
+            var firstErrors = new CopyOnWriteArrayList<Throwable>();
+            var secondErrors = new CopyOnWriteArrayList<Throwable>();
+            pair.first().exception().setExceptionHandler(firstErrors::add);
+            pair.second().exception().setExceptionHandler(secondErrors::add);
+            var expected = new IllegalStateException("tick failure");
+            var entity = new Entity(pair.second(), EntityType.ZOMBIE) {
+                @Override
+                public void tick(long time) {
+                    throw expected;
+                }
+            };
+            entity.setInstance(pair.second().instance().createInstanceContainer(ChunkLoader.noop())).join();
+            pair.second().ticker().tick(System.nanoTime());
+            assertTrue(firstErrors.isEmpty());
+            assertEquals(List.of(expected), secondErrors);
+        }
+    }
+
+    @Test
+    void tickWorkerCanCloseItsProcessWithoutDeadlockingTheDispatcher() throws InterruptedException {
+        try (var pair = new ServerProcessPair()) {
+            var first = pair.first();
+            var second = pair.second();
+            var entity = new Entity(first, EntityType.ZOMBIE) {
+                @Override
+                public void tick(long time) {
+                    process().close();
+                }
+            };
+            entity.setInstance(first.instance().createInstanceContainer(ChunkLoader.noop())).join();
+            first.ticker().tick(System.nanoTime());
+            for (var thread : first.dispatcher().threads()) {
+                thread.join(3000);
+                assertFalse(thread.isAlive());
+            }
+            second.ticker().tick(System.nanoTime());
+            assertTrue(second.dispatcher().isAlive());
+        }
+    }
+
+    @Test
+    void processStartOwnsTickThreadsAndClosingOneLeavesTheOtherRunning() throws InterruptedException {
+        try (var pair = new ServerProcessPair()) {
+            var first = pair.first();
+            var second = pair.second();
+            var firstTicks = new CountDownLatch(2);
+            var secondTicks = new CountDownLatch(2);
+            first.eventHandler().addListener(ServerTickMonitorEvent.class, _ -> firstTicks.countDown());
+            second.eventHandler().addListener(ServerTickMonitorEvent.class, _ -> secondTicks.countDown());
+            first.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+            second.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+            assertTrue(firstTicks.await(5, TimeUnit.SECONDS));
+            assertTrue(secondTicks.await(5, TimeUnit.SECONDS));
+            first.close();
+            assertFalse(first.dispatcher().isAlive());
+            var remainingTicks = new CountDownLatch(2);
+            second.eventHandler().addListener(ServerTickMonitorEvent.class, _ -> remainingTicks.countDown());
+            assertTrue(remainingTicks.await(5, TimeUnit.SECONDS));
+            assertTrue(second.dispatcher().isAlive());
+        }
+    }
+
+    private static Entity entity(ServerProcess process) {
+        var entity = new Entity(process, EntityType.ZOMBIE);
+        // Direct delivery to empty viewer sets exercises ticks without packet encoding.
+        entity.setAutoViewable(false);
+        entity.setNoGravity(true);
+        return entity;
+    }
+
+    private static final class EmptyConnection extends PlayerConnection {
+        EmptyConnection(ServerProcess process) {
+            super(process);
+        }
+
+        @Override
+        public void sendPacket(SendablePacket packet) {
+        }
+
+        @Override
+        public SocketAddress getRemoteAddress() {
+            return new InetSocketAddress(0);
+        }
+    }
+}

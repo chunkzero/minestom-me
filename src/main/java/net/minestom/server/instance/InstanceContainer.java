@@ -6,13 +6,13 @@ import it.unimi.dsi.fastutil.longs.LongList;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.BlockVec;
 import net.minestom.server.coordinate.CoordConversion;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.instance.InstanceBlockUpdateEvent;
 import net.minestom.server.event.instance.InstanceChunkLoadEvent;
 import net.minestom.server.event.instance.InstanceChunkUnloadEvent;
@@ -31,7 +31,6 @@ import net.minestom.server.network.packet.server.play.BlockEntityDataPacket;
 import net.minestom.server.network.packet.server.play.MultiBlockChangePacket;
 import net.minestom.server.network.packet.server.play.UnloadChunkPacket;
 import net.minestom.server.network.packet.server.play.WorldEventPacket;
-import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.RegistryKey;
 import net.minestom.server.utils.PacketSendingUtils;
 import net.minestom.server.utils.async.AsyncUtils;
@@ -117,23 +116,27 @@ public class InstanceContainer extends Instance {
 
     @SuppressWarnings({"removal", "this-escape"}) // deliberate self registration during construction
     public InstanceContainer(UUID uuid, RegistryKey<DimensionType> dimensionType, @Nullable ChunkLoader loader, Key dimensionName) {
-        this(MinecraftServer.getRegistries(), uuid, dimensionType, loader, dimensionName);
+        this(MinecraftServer.process(), uuid, dimensionType, loader, dimensionName);
     }
 
     @SuppressWarnings("this-escape") // deliberate self registration during construction
     public InstanceContainer(
-            Registries registries,
+            ServerProcess process,
             UUID uuid,
             RegistryKey<DimensionType> dimensionType,
             @Nullable ChunkLoader loader,
             Key dimensionName
     ) {
-        super(registries, uuid, dimensionType, dimensionName);
+        super(process, uuid, dimensionType, dimensionName);
         setChunkSupplier(DynamicChunk::new);
         setChunkLoader(Objects.requireNonNullElse(loader, DEFAULT_LOADER));
         this.chunkLoader.loadInstance(this);
         // last block change starts at instance creation time
         refreshLastBlockChangeTime();
+    }
+
+    public InstanceContainer(ServerProcess process, UUID uuid, RegistryKey<DimensionType> dimensionType) {
+        this(process, uuid, dimensionType, null, dimensionType.key());
     }
 
     @Override
@@ -158,7 +161,6 @@ public class InstanceContainer extends Instance {
      * @param z     the block Z
      * @param block the block to place
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private synchronized void UNSAFE_setBlock(Chunk chunk, int x, int y, int z, Block block,
                                               @Nullable BlockHandler.Placement placement, @Nullable BlockHandler.Destroy destroy,
                                               boolean doBlockUpdates, int updateDistance) {
@@ -182,7 +184,7 @@ public class InstanceContainer extends Instance {
             this.currentlyChangingBlocks.put(blockPosition, block);
 
             // Change id based on neighbors
-            final BlockPlacementRule blockPlacementRule = MinecraftServer.getBlockManager().getBlockPlacementRule(block);
+            final BlockPlacementRule blockPlacementRule = process().block().getBlockPlacementRule(block);
             if (placement != null && blockPlacementRule != null && doBlockUpdates) {
                 BlockPlacementRule.PlacementState rulePlacement;
                 if (placement instanceof BlockHandler.PlayerPlacement pp) {
@@ -222,7 +224,7 @@ public class InstanceContainer extends Instance {
                     chunk.sendPacketToViewers(new BlockEntityDataPacket(blockPosition, blockEntityType, data));
                 }
             }
-            EventDispatcher.call(new InstanceBlockUpdateEvent(this, blockPosition, block));
+            process().eventHandler().call(new InstanceBlockUpdateEvent(this, blockPosition, block));
         } finally {
             chunk.unlockWriteLock();
         }
@@ -238,7 +240,6 @@ public class InstanceContainer extends Instance {
         return true;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public boolean breakBlock(Player player, Point blockPosition, BlockFace blockFace, boolean doBlockUpdates) {
         final Chunk chunk = getChunkAt(blockPosition);
@@ -256,7 +257,7 @@ public class InstanceContainer extends Instance {
             return false;
         }
         PlayerBlockBreakEvent blockBreakEvent = new PlayerBlockBreakEvent(player, this, block, Block.AIR, blockPosition.asBlockVec(), blockFace);
-        EventDispatcher.call(blockBreakEvent);
+        process().eventHandler().call(blockBreakEvent);
         final boolean allowed = !blockBreakEvent.isCancelled();
         if (allowed) {
             // Break or change the broken block based on event result
@@ -292,21 +293,21 @@ public class InstanceContainer extends Instance {
         return hasEnabledAutoChunkLoad() ? retrieveChunk(chunkX, chunkZ) : AsyncUtils.empty();
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public synchronized void unloadChunk(Chunk chunk) {
+        Check.argCondition(chunk.getInstance() != this, "Chunk belongs to another instance");
         if (!isLoaded(chunk)) return;
         final int chunkX = chunk.getChunkX();
         final int chunkZ = chunk.getChunkZ();
         chunk.sendPacketToViewers(new UnloadChunkPacket(chunkX, chunkZ));
-        EventDispatcher.call(new InstanceChunkUnloadEvent(this, chunk));
+        process().eventHandler().call(new InstanceChunkUnloadEvent(this, chunk));
         // Remove all entities in chunk
         getEntityTracker().chunkEntities(chunkX, chunkZ, EntityTracker.Target.ENTITIES).forEach(Entity::remove);
         // Clear cache
         this.chunks.remove(CoordConversion.chunkIndex(chunkX, chunkZ));
         chunk.unload();
         chunkLoader.unloadChunk(chunk);
-        var dispatcher = MinecraftServer.process().dispatcher();
+        var dispatcher = process().dispatcher();
         dispatcher.deletePartition(chunk);
     }
 
@@ -333,21 +334,19 @@ public class InstanceContainer extends Instance {
         return optionalAsync(chunkLoader.supportsParallelSaving(), () -> chunkLoader.saveChunks(getChunks()));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    private static CompletableFuture<Void> optionalAsync(boolean async, Runnable runnable) {
+    private CompletableFuture<Void> optionalAsync(boolean async, Runnable runnable) {
         if (!async) {
             runnable.run();
             return AsyncUtils.empty();
         }
         return CompletableFuture.runAsync(runnable, Thread::startVirtualThread).whenComplete((_, e) -> {
-            if (e != null) MinecraftServer.getExceptionManager().handleException(e);
+            if (e != null) process().exception().handleException(e);
         });
     }
 
     // Loaders must not force other chunks to load from within loadChunk: loaders
     // without parallel support run inside the loadingChunks computation, where a
     // reentrant load on this instance would violate the map's recursive update rules
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     protected CompletableFuture<Chunk> retrieveChunk(int chunkX, int chunkZ) {
         final long index = CoordConversion.chunkIndex(chunkX, chunkZ);
         final CompletableFuture<Chunk> future = loadingChunks.computeIfAbsent(index, _ -> {
@@ -389,9 +388,9 @@ public class InstanceContainer extends Instance {
             // The chain never completes inside the mapping, this callback is always async
             var _ = chain.whenComplete((chunk, e) -> {
                 if (e != null) {
-                    MinecraftServer.getExceptionManager().handleException(e instanceof CompletionException ce ? ce.getCause() : e);
+                    process().exception().handleException(e instanceof CompletionException ce ? ce.getCause() : e);
                 } else {
-                    EventDispatcher.call(new InstanceChunkLoadEvent(this, chunk));
+                    process().eventHandler().call(new InstanceChunkLoadEvent(this, chunk));
                 }
             });
             return chain;
@@ -414,7 +413,6 @@ public class InstanceContainer extends Instance {
         return chunk;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     protected void generateChunk(Chunk chunk, Generator generator) {
         final int chunkX = chunk.getChunkX(), chunkZ = chunk.getChunkZ();
         GeneratorImpl.GenSection[] genSections = new GeneratorImpl.GenSection[chunk.getSections().size()];
@@ -464,7 +462,7 @@ public class InstanceContainer extends Instance {
             // Apply awaiting forks
             processFork(chunk);
         } catch (Throwable e) {
-            MinecraftServer.getExceptionManager().handleException(e);
+            process().exception().handleException(e);
         } finally {
             // End generation
             refreshLastBlockChangeTime();
@@ -626,7 +624,7 @@ public class InstanceContainer extends Instance {
      * @see #getSrcInstance() to retrieve the "creation source" of the copied instance
      */
     public synchronized InstanceContainer copy() {
-        InstanceContainer copiedInstance = new InstanceContainer(UUID.randomUUID(), getDimensionType());
+        InstanceContainer copiedInstance = new InstanceContainer(process(), UUID.randomUUID(), getDimensionType(), null, Key.key(getDimensionName()));
         copiedInstance.srcInstance = this;
         copiedInstance.tagHandler = this.tagHandler.copy();
         copiedInstance.lastBlockChangeTime = this.lastBlockChangeTime;
@@ -679,7 +677,6 @@ public class InstanceContainer extends Instance {
         this.generator = generator;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Experimental
     @Override
     public CompletableFuture<Void> generateChunk(int chunkX, int chunkZ, Generator generator) {
@@ -693,7 +690,7 @@ public class InstanceContainer extends Instance {
             }
             chunk.sendChunk();
         }, Thread::startVirtualThread).whenComplete((_, e) -> {
-            if (e != null) MinecraftServer.getExceptionManager().handleException(e);
+            if (e != null) process().exception().handleException(e);
         });
     }
 
@@ -757,7 +754,6 @@ public class InstanceContainer extends Instance {
      *
      * @param blockPosition the position of the modified block
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void executeNeighboursBlockPlacementRule(Point blockPosition, int updateDistance) {
         ChunkCache cache = new ChunkCache(this, null, null);
         for (var updateFace : BLOCK_UPDATE_FACES) {
@@ -770,7 +766,7 @@ public class InstanceContainer extends Instance {
             final Block neighborBlock = cache.getBlock(neighborX, neighborY, neighborZ, Condition.NONE);
             if (neighborBlock == null || neighborBlock.air())
                 continue;
-            final BlockPlacementRule neighborBlockPlacementRule = MinecraftServer.getBlockManager().getBlockPlacementRule(neighborBlock);
+            final BlockPlacementRule neighborBlockPlacementRule = process().block().getBlockPlacementRule(neighborBlock);
             if (neighborBlockPlacementRule == null || updateDistance >= neighborBlockPlacementRule.maxUpdateDistance())
                 continue;
 
@@ -790,10 +786,9 @@ public class InstanceContainer extends Instance {
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void cacheChunk(Chunk chunk) {
         this.chunks.put(CoordConversion.chunkIndex(chunk.getChunkX(), chunk.getChunkZ()), chunk);
-        var dispatcher = MinecraftServer.process().dispatcher();
+        var dispatcher = process().dispatcher();
         dispatcher.createPartition(chunk);
     }
 }

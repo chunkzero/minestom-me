@@ -1,14 +1,18 @@
 package net.minestom.server.event;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.event.trait.CancellableEvent;
 import net.minestom.server.event.trait.RecursiveEvent;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -22,7 +26,21 @@ public interface EventListener<T extends Event> {
 
     Class<T> eventType();
 
+    /** Direct execution of a custom ordinary listener. Contextual listeners require {@link #run(ServerProcess, Event)}. */
     Result run(T event);
+
+    default Result run(ServerProcess process, T event) {
+        return run(event);
+    }
+
+    /**
+     * Creates the state used by one node registration. Custom stateful listeners should override
+     * this method when their registration state must be copied; captured application state remains caller-owned.
+     */
+    @ApiStatus.Internal
+    default EventListener<T> newRegistration() {
+        return this;
+    }
 
     @Contract(pure = true)
     static <T extends Event> EventListener.Builder<T> builder(Class<T> eventType) {
@@ -40,39 +58,69 @@ public interface EventListener<T extends Event> {
      */
     @Contract(pure = true)
     static <T extends Event> EventListener<T> of(Class<T> eventType, Consumer<T> listener) {
+        return of(eventType, (_, event) -> listener.accept(event));
+    }
+
+    @Contract(pure = true)
+    static <T extends Event> EventListener<T> of(Class<T> eventType, BiConsumer<ServerProcess, T> listener) {
         if (CancellableEvent.class.isAssignableFrom(eventType) || RecursiveEvent.class.isAssignableFrom(eventType)) {
-            return new Builder.ListenerImpl<>(eventType, event -> {
-                if (event instanceof CancellableEvent cancellableEvent && cancellableEvent.isCancelled()) {
+            return new Builder.ListenerImpl<>(eventType, (process, event) -> {
+                if (event instanceof CancellableEvent cancellableEvent && cancellableEvent.isCancelled())
                     return Result.INVALID;
-                }
-                listener.accept(event);
+                listener.accept(process, event);
                 return Result.SUCCESS;
-            });
-        } else {
-            return new Builder.ListenerImpl<>(eventType, event -> {
-                listener.accept(event);
-                return Result.SUCCESS;
-            });
+            }, 0);
         }
+        return new Builder.ListenerImpl<>(eventType, (process, event) -> {
+            listener.accept(process, event);
+            return Result.SUCCESS;
+        }, 0);
     }
 
     class Builder<T extends Event> {
-        private record ListenerImpl<T extends Event>(
-                Class<T> eventType,
-                Function<T, EventListener.Result> function
-        ) implements EventListener<T> {
+        private static final class ListenerImpl<T extends Event> implements EventListener<T> {
+            private final Class<T> eventType;
+            private final BiFunction<ServerProcess, T, Result> function;
+            private final int expireCount;
+            private final AtomicInteger remaining;
+
+            private ListenerImpl(Class<T> eventType, BiFunction<ServerProcess, T, Result> function, int expireCount) {
+                this.eventType = eventType;
+                this.function = function;
+                this.expireCount = expireCount;
+                this.remaining = new AtomicInteger(expireCount);
+            }
+
             @Override
-            public Result run(T t) {
-                return function.apply(t);
+            public Class<T> eventType() {
+                return eventType;
+            }
+
+            @Override
+            public EventListener<T> newRegistration() {
+                return expireCount > 0 ? new ListenerImpl<>(eventType, function, expireCount) : this;
+            }
+
+            @Override
+            public Result run(ServerProcess process, T event) {
+                final var result = function.apply(process, event);
+                if (result == Result.SUCCESS && expireCount > 0 && remaining.decrementAndGet() == 0)
+                    return Result.EXPIRED;
+                return result;
+            }
+
+            @Override
+            public Result run(T event) {
+                throw new IllegalStateException("Listener execution requires a process");
             }
         }
 
         private final Class<T> eventType;
-        private final List<Predicate<T>> filters = new ArrayList<>();
+        private final List<BiPredicate<ServerProcess, T>> filters = new ArrayList<>();
         private boolean ignoreCancelled = true;
         private int expireCount;
-        private Predicate<T> expireWhen;
-        private Consumer<T> handler;
+        private BiPredicate<ServerProcess, T> expireWhen;
+        private BiConsumer<ServerProcess, T> handler;
 
         protected Builder(Class<T> eventType) {
             this.eventType = eventType;
@@ -84,6 +132,11 @@ public interface EventListener<T extends Event> {
          */
         @Contract(value = "_ -> this")
         public EventListener.Builder<T> filter(Predicate<T> filter) {
+            return filter((_, event) -> filter.test(event));
+        }
+
+        @Contract(value = "_ -> this")
+        public EventListener.Builder<T> filter(BiPredicate<ServerProcess, T> filter) {
             this.filters.add(filter);
             return this;
         }
@@ -120,6 +173,11 @@ public interface EventListener<T extends Event> {
          */
         @Contract(value = "_ -> this")
         public EventListener.Builder<T> expireWhen(Predicate<T> expireWhen) {
+            return expireWhen((_, event) -> expireWhen.test(event));
+        }
+
+        @Contract(value = "_ -> this")
+        public EventListener.Builder<T> expireWhen(BiPredicate<ServerProcess, T> expireWhen) {
             this.expireWhen = expireWhen;
             return this;
         }
@@ -130,6 +188,11 @@ public interface EventListener<T extends Event> {
          */
         @Contract(value = "_ -> this")
         public EventListener.Builder<T> handler(Consumer<T> handler) {
+            return handler((_, event) -> handler.accept(event));
+        }
+
+        @Contract(value = "_ -> this")
+        public EventListener.Builder<T> handler(BiConsumer<ServerProcess, T> handler) {
             this.handler = handler;
             return this;
         }
@@ -137,27 +200,25 @@ public interface EventListener<T extends Event> {
         @Contract(value = "-> new", pure = true)
         public EventListener<T> build() {
             final boolean ignoreCancelled = this.ignoreCancelled;
-            AtomicInteger expirationCount = new AtomicInteger(this.expireCount);
-            final boolean hasExpirationCount = expirationCount.get() > 0;
 
-            final Predicate<T> expireWhen = this.expireWhen;
+            final BiPredicate<ServerProcess, T> expireWhen = this.expireWhen;
 
             final var filters = new ArrayList<>(this.filters);
             final var handler = this.handler;
-            return new ListenerImpl<>(eventType, event -> {
+            return new ListenerImpl<>(eventType, (process, event) -> {
                 // Event cancellation
                 if (ignoreCancelled && event instanceof CancellableEvent cancellableEvent &&
                         cancellableEvent.isCancelled()) {
                     return Result.INVALID;
                 }
                 // Expiration predicate
-                if (expireWhen != null && expireWhen.test(event)) {
+                if (expireWhen != null && expireWhen.test(process, event)) {
                     return Result.EXPIRED;
                 }
                 // Filtering
                 if (!filters.isEmpty()) {
                     for (var filter : filters) {
-                        if (!filter.test(event)) {
+                        if (!filter.test(process, event)) {
                             // Cancelled
                             return Result.INVALID;
                         }
@@ -165,14 +226,10 @@ public interface EventListener<T extends Event> {
                 }
                 // Handler
                 if (handler != null) {
-                    handler.accept(event);
-                }
-                // Expiration count
-                if (hasExpirationCount && expirationCount.decrementAndGet() == 0) {
-                    return Result.EXPIRED;
+                    handler.accept(process, event);
                 }
                 return Result.SUCCESS;
-            });
+            }, expireCount);
         }
     }
 

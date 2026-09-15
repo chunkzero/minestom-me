@@ -41,7 +41,7 @@ public class DisplayCommand extends Command {
         if (!(sender instanceof Player player))
             return;
 
-        var entity = new Entity(EntityType.ITEM_DISPLAY);
+        var entity = new Entity(player.process(), EntityType.ITEM_DISPLAY);
         var meta = (ItemDisplayMeta) entity.getEntityMeta();
         meta.setTransformationInterpolationDuration(20);
         meta.setItemStack(ItemStack.of(Material.STICK));
@@ -56,7 +56,7 @@ public class DisplayCommand extends Command {
         if (!(sender instanceof Player player))
             return;
 
-        var entity = new Entity(EntityType.BLOCK_DISPLAY);
+        var entity = new Entity(player.process(), EntityType.BLOCK_DISPLAY);
         var meta = (BlockDisplayMeta) entity.getEntityMeta();
         meta.setTransformationInterpolationDuration(20);
         meta.setBlockState(Block.ORANGE_CANDLE_CAKE);
@@ -71,7 +71,7 @@ public class DisplayCommand extends Command {
         if (!(sender instanceof Player player))
             return;
 
-        var entity = new Entity(EntityType.TEXT_DISPLAY);
+        var entity = new Entity(player.process(), EntityType.TEXT_DISPLAY);
         var meta = (TextDisplayMeta) entity.getEntityMeta();
         meta.setTransformationInterpolationDuration(20);
         meta.setBillboardRenderConstraints(AbstractDisplayMeta.BillboardConstraints.CENTER);

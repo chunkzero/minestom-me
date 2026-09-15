@@ -104,7 +104,6 @@ public class AnvilLoader implements ChunkLoader {
         this(Path.of(path));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void loadInstance(Instance instance) {
         if (!Files.exists(levelPath)) {
@@ -115,11 +114,10 @@ public class AnvilLoader implements ChunkLoader {
             Files.copy(levelPath, path.resolve("level.dat_old"), StandardCopyOption.REPLACE_EXISTING);
             instance.tagHandler().updateContent(tag);
         } catch (IOException e) {
-            MinecraftServer.getExceptionManager().handleException(e);
+            instance.process().exception().handleException(e);
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public @Nullable Chunk loadChunk(Instance instance, int chunkX, int chunkZ) {
         if (!Files.exists(path)) {
@@ -129,13 +127,13 @@ public class AnvilLoader implements ChunkLoader {
         try {
             return loadMCA(instance, chunkX, chunkZ);
         } catch (Exception e) {
-            MinecraftServer.getExceptionManager().handleException(e);
+            instance.process().exception().handleException(e);
             return null;
         }
     }
 
     private @Nullable Chunk loadMCA(Instance instance, int chunkX, int chunkZ) throws IOException {
-        final RegionFile mcaFile = getMCAFile(chunkX, chunkZ);
+        final RegionFile mcaFile = getMCAFile(instance, chunkX, chunkZ);
         if (mcaFile == null) return null;
         final CompoundBinaryTag chunkData = mcaFile.readChunkData(chunkX, chunkZ);
         if (chunkData == null) return null;
@@ -181,8 +179,7 @@ public class AnvilLoader implements ChunkLoader {
         return chunk;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    private @Nullable RegionFile getMCAFile(int chunkX, int chunkZ) {
+    private @Nullable RegionFile getMCAFile(Instance instance, int chunkX, int chunkZ) {
         final int regionX = chunkToRegion(chunkX), regionZ = chunkToRegion(chunkZ);
         final String fileName = RegionFile.getFileName(regionX, regionZ);
 
@@ -203,7 +200,7 @@ public class AnvilLoader implements ChunkLoader {
                     assert previousVersion == null : "The AnvilLoader cache should not already have data for this region.";
                     return new RegionFile(regionPath);
                 } catch (IOException e) {
-                    MinecraftServer.getExceptionManager().handleException(e);
+                    instance.process().exception().handleException(e);
                     return null;
                 }
             });
@@ -313,7 +310,6 @@ public class AnvilLoader implements ChunkLoader {
         return convertedPalette;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void loadBlockEntities(Chunk loadedChunk, CompoundBinaryTag chunkData) {
         for (BinaryTag blockEntityTag : chunkData.getList("block_entities", BinaryTagTypes.COMPOUND)) {
             if (!(blockEntityTag instanceof CompoundBinaryTag blockEntity)) {
@@ -328,7 +324,7 @@ public class AnvilLoader implements ChunkLoader {
             assert block != null;
             // Load the block handler if the id is present
             if (blockEntity.get("id") instanceof StringBinaryTag blockEntityId) {
-                final BlockHandler handler = MinecraftServer.getBlockManager().getHandlerOrDummy(blockEntityId.value());
+                final BlockHandler handler = loadedChunk.getInstance().process().block().getHandlerOrDummy(blockEntityId.value());
                 block = block.withHandler(handler);
             }
             // Remove anvil tags
@@ -344,7 +340,6 @@ public class AnvilLoader implements ChunkLoader {
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void saveInstance(Instance instance) {
         final CompoundBinaryTag nbt = instance.tagHandler().asCompound();
@@ -355,11 +350,10 @@ public class AnvilLoader implements ChunkLoader {
         try (OutputStream os = Files.newOutputStream(levelPath, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
             BinaryTagIO.writer().writeNamed(Map.entry("", nbt), os, BinaryTagIO.Compression.GZIP);
         } catch (IOException e) {
-            MinecraftServer.getExceptionManager().handleException(e);
+            instance.process().exception().handleException(e);
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void saveChunk(Chunk chunk) {
         final int chunkX = chunk.getChunkX(), chunkZ = chunk.getChunkZ();
@@ -371,7 +365,7 @@ public class AnvilLoader implements ChunkLoader {
         RegionFile mcaFile;
         fileCreationLock.lock();
         try {
-            mcaFile = getMCAFile(chunkX, chunkZ);
+            mcaFile = getMCAFile(chunk.getInstance(), chunkX, chunkZ);
 
             if (mcaFile == null) {
                 final String regionFileName = RegionFile.getFileName(regionX, regionZ);
@@ -386,7 +380,7 @@ public class AnvilLoader implements ChunkLoader {
                     alreadyLoaded.put(regionFileName, mcaFile);
                 } catch (IOException e) {
                     LOGGER.error("Failed to create region file for {}, {}", chunkX, chunkZ, e);
-                    MinecraftServer.getExceptionManager().handleException(e);
+                    chunk.getInstance().process().exception().handleException(e);
                     return;
                 }
             }
@@ -419,7 +413,7 @@ public class AnvilLoader implements ChunkLoader {
             mcaFile.writeChunkData(chunkX, chunkZ, chunkData.build());
         } catch (IOException e) {
             LOGGER.error("Failed to save chunk {}, {}", chunkX, chunkZ, e);
-            MinecraftServer.getExceptionManager().handleException(e);
+            chunk.getInstance().process().exception().handleException(e);
         }
     }
 
@@ -573,7 +567,6 @@ public class AnvilLoader implements ChunkLoader {
      *
      * @param chunk the chunk to unload
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void unloadChunk(Chunk chunk) {
         final int regionX = chunkToRegion(chunk.getChunkX()), regionZ = chunkToRegion(chunk.getChunkZ());
@@ -594,7 +587,7 @@ public class AnvilLoader implements ChunkLoader {
                         try {
                             regionFile.close();
                         } catch (IOException e) {
-                            MinecraftServer.getExceptionManager().handleException(e);
+                            chunk.getInstance().process().exception().handleException(e);
                         }
                     }
                 }

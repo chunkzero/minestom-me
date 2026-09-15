@@ -1,7 +1,6 @@
 package net.minestom.server.instance;
 
 import net.kyori.adventure.key.Key;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
 import net.minestom.server.collision.Shape;
 import net.minestom.server.coordinate.CoordConversion;
@@ -366,7 +365,6 @@ public class LightingChunk extends DynamicChunk {
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static Set<Chunk> flushQueue(Instance instance, Set<Point> queue, LightType type, QueueType queueType) {
         Set<Light> sections = ConcurrentHashMap.newKeySet();
         Set<Point> newQueue = ConcurrentHashMap.newKeySet();
@@ -430,7 +428,7 @@ public class LightingChunk extends DynamicChunk {
                     light.flip();
                     newQueue.addAll(toAdd);
                 } catch (Exception e) {
-                    MinecraftServer.getExceptionManager().handleException(e);
+                    chunk.getInstance().process().exception().handleException(e);
                 }
             }, pool);
 

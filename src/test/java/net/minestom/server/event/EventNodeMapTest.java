@@ -1,10 +1,11 @@
 package net.minestom.server.event;
 
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.ref.WeakReference;
@@ -18,6 +19,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class EventNodeMapTest {
+    private final ServerProcess process = ServerProcess.create();
+
+    @AfterEach
+    void closeProcess() {
+        process.close();
+    }
 
     @Test
     public void uniqueMapping() {
@@ -66,25 +73,23 @@ public class EventNodeMapTest {
         itemNode.addListener(EventNodeTest.ItemTestEvent.class, _ -> result.set(true));
         assertTrue(node.hasListener(EventNodeTest.ItemTestEvent.class));
 
-        node.call(new EventNodeTest.ItemTestEvent(item));
+        node.call(process, new EventNodeTest.ItemTestEvent(item));
         assertTrue(result.get());
 
         result.set(false);
-        node.call(new EventNodeTest.ItemTestEvent(ItemStack.of(Material.GOLD_INGOT)));
+        node.call(process, new EventNodeTest.ItemTestEvent(ItemStack.of(Material.GOLD_INGOT)));
         assertFalse(result.get());
 
         result.set(false);
         node.unmap(item);
-        node.call(new EventNodeTest.ItemTestEvent(item));
+        node.call(process, new EventNodeTest.ItemTestEvent(item));
         assertFalse(result.get());
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void entityLocal() {
-        var process = MinecraftServer.updateProcess();
         var node = process.eventHandler();
-        var entity = new Entity(EntityType.ZOMBIE);
+        var entity = new Entity(process, EntityType.ZOMBIE);
 
         AtomicBoolean result = new AtomicBoolean(false);
         var listener = EventListener.of(EventNodeTest.EntityTestEvent.class, _ -> result.set(true));
@@ -96,13 +101,13 @@ public class EventNodeMapTest {
 
         assertFalse(result.get());
 
-        handle.call(new EventNodeTest.EntityTestEvent(entity));
+        handle.call(process, new EventNodeTest.EntityTestEvent(entity));
         assertTrue(result.get());
 
         result.set(false);
         entity.eventNode().removeListener(listener);
 
-        handle.call(new EventNodeTest.EntityTestEvent(entity));
+        handle.call(process, new EventNodeTest.EntityTestEvent(entity));
         assertFalse(result.get());
     }
 
@@ -114,7 +119,7 @@ public class EventNodeMapTest {
         var itemNode = node.map(item, EventFilter.ITEM);
         itemNode.addListener(EventNodeTest.ItemTestEvent.class, _ -> {
         });
-        node.call(new EventNodeTest.ItemTestEvent(item));
+        node.call(process, new EventNodeTest.ItemTestEvent(item));
 
         var ref = new WeakReference<>(item);
         //noinspection UnusedAssignment

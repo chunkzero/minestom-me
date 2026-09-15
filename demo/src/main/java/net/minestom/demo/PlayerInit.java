@@ -113,7 +113,7 @@ public class PlayerInit {
     private final Inventory inventory;
     private final EventNode<Event> demoNode;
 
-    private EventNode<Event> createEventNode() {
+    private static EventNode<Event> createEventNode() {
         return EventNode.all("demo")
             .addListener(EntityAttackEvent.class, event -> {
                 final Entity source = event.getEntity();
@@ -138,19 +138,19 @@ public class PlayerInit {
                     event.setCancelled(!player.getInventory().addItemStack(itemStack));
                 }
             })
-            .addListener(ItemDropEvent.class, event -> {
+            .addListener(ItemDropEvent.class, (process, event) -> {
                 final Player player = event.getPlayer();
                 ItemStack droppedItem = event.getItemStack();
 
                 Pos playerPos = player.getPosition();
-                ItemEntity itemEntity = new ItemEntity(droppedItem);
+                ItemEntity itemEntity = new ItemEntity(process, droppedItem);
                 itemEntity.setPickupDelay(Duration.of(500, TimeUnit.MILLISECOND));
                 itemEntity.setInstance(player.getInstance(), playerPos.withY(y -> y + 1.5)).join();
                 Vec velocity = playerPos.direction().mul(6);
                 itemEntity.setVelocity(velocity);
             })
             .addListener(PlayerDisconnectEvent.class, event -> System.out.println("DISCONNECTION " + event.getPlayer().getUsername()))
-            .addListener(AsyncPlayerConfigurationEvent.class, event -> {
+            .addListener(AsyncPlayerConfigurationEvent.class, (process, event) -> {
                 final Player player = event.getPlayer();
 
                 // Show off adding and removing feature flags
@@ -244,7 +244,7 @@ public class PlayerInit {
                             new TrackedWaypointPacket.Target.Vec3i(happyGhast.getPosition())
                     )));
 
-                    var playerEntity = new PlayerEntity();
+                    var playerEntity = new PlayerEntity(player.process());
                     var _ = playerEntity.setInstance(player.getInstance(), new Pos(-2.5, 40, 6.7, -163, 0));
                     player.sendPacket(new TrackedWaypointPacket(TrackedWaypointPacket.Operation.TRACK, new TrackedWaypointPacket.Waypoint(
                             Either.left(playerEntity.getUuid()),
@@ -437,7 +437,7 @@ public class PlayerInit {
                     event.setCancelled(true);
                 }
             })
-            .addListener(PlayerBlockPlaceEvent.class, event -> {
+            .addListener(PlayerBlockPlaceEvent.class, (process, event) -> {
                 Block block = event.getBlock();
                 BlockHandler handler = block.handler();
                 if (handler != null) return;

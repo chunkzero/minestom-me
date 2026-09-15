@@ -23,9 +23,6 @@ final class EnvImpl implements Env {
         // If exceptions reach the exception handler, by default fail the test.
         process().exception().setExceptionHandler(EnvImpl::handleException);
 
-        // Start the dispatcher threads if not already started.
-        process().dispatcher().start();
-
         // Use player provider to disable queued chunk sending.
         // Set here to allow an individual test to override if they want.
         process.connection().setPlayerProvider(TestConnectionImpl.TestPlayerImpl::new);
@@ -48,7 +45,7 @@ final class EnvImpl implements Env {
     @Override
     public <E extends Event, H> Collector<E> trackEvent(Class<E> eventType, EventFilter<? super E, H> filter, H actor) {
         var tracker = new EventCollector<E>(actor);
-        this.process.eventHandler().map(actor, filter).addListener(eventType, tracker.events::add);
+        this.process.eventHandler().map(actor, filter).addListener(eventType, event -> tracker.events.add(event));
         return tracker;
     }
 

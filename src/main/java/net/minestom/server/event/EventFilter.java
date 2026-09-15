@@ -1,5 +1,6 @@
 package net.minestom.server.event;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.trait.BlockEvent;
@@ -15,6 +16,7 @@ import net.minestom.server.item.ItemStack;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
@@ -33,7 +35,7 @@ import java.util.function.Function;
  */
 public interface EventFilter<E extends Event, H> {
 
-    EventFilter<Event, ?> ALL = from(Event.class, null, null);
+    EventFilter<Event, ?> ALL = from(Event.class, null, _ -> null);
     EventFilter<EntityEvent, Entity> ENTITY = from(EntityEvent.class, Entity.class, EntityEvent::getEntity);
     EventFilter<PlayerEvent, Player> PLAYER = from(PlayerEvent.class, Player.class, PlayerEvent::getPlayer);
     EventFilter<ItemEvent, ItemStack> ITEM = from(ItemEvent.class, ItemStack.class, ItemEvent::getItemStack);
@@ -70,6 +72,41 @@ public interface EventFilter<E extends Event, H> {
      * @return The handler, if it exists for the given event
      */
     @Nullable H getHandler(E event);
+
+    default @Nullable H getHandler(ServerProcess process, E event) {
+        return getHandler(event);
+    }
+
+    static <E extends Event, H> EventFilter<E, H> from(Class<E> eventType, Class<H> handlerType,
+                                                      BiFunction<ServerProcess, E, H> handlerGetter) {
+        return new EventFilter<>() {
+            @Override
+            public H getHandler(E event) {
+                throw new IllegalStateException("Filter requires a process");
+            }
+
+            @Override
+            public H getHandler(ServerProcess process, E event) {
+                return handlerGetter.apply(process, event);
+            }
+
+            @Override
+            public Class<E> eventType() {
+                return eventType;
+            }
+
+            @Override
+            public Class<H> handlerType() {
+                return handlerType;
+            }
+        };
+    }
+
+    @ApiStatus.Internal
+    @SuppressWarnings("unchecked")
+    default @Nullable H castHandler(ServerProcess process, Object event) {
+        return getHandler(process, (E) event);
+    }
 
     @ApiStatus.Internal
     @SuppressWarnings("unchecked")

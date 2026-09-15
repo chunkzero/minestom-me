@@ -1,15 +1,17 @@
 package net.minestom.server.entity;
 
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.ai.EntityAI;
 import net.minestom.server.entity.ai.EntityAIGroup;
 import net.minestom.server.entity.pathfinding.NavigableEntity;
 import net.minestom.server.entity.pathfinding.Navigator;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.entity.EntityAttackEvent;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.thread.Acquirable;
 import net.minestom.server.utils.time.TimeUnit;
+import net.minestom.server.utils.validate.Check;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
@@ -34,14 +36,23 @@ public class EntityCreature extends LivingEntity implements NavigableEntity, Ent
     /**
      * Constructor which allows to specify an UUID. Only use if you know what you are doing!
      */
-    @SuppressWarnings("this-escape") // deliberate self registration during construction
+    @SuppressWarnings("removal") // Temporary default-process constructor.
     public EntityCreature(EntityType entityType, UUID uuid) {
-        super(entityType, uuid);
+        this(MinecraftServer.process(), entityType, uuid);
+    }
+
+    @SuppressWarnings("this-escape") // Entity initialization.
+    public EntityCreature(ServerProcess process, EntityType entityType, UUID uuid) {
+        super(process, entityType, uuid);
         heal();
     }
 
     public EntityCreature(EntityType entityType) {
         this(entityType, UUID.randomUUID());
+    }
+
+    public EntityCreature(ServerProcess process, EntityType entityType) {
+        this(process, entityType, UUID.randomUUID());
     }
 
     @Override
@@ -58,6 +69,7 @@ public class EntityCreature extends LivingEntity implements NavigableEntity, Ent
 
     @Override
     public CompletableFuture<Void> setInstance(Instance instance, Pos spawnPosition) {
+        Check.argCondition(instance.process() != process(), "Instance belongs to another process");
         this.navigator.reset();
         return super.setInstance(instance, spawnPosition);
     }
@@ -116,6 +128,7 @@ public class EntityCreature extends LivingEntity implements NavigableEntity, Ent
      * @param target the new entity target, null to remove
      */
     public void setTarget(@Nullable Entity target) {
+        Check.argCondition(target != null && target.process() != process(), "Target belongs to another process");
         this.target = target;
     }
 
@@ -130,12 +143,11 @@ public class EntityCreature extends LivingEntity implements NavigableEntity, Ent
      * @param target    the entity target
      * @param swingHand true to swing the entity main hand, false otherwise
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void attack(Entity target, boolean swingHand) {
         if (swingHand)
             swingMainHand();
         EntityAttackEvent attackEvent = new EntityAttackEvent(this, target);
-        EventDispatcher.call(attackEvent);
+        process().eventHandler().call(attackEvent);
     }
 
     /**

@@ -1,11 +1,12 @@
 package net.minestom.server.entity;
 
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.collision.BoundingBox;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.metadata.projectile.ProjectileMeta;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.entity.EntityShootEvent;
 import net.minestom.server.event.entity.projectile.ProjectileCollideWithBlockEvent;
 import net.minestom.server.event.entity.projectile.ProjectileCollideWithEntityEvent;
@@ -14,6 +15,7 @@ import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.thread.Acquirable;
+import net.minestom.server.utils.validate.Check;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
@@ -32,9 +34,15 @@ public class EntityProjectile extends Entity {
     private final Entity shooter;
     private boolean wasStuck;
 
-    @SuppressWarnings("this-escape") // deliberate self registration during construction
+    @SuppressWarnings("removal") // Null shooters temporarily use the default process.
     public EntityProjectile(@Nullable Entity shooter, EntityType entityType) {
-        super(entityType);
+        this(shooter != null ? shooter.process() : MinecraftServer.process(), shooter, entityType);
+    }
+
+    @SuppressWarnings("this-escape") // Projectile metadata initialization.
+    public EntityProjectile(ServerProcess process, @Nullable Entity shooter, EntityType entityType) {
+        super(process, entityType);
+        Check.argCondition(shooter != null && shooter.process() != process, "Shooter belongs to another process");
         this.shooter = shooter;
         setup();
     }
@@ -52,10 +60,9 @@ public class EntityProjectile extends Entity {
         return this.shooter;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void shoot(Point to, double power, double spread) {
         final EntityShootEvent shootEvent = new EntityShootEvent(this.shooter, this, to, power, spread);
-        EventDispatcher.call(shootEvent);
+        process().eventHandler().call(shootEvent);
         if (shootEvent.isCancelled()) {
             remove();
             return;
@@ -91,7 +98,6 @@ public class EntityProjectile extends Entity {
         );
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void tick(long time) {
         final Pos posBefore = getPosition();
@@ -115,7 +121,7 @@ public class EntityProjectile extends Entity {
             wasStuck = false;
             setNoGravity(super.onGround);
             super.onGround = false;
-            EventDispatcher.call(new ProjectileUncollideEvent(this));
+            process().eventHandler().call(new ProjectileUncollideEvent(this));
         }
     }
 
@@ -157,7 +163,7 @@ public class EntityProjectile extends Entity {
             }
             if (block.solid()) {
                 final ProjectileCollideWithBlockEvent event = new ProjectileCollideWithBlockEvent(this, pos, block);
-                EventDispatcher.call(event);
+                process().eventHandler().call(event);
                 if (isRemoved()) return true;
                 if (!event.isCancelled()) {
                     teleport(pos).join();
@@ -186,7 +192,7 @@ public class EntityProjectile extends Entity {
             if (victimOptional.isPresent()) {
                 final LivingEntity target = victimOptional.get();
                 final ProjectileCollideWithEntityEvent event = new ProjectileCollideWithEntityEvent(this, pos, target);
-                EventDispatcher.call(event);
+                process().eventHandler().call(event);
                 if (!event.isCancelled()) {
                     return super.onGround;
                 }

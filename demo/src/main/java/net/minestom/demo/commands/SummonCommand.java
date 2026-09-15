@@ -1,5 +1,6 @@
 package net.minestom.demo.commands;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
@@ -40,7 +41,7 @@ public class SummonCommand extends Command {
     }
 
     private void execute(CommandSender commandSender, CommandContext commandContext) {
-        final Entity entity = commandContext.get(entityClass).instantiate(commandContext.get(this.entity));
+        final Entity entity = commandContext.get(entityClass).instantiate(((Player) commandSender).process(), commandContext.get(this.entity));
         //noinspection ConstantConditions - One couldn't possibly execute a command without being in an instance
         entity.setInstance(((Player) commandSender).getInstance(), commandContext.get(pos).fromSender(commandSender)).join();
     }
@@ -56,12 +57,12 @@ public class SummonCommand extends Command {
             this.factory = factory;
         }
 
-        public Entity instantiate(EntityType type) {
-            return factory.newInstance(type);
+        public Entity instantiate(ServerProcess process, EntityType type) {
+            return factory.newInstance(process, type);
         }
     }
 
     interface EntityFactory {
-        Entity newInstance(EntityType type);
+        Entity newInstance(ServerProcess process, EntityType type);
     }
 }

@@ -1,5 +1,7 @@
 package net.minestom.server.entity;
 
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.thread.Acquirable;
 import org.jetbrains.annotations.ApiStatus;
@@ -13,9 +15,14 @@ public class ExperienceOrb extends Entity {
     private @Nullable Player target;
     private long lastTargetUpdateTick;
 
-    @SuppressWarnings("this-escape") // deliberate self registration during construction
+    @SuppressWarnings("removal") // Temporary default-process constructor.
     public ExperienceOrb(short experienceCount) {
-        super(EntityType.EXPERIENCE_ORB);
+        this(MinecraftServer.process(), experienceCount);
+    }
+
+    @SuppressWarnings("this-escape") // Entity initialization.
+    public ExperienceOrb(ServerProcess process, short experienceCount) {
+        super(process, EntityType.EXPERIENCE_ORB);
         setBoundingBox(0.5f, 0.5f, 0.5f);
         //todo vanilla sets random velocity here?
         this.experienceCount = experienceCount;

@@ -1,10 +1,12 @@
 package net.minestom.server.event;
 
+import net.minestom.server.ServerProcess;
+
 /**
  * Represents a key to a listenable event, retrievable from {@link EventNode#getHandle(Class)}.
  * Useful to avoid map lookups.
  * <p>
- * It is recommended to store instances of this class in {@code static final} fields.
+ * A handle belongs to its node. Do not share owned handles between processes.
  *
  * @param <E> the event type
  */
@@ -18,6 +20,9 @@ public sealed interface ListenerHandle<E extends Event> permits EventNodeImpl.Ha
      * @param event the event to call
      */
     void call(E event);
+
+    /** Dispatches with explicit context, required for a standalone node. */
+    void call(ServerProcess process, E event);
 
     /**
      * Gets if any listener has been registered for the given handle.

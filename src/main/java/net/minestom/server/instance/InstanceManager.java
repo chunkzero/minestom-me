@@ -1,12 +1,9 @@
 package net.minestom.server.instance;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.instance.InstanceRegisterEvent;
 import net.minestom.server.event.instance.InstanceUnregisterEvent;
-import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.RegistryKey;
 import net.minestom.server.utils.validate.Check;
 import net.minestom.server.world.DimensionType;
@@ -24,13 +21,11 @@ import java.util.concurrent.CopyOnWriteArraySet;
  */
 public final class InstanceManager {
 
-    private final Registries registries;
     private final ServerProcess process;
     private final Set<Instance> instances = new CopyOnWriteArraySet<>();
 
     public InstanceManager(ServerProcess process) {
         this.process = Objects.requireNonNull(process);
-        this.registries = process.registries();
     }
 
     public ServerProcess process() {
@@ -46,6 +41,7 @@ public final class InstanceManager {
      * @param instance the {@link Instance} to register
      */
     public void registerInstance(Instance instance) {
+        Check.argCondition(instance.process() != process, "Instance belongs to another process");
         Check.stateCondition(instance instanceof SharedInstance,
                 "Please use InstanceManager#registerSharedInstance to register a shared instance");
         UNSAFE_registerInstance(instance);
@@ -59,7 +55,7 @@ public final class InstanceManager {
      * @return the created {@link InstanceContainer}
      */
     public InstanceContainer createInstanceContainer(RegistryKey<DimensionType> dimensionType, @Nullable ChunkLoader loader) {
-        final InstanceContainer instanceContainer = new InstanceContainer(registries, UUID.randomUUID(), dimensionType, loader, dimensionType.key());
+        final InstanceContainer instanceContainer = new InstanceContainer(process, UUID.randomUUID(), dimensionType, loader, dimensionType.key());
         registerInstance(instanceContainer);
         return instanceContainer;
     }
@@ -91,6 +87,7 @@ public final class InstanceManager {
      * @throws NullPointerException if {@code sharedInstance} doesn't have an {@link InstanceContainer} assigned to it
      */
     public SharedInstance registerSharedInstance(SharedInstance sharedInstance) {
+        Check.argCondition(sharedInstance.process() != process, "Instance belongs to another process");
         final InstanceContainer instanceContainer = sharedInstance.getInstanceContainer();
         Objects.requireNonNull(instanceContainer, "SharedInstance needs to have an InstanceContainer to be created!");
 
@@ -107,6 +104,7 @@ public final class InstanceManager {
      * @throws IllegalStateException if {@code instanceContainer} is not registered
      */
     public SharedInstance createSharedInstance(InstanceContainer instanceContainer) {
+        Check.argCondition(instanceContainer.process() != process, "Instance belongs to another process");
         Objects.requireNonNull(instanceContainer, "Instance container cannot be null when creating a SharedInstance!");
         Check.stateCondition(!instanceContainer.isRegistered(), "The container needs to be register in the InstanceManager");
 
@@ -121,18 +119,18 @@ public final class InstanceManager {
      *
      * @param instance the {@link Instance} to unregister
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void unregisterInstance(Instance instance) {
+        Check.argCondition(instance.process() != process, "Instance belongs to another process");
         long onlinePlayers = instance.getPlayers().stream().filter(Player::isOnline).count();
         Check.stateCondition(onlinePlayers > 0, "You cannot unregister an instance with players inside.");
         synchronized (instance) {
             InstanceUnregisterEvent event = new InstanceUnregisterEvent(instance);
-            EventDispatcher.call(event);
+            process().eventHandler().call(event);
 
             // Unload all chunks
             if (instance instanceof InstanceContainer) {
                 instance.getChunks().forEach(instance::unloadChunk);
-                var dispatcher = MinecraftServer.process().dispatcher();
+                var dispatcher = process().dispatcher();
                 instance.getChunks().forEach(dispatcher::deletePartition);
             }
             if (instance instanceof SharedInstance sharedInstance) {
@@ -174,13 +172,13 @@ public final class InstanceManager {
      *
      * @param instance the {@link Instance} to register
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void UNSAFE_registerInstance(Instance instance) {
+        Check.argCondition(instance.process() != process, "Instance belongs to another process");
         instance.setRegistered(true);
         this.instances.add(instance);
-        var dispatcher = MinecraftServer.process().dispatcher();
+        var dispatcher = process().dispatcher();
         instance.getChunks().forEach(dispatcher::createPartition);
         InstanceRegisterEvent event = new InstanceRegisterEvent(instance);
-        EventDispatcher.call(event);
+        process().eventHandler().call(event);
     }
 }

@@ -1,8 +1,10 @@
 package net.minestom.server.entity;
 
 import net.kyori.adventure.key.Key;
-import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.sound.Sound.Source;
+import net.kyori.adventure.sound.Sound;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.adventure.AdventurePacketConvertor;
 import net.minestom.server.collision.BoundingBox;
 import net.minestom.server.component.DataComponents;
@@ -17,7 +19,6 @@ import net.minestom.server.entity.damage.Damage;
 import net.minestom.server.entity.damage.DamageType;
 import net.minestom.server.entity.metadata.EntityMeta;
 import net.minestom.server.entity.metadata.LivingEntityMeta;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.entity.EntityDamageEvent;
 import net.minestom.server.event.entity.EntityDeathEvent;
 import net.minestom.server.event.entity.EntityFireExtinguishEvent;
@@ -109,12 +110,22 @@ public class LivingEntity extends Entity implements EquipmentHandler {
     /**
      * Constructor which allows to specify an UUID. Only use if you know what you are doing!
      */
+    @SuppressWarnings("removal") // Temporary default-process constructor.
     public LivingEntity(EntityType entityType, UUID uuid) {
-        super(entityType, uuid);
+        this(MinecraftServer.process(), entityType, uuid);
+    }
+
+    @SuppressWarnings("this-escape") // Entity initialization.
+    public LivingEntity(ServerProcess process, EntityType entityType, UUID uuid) {
+        super(process, entityType, uuid);
     }
 
     public LivingEntity(EntityType entityType) {
         this(entityType, UUID.randomUUID());
+    }
+
+    public LivingEntity(ServerProcess process, EntityType entityType) {
+        this(process, entityType, UUID.randomUUID());
     }
 
     @Override
@@ -163,10 +174,9 @@ public class LivingEntity extends Entity implements EquipmentHandler {
         updateEquipmentAttributes(oldItem, newItem, slot);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private ItemStack slotChangeEvent(ItemStack itemStack, EquipmentSlot slot) {
         EntityEquipEvent entityEquipEvent = new EntityEquipEvent(this, itemStack, slot);
-        EventDispatcher.call(entityEquipEvent);
+        process().eventHandler().call(entityEquipEvent);
         return entityEquipEvent.getEquippedItem();
     }
 
@@ -203,12 +213,11 @@ public class LivingEntity extends Entity implements EquipmentHandler {
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void update(long time) {
         // Fire
         if (remainingFireTicks > 0 && --remainingFireTicks == 0) {
-            EventDispatcher.callCancellable(new EntityFireExtinguishEvent(this, true), () -> entityMeta.setOnFire(false));
+            process().eventHandler().callCancellable(new EntityFireExtinguishEvent(this, true), () -> entityMeta.setOnFire(false));
         }
 
         // Items picking
@@ -220,7 +229,7 @@ public class LivingEntity extends Entity implements EquipmentHandler {
                         if (!itemEntity.isPickable()) return;
                         if (!expandedBoundingBox.intersectEntity(position, itemEntity)) return;
                         final PickupItemEvent pickupItemEvent = new PickupItemEvent(this, itemEntity);
-                        EventDispatcher.callCancellable(pickupItemEvent, () -> {
+                        process().eventHandler().callCancellable(pickupItemEvent, () -> {
                             final ItemStack item = itemEntity.getItemStack();
                             sendPacketToViewersAndSelf(new CollectItemPacket(itemEntity.getEntityId(), getEntityId(), item.amount()));
                             itemEntity.remove();
@@ -272,7 +281,6 @@ public class LivingEntity extends Entity implements EquipmentHandler {
     /**
      * Kills the entity, trigger the {@link EntityDeathEvent} event.
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void kill() {
         refreshIsDead(true); // So the entity isn't killed over and over again
         triggerStatus((byte) EntityStatuses.LivingEntity.PLAY_DEATH_SOUND); // Start death animation status
@@ -288,7 +296,7 @@ public class LivingEntity extends Entity implements EquipmentHandler {
         }
 
         EntityDeathEvent entityDeathEvent = new EntityDeathEvent(this);
-        EventDispatcher.call(entityDeathEvent);
+        process().eventHandler().call(entityDeathEvent);
     }
 
     /**
@@ -305,12 +313,11 @@ public class LivingEntity extends Entity implements EquipmentHandler {
      *
      * @param ticks duration of fire in ticks
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void setFireTicks(int ticks) {
         int fireTicks = Math.max(0, ticks);
         if (fireTicks > 0) {
             EntitySetFireEvent entitySetFireEvent = new EntitySetFireEvent(this, ticks);
-            EventDispatcher.call(entitySetFireEvent);
+            process().eventHandler().call(entitySetFireEvent);
             if (entitySetFireEvent.isCancelled()) return;
 
             fireTicks = Math.max(0, entitySetFireEvent.getFireTicks());
@@ -323,7 +330,7 @@ public class LivingEntity extends Entity implements EquipmentHandler {
 
         if (remainingFireTicks != 0) {
             EntityFireExtinguishEvent entityFireExtinguishEvent = new EntityFireExtinguishEvent(this, false);
-            EventDispatcher.callCancellable(entityFireExtinguishEvent, () -> entityMeta.setOnFire(false));
+            process().eventHandler().callCancellable(entityFireExtinguishEvent, () -> entityMeta.setOnFire(false));
         }
 
         remainingFireTicks = fireTicks;
@@ -339,7 +346,6 @@ public class LivingEntity extends Entity implements EquipmentHandler {
      * @param damage the damage to be applied
      * @return true if damage has been applied, false if it didn't
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public boolean damage(Damage damage) {
         if (isDead())
             return false;
@@ -348,7 +354,7 @@ public class LivingEntity extends Entity implements EquipmentHandler {
         }
 
         EntityDamageEvent entityDamageEvent = new EntityDamageEvent(this, damage, damage.getSound(this));
-        EventDispatcher.callCancellable(entityDamageEvent, () -> {
+        process().eventHandler().callCancellable(entityDamageEvent, () -> {
             // Set the last damage type since the event is not cancelled
             this.lastDamage = entityDamageEvent.getDamage();
 

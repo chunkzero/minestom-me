@@ -1,5 +1,7 @@
 package net.minestom.server.thread;
 
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.Tickable;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
@@ -23,6 +25,12 @@ import java.util.function.IntFunction;
  * @see AcquirableSource
  */
 public sealed interface ThreadDispatcher<P, E extends Tickable> permits ThreadDispatcherImpl {
+    /** Creates a dispatcher whose game objects and exceptions belong to the supplied process. */
+    static <P, E extends Tickable> ThreadDispatcher<P, E> dispatcher(ServerProcess process, ThreadProvider<P> provider, int threadCount) {
+        return new ThreadDispatcherImpl<>(process, provider, threadCount,
+                index -> new TickThread(MinecraftServer.THREAD_NAME_TICK + "-" + index, process.exception()::handleException));
+    }
+
     /**
      * Creates a new ThreadDispatcher using default thread names (ex. Ms-Tick-n).
      * <p>Remember to start the dispatcher using {@link #start()}</p>

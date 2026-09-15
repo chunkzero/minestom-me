@@ -1,7 +1,8 @@
 package net.minestom.server.entity;
 
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.metadata.item.ItemEntityMeta;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.entity.EntityItemMergeEvent;
 import net.minestom.server.instance.EntityTracker;
 import net.minestom.server.item.ItemStack;
@@ -42,9 +43,14 @@ public class ItemEntity extends Entity {
     // pickup delay in nanos
     private long pickupDelay;
 
-    @SuppressWarnings("this-escape") // deliberate self registration during construction
+    @SuppressWarnings("removal") // Temporary default-process constructor.
     public ItemEntity(ItemStack itemStack) {
-        super(EntityType.ITEM);
+        this(MinecraftServer.process(), itemStack);
+    }
+
+    @SuppressWarnings("this-escape") // Entity initialization.
+    public ItemEntity(ServerProcess process, ItemStack itemStack) {
+        super(process, EntityType.ITEM);
         setItemStack(itemStack);
         setBoundingBox(0.25f, 0.25f, 0.25f);
     }
@@ -69,7 +75,6 @@ public class ItemEntity extends Entity {
         ItemEntity.mergeDelay = delay;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void update(long time) {
         if (isMergeable() && isPickable() &&
@@ -89,7 +94,7 @@ public class ItemEntity extends Entity {
                         if (!MathUtils.isBetween(totalAmount, 0, itemStack.maxStackSize())) return;
                         final ItemStack result = itemStack.withAmount(totalAmount);
                         EntityItemMergeEvent entityItemMergeEvent = new EntityItemMergeEvent(this, itemEntity, result);
-                        EventDispatcher.callCancellable(entityItemMergeEvent, () -> {
+                        process().eventHandler().callCancellable(entityItemMergeEvent, () -> {
                             setItemStack(entityItemMergeEvent.getResult());
                             itemEntity.remove();
                         });
