@@ -4,6 +4,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -13,18 +14,28 @@ final class RegistryTags<T> {
     private final Map<TagKey<T>, RegistryTagImpl.Backed<T>> tags = new ConcurrentHashMap<>();
     private final AtomicLong revision = new AtomicLong();
 
-    @Nullable RegistryTagImpl.Backed<T> get(TagKey<T> key) {
-        return tags.get(key);
+    @Nullable RegistryTag<T> get(TagKey<T> key) {
+        var tag = tags.get(key);
+        return tag != null ? tag.reference() : null;
     }
 
-    RegistryTagImpl.Backed<T> getOrCreate(TagKey<T> key) {
+    Collection<RegistryKey<T>> entries(TagKey<T> key) {
+        var tag = tags.get(key);
+        return tag != null ? tag.entries() : List.of();
+    }
+
+    List<RegistryTag<T>> references() {
+        return tags.values().stream().map(RegistryTagImpl.Backed::reference).toList();
+    }
+
+    RegistryTag<T> getOrCreate(TagKey<T> key) {
         var existing = tags.get(key);
-        if (existing != null) return existing;
+        if (existing != null) return existing.reference();
         var created = new RegistryTagImpl.Backed<>(key, Collections.emptyList(), revision::incrementAndGet);
         existing = tags.putIfAbsent(key, created);
-        if (existing != null) return existing;
+        if (existing != null) return existing.reference();
         revision.incrementAndGet();
-        return created;
+        return created.reference();
     }
 
     boolean remove(TagKey<T> key) {

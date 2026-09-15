@@ -39,7 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public abstract class PlayerConnection {
     private Player player;
-    private final @Nullable ServerProcess process;
+    private final ServerProcess process;
 
     // Server & client states can differ during configuration.
     // "server" state means the state the server thinks its in.
@@ -60,17 +60,13 @@ public abstract class PlayerConnection {
 
     private final Map<Key, CompletableFuture<byte @Nullable []>> pendingCookieRequests = new ConcurrentHashMap<>();
 
-    public PlayerConnection() {
-        this.process = MinecraftServer.process();
-    }
-
     public PlayerConnection(ServerProcess process) {
         this.process = Objects.requireNonNull(process);
     }
 
     /** The process captured when this connection was constructed. */
     public ServerProcess process() {
-        return Objects.requireNonNull(process, "Connection has no server process");
+        return process;
     }
 
     /**
@@ -163,9 +159,9 @@ public abstract class PlayerConnection {
      */
     public void disconnect() {
         this.online = false;
-        final Player player = MinecraftServer.getConnectionManager().getPlayer(this);
+        final Player player = process().connection().getPlayer(this);
         if (player != null) {
-            MinecraftServer.getConnectionManager().removePlayer(this);
+            process().connection().removePlayer(this);
             if (serverState == ConnectionState.PLAY && !player.isRemoved())
                 player.scheduleNextTick(Entity::remove);
             else {

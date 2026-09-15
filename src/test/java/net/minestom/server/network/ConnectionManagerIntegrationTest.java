@@ -1,5 +1,6 @@
 package net.minestom.server.network;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
 import net.minestom.server.instance.Instance;
@@ -55,7 +56,7 @@ public class ConnectionManagerIntegrationTest {
         final GameProfile profile = profiles[0];
 
         try (SocketChannel channel = SocketChannel.open()) {
-            final var connection = new ProfileCapturingConnection(channel);
+            final var connection = new ProfileCapturingConnection(env.process(), channel);
             connection.setClientState(ConnectionState.LOGIN);
 
             final CompletableFuture<GameProfile> future = new CompletableFuture<>();
@@ -77,8 +78,8 @@ public class ConnectionManagerIntegrationTest {
     private static final class ProfileCapturingConnection extends PlayerSocketConnection {
         private final CompletableFuture<GameProfile> profileWhenLoginSuccessSent = new CompletableFuture<>();
 
-        private ProfileCapturingConnection(SocketChannel channel) {
-            super(channel, new InetSocketAddress("localhost", 25565),
+        private ProfileCapturingConnection(ServerProcess process, SocketChannel channel) {
+            super(process, channel, new InetSocketAddress("localhost", 25565),
                     Thread.currentThread(), Thread.currentThread());
         }
 

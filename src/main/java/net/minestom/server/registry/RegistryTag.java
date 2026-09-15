@@ -8,16 +8,17 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * {@link RegistryTag} is a collection of keys from a particular registry.
+ * A named tag reference or an immutable list of registry keys.
  *
- * <p>The collection may be backed by a registry (synced, referenced by {@link TagKey}), or direct (list backed).</p>
+ * <p>Named tags store their key without capturing a registry. Resolve their membership against the
+ * registry belonging to the operation, so shared component definitions can be used by multiple servers.</p>
  *
  * <p>Note that all elements of a direct tag must still be members of the registry.</p>
  *
  * @param <T> The type of the registry object.
  */
-public sealed interface RegistryTag<T> extends HolderSet<T>, Iterable<RegistryKey<T>>
-        permits RegistryTagImpl.Empty, RegistryTagImpl.Backed, RegistryTagImpl.Direct {
+public sealed interface RegistryTag<T> extends HolderSet<T>
+        permits RegistryTagImpl.Empty, RegistryTagImpl.Reference, RegistryTagImpl.Direct {
 
     static <T> NetworkBuffer.Type<RegistryTag<T>> networkType(Registries.Selector<T> selector) {
         return new RegistryNetworkTypes.RegistryTagImpl<>(selector);
@@ -44,10 +45,23 @@ public sealed interface RegistryTag<T> extends HolderSet<T>, Iterable<RegistryKe
         return new RegistryTagImpl.Direct<>(List.copyOf(values));
     }
 
+    static <T> RegistryTag<T> reference(TagKey<T> key) {
+        return new RegistryTagImpl.Reference<>(key);
+    }
+
     @Nullable TagKey<T> key();
 
-    boolean contains(RegistryKey<T> value);
+    /** Returns read-only membership in the given registry, or an empty collection for a missing tag. */
+    default Collection<RegistryKey<T>> resolve(Registry<T> registry) {
+        final TagKey<T> key = key();
+        if (key != null) {
+            return registry.tagValues(key);
+        }
+        return this instanceof RegistryTagImpl.Direct<T> direct ? direct.keys() : List.of();
+    }
 
-    int size();
+    default boolean contains(Registry<T> registry, RegistryKey<T> value) {
+        return resolve(registry).contains(new RegistryKeyImpl<>(value.key()));
+    }
 
 }

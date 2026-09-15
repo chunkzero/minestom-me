@@ -143,9 +143,10 @@ public class Main {
 
         MinecraftServer.getSchedulerManager().buildShutdownTask(() -> System.out.println("Good night"));
 
-        RegistryTag<Block> tag = Block.staticRegistry().getTag(TagKey.ofHash("#minecraft:all_signs"));
+        var blocks = MinecraftServer.getRegistries().blocks();
+        RegistryTag<Block> tag = blocks.getTag(TagKey.ofHash("#minecraft:all_signs"));
         SignHandler signHandler = new SignHandler();
-        for (RegistryKey<Block> key : Objects.requireNonNull(tag)) {
+        for (RegistryKey<Block> key : Objects.requireNonNull(tag).resolve(blocks)) {
             blockManager.registerHandler(key.key(), () -> signHandler);
         }
 

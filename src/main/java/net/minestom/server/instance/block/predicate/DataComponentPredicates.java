@@ -1,11 +1,13 @@
 package net.minestom.server.instance.block.predicate;
 
+import net.minestom.server.MinecraftServer;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.StructCodec;
 import net.minestom.server.component.DataComponent;
 import net.minestom.server.component.DataComponentMap;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.NetworkBufferTemplate;
+import net.minestom.server.registry.Registries;
 
 import java.util.Objects;
 import java.util.function.Predicate;
@@ -34,11 +36,15 @@ public record DataComponentPredicates(DataComponentMap exact,
 
     @Override
     public boolean test(DataComponent.Holder holder) {
+        return test(MinecraftServer.getRegistries(), holder);
+    }
+
+    public boolean test(Registries registries, DataComponent.Holder holder) {
         for (DataComponent.Value entry : exact.entrySet()) {
             if (!Objects.equals(holder.get(entry.component()), entry.value())) {
                 return false;
             }
         }
-        return predicates.test(holder);
+        return predicates.test(registries, holder);
     }
 }

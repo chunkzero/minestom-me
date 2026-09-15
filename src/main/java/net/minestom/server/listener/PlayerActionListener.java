@@ -129,7 +129,7 @@ public final class PlayerActionListener {
             // Check if the currently held item can break the block
             case ADVENTURE -> !itemInMainHand
                     .get(DataComponents.CAN_BREAK, BlockPredicates.NEVER)
-                    .test(block);
+                    .test(player.getPlayerConnection().process().registries(), block);
             // Certain tools (swords, tridents, maces) can't break blocks in creative
             case CREATIVE -> {
                 final Tool tool = itemInMainHand.get(DataComponents.TOOL);

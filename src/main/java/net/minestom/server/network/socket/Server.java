@@ -1,13 +1,10 @@
 package net.minestom.server.network.socket;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.network.packet.PacketParser;
-import net.minestom.server.network.packet.PacketVanilla;
 import net.minestom.server.network.player.PlayerSocketConnection;
 import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
 import java.io.EOFException;
@@ -30,17 +27,12 @@ public final class Server {
     private volatile boolean stop;
 
     private final PacketParser.Client packetParser;
-    private final @Nullable ServerProcess process;
+    private final ServerProcess process;
 
     private @UnknownNullability ServerSocketChannel serverSocket;
     private @UnknownNullability SocketAddress socketAddress;
     private @UnknownNullability String address;
     private int port;
-
-    public Server(PacketParser.Client packetParser) {
-        this.process = MinecraftServer.process();
-        this.packetParser = packetParser;
-    }
 
     public Server(ServerProcess process, PacketParser.Client packetParser) {
         this.process = Objects.requireNonNull(process);
@@ -48,11 +40,7 @@ public final class Server {
     }
 
     public ServerProcess process() {
-        return Objects.requireNonNull(process, "Socket server has no server process");
-    }
-
-    public Server() {
-        this(PacketVanilla.CLIENT_PACKET_PARSER);
+        return process;
     }
 
     @ApiStatus.Internal

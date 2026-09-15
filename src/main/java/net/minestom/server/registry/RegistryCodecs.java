@@ -4,9 +4,9 @@ import net.kyori.adventure.key.Key;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.Result;
 import net.minestom.server.codec.Transcoder;
-import net.minestom.server.registry.RegistryTagImpl.Backed;
 import net.minestom.server.registry.RegistryTagImpl.Direct;
 import net.minestom.server.registry.RegistryTagImpl.Empty;
+import net.minestom.server.registry.RegistryTagImpl.Reference;
 import net.minestom.server.utils.Either;
 import org.intellij.lang.annotations.Subst;
 import org.jetbrains.annotations.Nullable;
@@ -132,7 +132,7 @@ final class RegistryCodecs {
                 if (registry != null && tagKeyStr.startsWith("#")) {
                     final var tagKey = TagKey.<T>ofHash(tagKeyStr);
                     final var tag = registry.getTag(tagKey);
-                    return tag != null ? new Result.Ok<>(tag)
+                    return tag != null ? new Result.Ok<>(RegistryTag.reference(tagKey))
                             : new Result.Error<>("Unknown tag " + tagKey + " for registry " + registry.key());
                 }
                 return new Result.Ok<>(RegistryTag.direct(RegistryKey.unsafeOf(tagKeyStr)));
@@ -159,8 +159,8 @@ final class RegistryCodecs {
         public <D> Result<D> encode(Transcoder<D> coder, @Nullable RegistryTag<T> value) {
             if (value == null) return new Result.Error<>("null");
             return switch (value) {
-                case Backed<T> backed ->
-                        new Result.Ok<>(coder.createString(backed.key().hashedKey()));
+                case Reference<T> reference ->
+                        new Result.Ok<>(coder.createString(reference.key().hashedKey()));
                 case Empty() -> new Result.Ok<>(coder.emptyList());
                 case Direct(var entries) -> {
                     if (entries.isEmpty()) yield new Result.Ok<>(coder.emptyList());

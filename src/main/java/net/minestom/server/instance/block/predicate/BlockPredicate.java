@@ -26,6 +26,8 @@ import java.util.function.Predicate;
 
 /**
  * <p>A predicate to filter blocks based on their name, properties, and/or nbt.</p>
+ * <p>Use {@link #test(Registries, Block)} to resolve tags and components in a specific server.
+ * The {@link Predicate} adapter uses the initialized default server.</p>
  *
  * <p>Note: Inline with vanilla, providing none of the filters will match any block.</p>
  *
@@ -114,7 +116,11 @@ public record BlockPredicate(
 
     @Override
     public boolean test(Block block) {
-        if (blocks != null && !blocks.contains(block.registryKey()))
+        return test(MinecraftServer.getRegistries(), block);
+    }
+
+    public boolean test(Registries registries, Block block) {
+        if (blocks != null && !blocks.contains(registries.blocks(), block.registryKey()))
             return false;
         if (state != null && !state.test(block))
             return false;
@@ -126,8 +132,8 @@ public record BlockPredicate(
             return false; // If a block has no NBT (it's not a block entity), any component predicates must return false
 
         CompoundBinaryTag componentsTag = block.nbt().getCompound("components");
-        final Transcoder<BinaryTag> coder = new RegistryTranscoder<>(Transcoder.NBT, MinecraftServer.getRegistries());
+        final Transcoder<BinaryTag> coder = new RegistryTranscoder<>(Transcoder.NBT, registries);
         final var componentMapResult = DataComponent.MAP_NBT_TYPE.decode(coder, componentsTag);
-        return componentMapResult instanceof Result.Ok(DataComponentMap componentMap) && components.test(componentMap);
+        return componentMapResult instanceof Result.Ok(DataComponentMap componentMap) && components.test(registries, componentMap);
     }
 }

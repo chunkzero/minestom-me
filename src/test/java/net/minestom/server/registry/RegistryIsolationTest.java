@@ -1,18 +1,27 @@
 package net.minestom.server.registry;
 
+import net.minestom.server.component.DataComponentMap;
 import net.minestom.server.component.DataComponents;
 import net.minestom.server.instance.block.Block;
+import net.minestom.server.instance.block.predicate.CollectionPredicate;
+import net.minestom.server.instance.block.predicate.ComponentPredicateSet;
+import net.minestom.server.instance.block.predicate.DataComponentPredicate;
+import net.minestom.server.instance.block.predicate.DataComponentPredicates;
+import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
+import net.minestom.server.item.predicate.ItemPredicate;
+import net.minestom.server.utils.Range;
 import net.minestom.server.world.biome.Biome;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
 
 class RegistryIsolationTest {
     @Test
@@ -20,21 +29,21 @@ class RegistryIsolationTest {
         var first = Registries.vanilla();
         var second = Registries.vanilla();
         var key = TagKey.<Block>ofHash("#minecraft:mineable/pickaxe");
-        var firstTag = (RegistryTagImpl.Backed<Block>) first.blocks().getTag(key);
+        var firstTag = first.blocks().getTag(key);
         var secondTag = second.blocks().getTag(key);
         assertNotNull(firstTag);
         assertNotNull(secondTag);
-        assertNotSame(firstTag, secondTag);
         assertSame(Block.STONE, first.blocks().get(Block.STONE.key()));
         assertSame(first.blocks().get(Block.STONE.key()), second.blocks().get(Block.STONE.key()));
         var stoneKey = first.blocks().getKey(Block.STONE);
-        assertTrue(firstTag.contains(stoneKey));
+        assertTrue(firstTag.contains(first.blocks(), stoneKey));
         long secondRevision = Registries.tagsRevision(second);
 
-        firstTag.remove(stoneKey);
-        assertFalse(firstTag.contains(stoneKey));
-        assertTrue(secondTag.contains(stoneKey));
-        assertTrue(Block.staticRegistry().getTag(key).contains(stoneKey));
+        first.blocks().removeTag(key);
+        first.blocks().getOrCreateTag(key);
+        assertFalse(firstTag.contains(first.blocks(), stoneKey));
+        assertTrue(secondTag.contains(second.blocks(), stoneKey));
+        assertTrue(Block.staticRegistry().getTag(key).contains(Block.staticRegistry(), stoneKey));
         assertEquals(secondRevision, Registries.tagsRevision(second));
 
         assertTrue(first.blocks().removeTag(key));
@@ -53,29 +62,59 @@ class RegistryIsolationTest {
         var secondTag = second.biome().getTag(tagKey);
         assertNotNull(firstTag);
         assertNotNull(secondTag);
-        var biomeKey = firstTag.iterator().next();
+        var biomeKey = firstTag.resolve(first.biome()).iterator().next();
         long firstRevision = Registries.tagsRevision(first);
         long secondRevision = Registries.tagsRevision(second);
 
         assertTrue(first.biome().remove(biomeKey.key()));
-        assertFalse(firstTag.contains(biomeKey));
-        assertTrue(secondTag.contains(biomeKey));
+        assertFalse(firstTag.contains(first.biome(), biomeKey));
+        assertTrue(secondTag.contains(second.biome(), biomeKey));
         assertNotNull(second.biome().get(biomeKey));
         assertTrue(Registries.tagsRevision(first) > firstRevision);
         assertEquals(secondRevision, Registries.tagsRevision(second));
     }
 
     @Test
-    void sharedMaterialPrototypesDoNotCaptureAProcessesTags() {
-        var registries = Registries.vanilla();
+    void sharedMaterialPrototypesResolveEachRegistrysTags() {
+        var first = Registries.vanilla();
+        var second = Registries.vanilla();
         var repairable = Material.DIAMOND_SWORD.prototype().get(DataComponents.REPAIRABLE);
         assertNotNull(repairable);
         assertNotNull(repairable.key());
-        var localTag = (RegistryTagImpl.Backed<Material>) registries.material().getTag(repairable.key());
-        assertNotNull(localTag);
-        var material = repairable.iterator().next();
-        localTag.remove(material);
-        assertFalse(localTag.contains(material));
-        assertTrue(repairable.contains(material));
+        assertTrue(repairable.contains(first.material(), Material.DIAMOND));
+        assertTrue(first.material().removeTag(repairable.key()));
+        assertFalse(repairable.contains(first.material(), Material.DIAMOND));
+        assertTrue(repairable.contains(second.material(), Material.DIAMOND));
+
+        var tool = Material.DIAMOND_PICKAXE.prototype().get(DataComponents.TOOL);
+        assertNotNull(tool);
+        float vanillaSpeed = tool.getSpeed(second.blocks(), Block.STONE);
+        assertTrue(vanillaSpeed > tool.defaultMiningSpeed());
+        first.blocks().removeTag(TagKey.ofHash("#minecraft:mineable/pickaxe"));
+        assertEquals(tool.defaultMiningSpeed(), tool.getSpeed(first.blocks(), Block.STONE));
+        assertEquals(vanillaSpeed, tool.getSpeed(second.blocks(), Block.STONE));
+    }
+
+    @Test
+    void nestedItemPredicatesKeepTheOwningRegistries() {
+        var first = Registries.vanilla();
+        var second = Registries.vanilla();
+        var materials = Material.DIAMOND_SWORD.prototype().get(DataComponents.REPAIRABLE);
+        assertNotNull(materials);
+        var itemPredicate = new ItemPredicate(materials, null, null);
+        var bundlePredicate = new DataComponentPredicate.BundleContents(
+                CollectionPredicate.<ItemStack, ItemPredicate>builder()
+                        .mustContain(itemPredicate)
+                        .mustMatchCount(itemPredicate, new Range.Int(1))
+                        .build());
+        var predicates = new DataComponentPredicates(DataComponentMap.EMPTY,
+                new ComponentPredicateSet(List.of(bundlePredicate)));
+        var bundle = ItemStack.of(Material.BUNDLE).with(DataComponents.BUNDLE_CONTENTS,
+                List.of(ItemStack.of(Material.DIAMOND)));
+        assertTrue(predicates.test(first, bundle));
+        assertNotNull(materials.key());
+        first.material().removeTag(materials.key());
+        assertFalse(predicates.test(first, bundle));
+        assertTrue(predicates.test(second, bundle));
     }
 }

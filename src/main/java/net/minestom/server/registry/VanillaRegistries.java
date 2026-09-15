@@ -88,12 +88,8 @@ final class VanillaRegistries implements Registries {
     private final DynamicRegistry<Timeline> timeline;
     private final DynamicRegistry<SulfurCubeArchetype> sulfurCubeArchetype;
 
-    VanillaRegistries() {
-        this(true);
-    }
-
     @SuppressWarnings("removal")
-    private VanillaRegistries(boolean initializeMaterials) {
+    VanillaRegistries() {
         // The order of initialization here is relevant, we must load the enchantment util registries before the vanilla data is loaded.
         var _ = DataComponents.ITEM_NAME;
 
@@ -140,18 +136,9 @@ final class VanillaRegistries implements Registries {
         this.dimensionType = DimensionType.createDefaultRegistry(this); // depends on timelines
         this.sulfurCubeArchetype = SulfurCubeArchetype.createDefaultRegistry(this);
 
-        // Shared material prototypes contain tag references, so bind them to dedicated vanilla defaults.
-        if (initializeMaterials) {
-            var _ = MaterialDefaults.REGISTRIES;
-        } else {
-            for (var entry : material().values()) {
-                entry.registry().bindComponents(this);
-            }
+        for (var entry : material().values()) {
+            entry.registry().bindComponents(this);
         }
-    }
-
-    private static final class MaterialDefaults {
-        private static final Registries REGISTRIES = new VanillaRegistries(false);
     }
 
     @Override

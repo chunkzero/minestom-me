@@ -106,10 +106,6 @@ public class PlayerSocketConnection extends PlayerConnection {
 
     private final ListenerHandle<PlayerPacketOutEvent> outgoing;
 
-    public PlayerSocketConnection(SocketChannel channel, SocketAddress remoteAddress, Thread readThread, Thread writeThread) {
-        this(MinecraftServer.process(), channel, remoteAddress, readThread, writeThread);
-    }
-
     public PlayerSocketConnection(ServerProcess process, SocketChannel channel, SocketAddress remoteAddress,
                                   Thread readThread, Thread writeThread) {
         super(process);
@@ -162,7 +158,7 @@ public class PlayerSocketConnection extends PlayerConnection {
                     this::readClientPacket
             );
         } catch (DataFormatException e) {
-            MinecraftServer.getExceptionManager().handleException(e);
+            process().exception().handleException(e);
             disconnect();
             return;
         }
@@ -175,7 +171,7 @@ public class PlayerSocketConnection extends PlayerConnection {
                         final boolean processImmediately = IMMEDIATE_PROCESS_PACKETS.contains(packet.getClass());
                         if (processImmediately) {
                             // Interpret the packet using the connection state we received it.
-                            MinecraftServer.getPacketListenerManager().processClientPacket(packet, this);
+                            process().packetListener().processClientPacket(packet, this);
                         } else {
                             // To be processed during the next player tick
                             final Player player = getPlayer();
@@ -183,7 +179,7 @@ public class PlayerSocketConnection extends PlayerConnection {
                             player.addPacketToQueue(packet);
                         }
                     } catch (Exception e) {
-                        MinecraftServer.getExceptionManager().handleException(e);
+                        process().exception().handleException(e);
                     }
                 }
                 // Compact in case of incomplete read

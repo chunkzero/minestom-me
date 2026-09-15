@@ -1,6 +1,5 @@
 package net.minestom.server.exception;
 
-import net.minestom.server.MinecraftServer;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
@@ -11,10 +10,6 @@ import java.util.Objects;
 public final class ExceptionManager {
 
     private final Runnable stopServer;
-
-    public ExceptionManager() {
-        this(MinecraftServer::stopCleanly);
-    }
 
     public ExceptionManager(Runnable stopServer) {
         this.stopServer = Objects.requireNonNull(stopServer);

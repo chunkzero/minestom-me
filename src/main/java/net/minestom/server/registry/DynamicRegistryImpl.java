@@ -36,9 +36,7 @@ import java.util.Objects;
 @ApiStatus.Internal
 final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
     private static final String UNSAFE_REMOVE_MESSAGE = "Registry is frozen. Enable unsafe changes by setting the system property 'minestom.registry.unsafe-ops' to 'true'";
-    // Could also just use `this`, but this is a good candidate for identityless classes.
-    // Also, what use case requires you to mutate registries faster than one monitor?
-    private static final Object REGISTRY_LOCK = new Object();
+    private final Object registryLock = new Object();
 
     private volatile @Nullable Registries registries = null;
     private final CachedPacket vanillaRegistryDataPacket = new CachedPacket(() -> createRegistryDataPacket(registries, true));
@@ -138,7 +136,7 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
         Objects.requireNonNull(pack, "Pack cannot be null");
 
         final RegistryKey<T> registryKey = new RegistryKeyImpl<>(key);
-        synchronized (REGISTRY_LOCK) {
+        synchronized (registryLock) {
             if (isFrozen()) throw new UnsupportedOperationException(UNSAFE_REMOVE_MESSAGE);
             Integer id = keyToId.get(registryKey); // Array set at home
             keyToValue.put(key, object);
@@ -165,7 +163,7 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
         Objects.requireNonNull(key, "Key cannot be null");
 
         final RegistryKey<T> registryKey = new RegistryKeyImpl<>(key);
-        synchronized (REGISTRY_LOCK) {
+        synchronized (registryLock) {
             if (isFrozen()) throw new UnsupportedOperationException(UNSAFE_REMOVE_MESSAGE);
             Integer idObject = keyToId.get(registryKey);
             if (idObject == null) return false;
@@ -230,13 +228,18 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
     }
 
     @Override
+    public Collection<RegistryKey<T>> tagValues(TagKey<T> key) {
+        return tags.entries(key);
+    }
+
+    @Override
     public boolean removeTag(TagKey<T> key) {
         return this.tags.remove(key);
     }
 
     @Override
-    public Collection<RegistryTag<T>> tags() {
-        return Collections.unmodifiableCollection(this.tags.values());
+    public List<RegistryTag<T>> tags() {
+        return tags.references();
     }
 
     @Override // This method is called by a virtual thread in the configuration phase
@@ -245,7 +248,7 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
         // the vanilla datapack we can compute the entire thing.
         if (excludeVanilla) {
             if (this.registries != registries) {
-                synchronized (REGISTRY_LOCK) { // Bootleg off the static lock for this mutation
+                synchronized (registryLock) {
                     if (this.registries != registries) {
                         this.registries = registries;
                         vanillaRegistryDataPacket.invalidate();
@@ -278,7 +281,7 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
         final List<T> idToValue;
         final List<DataPack> packById;
         if (!isFrozen()) {
-            synchronized (REGISTRY_LOCK) {
+            synchronized (registryLock) {
                 idToValue = List.copyOf(this.idToValue);
                 packById = List.copyOf(this.packById);
             }
@@ -334,7 +337,7 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
 
     @Override
     public void freeze() {
-        synchronized (REGISTRY_LOCK) {
+        synchronized (registryLock) {
             frozen = true;
         }
     }

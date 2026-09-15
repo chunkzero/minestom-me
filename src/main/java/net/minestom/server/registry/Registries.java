@@ -81,37 +81,21 @@ public interface Registries {
     // Static registries
 
     // The name block conflicts with blockmanager :(
-    default Registry<Block> blocks() {
-        return Block.staticRegistry();
-    }
+    Registry<Block> blocks();
 
-    default Registry<Material> material() {
-        return Material.staticRegistry();
-    }
+    Registry<Material> material();
 
-    default Registry<PotionEffect> potionEffect() {
-        return PotionEffect.staticRegistry();
-    }
+    Registry<PotionEffect> potionEffect();
 
-    default Registry<PotionType> potionType() {
-        return PotionType.staticRegistry();
-    }
+    Registry<PotionType> potionType();
 
-    default Registry<EntityType> entityType() {
-        return EntityType.staticRegistry();
-    }
+    Registry<EntityType> entityType();
 
-    default Registry<Fluid> fluid() {
-        return Fluid.staticRegistry();
-    }
+    Registry<Fluid> fluid();
 
-    default Registry<GameEvent> gameEvent() {
-        return GameEvent.staticRegistry();
-    }
+    Registry<GameEvent> gameEvent();
 
-    default Registry<GameRule<?>> gameRule() {
-        return GameRule.staticRegistry();
-    }
+    Registry<GameRule<?>> gameRule();
 
     // Dynamic registries
 

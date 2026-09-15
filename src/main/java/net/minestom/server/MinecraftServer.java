@@ -62,6 +62,9 @@ import java.util.Objects;
  * <p>
  * The server needs to be initialized with {@link #init()} and started with {@link #start(String, int)}.
  * You should register all of your dimensions, biomes, commands, events, etc... in-between.
+ * <p>Static settings and manager access target the default process and require initialization first.
+ * Each call to {@link #init()} installs a fresh process with default settings. Use
+ * {@link ServerProcess#create()} to construct a process without replacing the default.</p>
  */
 public final class MinecraftServer implements MinecraftConstants {
 
@@ -82,10 +85,6 @@ public final class MinecraftServer implements MinecraftConstants {
     // In-Game Manager
     private static volatile @UnknownNullability ServerProcess serverProcess;
 
-    private static int compressionThreshold = 256;
-    private static String brandName = "Minestom";
-    private static Difficulty difficulty = Difficulty.NORMAL;
-
     public static MinecraftServer init(Auth auth) {
         updateProcess(auth);
         return new MinecraftServer();
@@ -97,13 +96,7 @@ public final class MinecraftServer implements MinecraftConstants {
 
     @ApiStatus.Internal
     public static ServerProcess updateProcess(Auth auth) {
-        final String brand = getBrandName();
-        final Difficulty difficulty = getDifficulty();
-        final int threshold = getCompressionThreshold();
         ServerProcess process = ServerProcess.create(auth);
-        process.setBrandName(brand);
-        process.setDifficulty(difficulty);
-        process.setCompressionThreshold(threshold);
         serverProcess = process;
         return process;
     }
@@ -119,8 +112,7 @@ public final class MinecraftServer implements MinecraftConstants {
      * @return the server brand name
      */
     public static String getBrandName() {
-        final ServerProcess process = serverProcess;
-        return process != null ? process.brandName() : brandName;
+        return process().brandName();
     }
 
     /**
@@ -131,9 +123,7 @@ public final class MinecraftServer implements MinecraftConstants {
      */
     public static void setBrandName(String brandName) {
         Objects.requireNonNull(brandName);
-        final ServerProcess process = serverProcess;
-        if (process != null) process.setBrandName(brandName);
-        MinecraftServer.brandName = brandName;
+        process().setBrandName(brandName);
     }
 
     /**
@@ -142,8 +132,7 @@ public final class MinecraftServer implements MinecraftConstants {
      * @return the server difficulty
      */
     public static Difficulty getDifficulty() {
-        final ServerProcess process = serverProcess;
-        return process != null ? process.difficulty() : difficulty;
+        return process().difficulty();
     }
 
     /**
@@ -153,9 +142,7 @@ public final class MinecraftServer implements MinecraftConstants {
      */
     public static void setDifficulty(Difficulty difficulty) {
         Objects.requireNonNull(difficulty);
-        final ServerProcess process = serverProcess;
-        if (process != null) process.setDifficulty(difficulty);
-        MinecraftServer.difficulty = difficulty;
+        process().setDifficulty(difficulty);
     }
 
     public static @UnknownNullability ServerProcess process() {
@@ -258,8 +245,7 @@ public final class MinecraftServer implements MinecraftConstants {
      * @return the compression threshold, 0 means that compression is disabled
      */
     public static int getCompressionThreshold() {
-        final ServerProcess process = serverProcess;
-        return process != null ? process.compressionThreshold() : compressionThreshold;
+        return process().compressionThreshold();
     }
 
     /**
@@ -271,9 +257,7 @@ public final class MinecraftServer implements MinecraftConstants {
      * @throws IllegalStateException if this is called after the server started
      */
     public static void setCompressionThreshold(int compressionThreshold) {
-        final ServerProcess process = serverProcess;
-        if (process != null) process.setCompressionThreshold(compressionThreshold);
-        MinecraftServer.compressionThreshold = compressionThreshold;
+        process().setCompressionThreshold(compressionThreshold);
     }
 
     public static AdvancementManager getAdvancementManager() {

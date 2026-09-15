@@ -47,9 +47,6 @@ class ServerProcessIsolationTest {
 
     @Test
     void settingsBelongToTheirProcessAndStaticAccessUsesTheDefault() {
-        final String previousBrand = MinecraftServer.getBrandName();
-        final Difficulty previousDifficulty = MinecraftServer.getDifficulty();
-        final int previousThreshold = MinecraftServer.getCompressionThreshold();
         try (var first = MinecraftServer.updateProcess();
              var second = ServerProcess.create()) {
             MinecraftServer.setBrandName("First");
@@ -72,16 +69,23 @@ class ServerProcessIsolationTest {
             assertEquals(128, second.compressionThreshold());
 
             try (var replacement = MinecraftServer.updateProcess()) {
-                assertEquals("Updated", replacement.brandName());
-                assertEquals(Difficulty.HARD, replacement.difficulty());
-                assertEquals(0, replacement.compressionThreshold());
+                assertEquals("Minestom", replacement.brandName());
+                assertEquals(Difficulty.NORMAL, replacement.difficulty());
+                assertEquals(256, replacement.compressionThreshold());
                 assertEquals("Second", second.brandName());
             }
-        } finally {
-            MinecraftServer.setBrandName(previousBrand);
-            MinecraftServer.setDifficulty(previousDifficulty);
-            MinecraftServer.setCompressionThreshold(previousThreshold);
         }
+    }
+
+    @Test
+    void closedProcessCannotStart() {
+        var process = ServerProcess.create();
+        process.close();
+        assertDoesNotThrow(process::close);
+        assertThrows(IllegalStateException.class, () ->
+                process.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0)));
+        assertFalse(process.isAlive());
+        assertFalse(process.server().isOpen());
     }
 
     @Test

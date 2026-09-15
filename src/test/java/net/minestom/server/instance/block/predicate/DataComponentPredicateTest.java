@@ -32,10 +32,14 @@ import net.minestom.server.item.enchant.Enchantment;
 import net.minestom.server.item.predicate.ItemPredicate;
 import net.minestom.server.potion.PotionType;
 import net.minestom.server.potion.PotionTypeKeys;
+import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.RegistryTag;
 import net.minestom.server.utils.Range;
+import net.minestom.testing.RegistriesTest;
 import org.jetbrains.annotations.Nullable;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 import java.util.List;
 import java.util.Map;
@@ -43,7 +47,15 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@RegistriesTest
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class DataComponentPredicateTest {
+    private Registries registries;
+
+    @BeforeAll
+    void setup(Registries registries) {
+        this.registries = registries;
+    }
     private static <T> DataComponent.Holder holderOf(DataComponent<T> component, T value) {
         return DataComponentMap.builder().set(component, value);
     }
@@ -59,20 +71,20 @@ public class DataComponentPredicateTest {
         }
     };
 
-    private static <T> void assertPass(DataComponentPredicate predicate, DataComponent<T> component, T value) {
+    private <T> void assertPass(DataComponentPredicate predicate, DataComponent<T> component, T value) {
         assertPass(predicate, holderOf(component, value));
     }
 
-    private static void assertPass(DataComponentPredicate predicate, DataComponent.Holder holder) {
-        assertTrue(predicate.test(holder));
+    private void assertPass(DataComponentPredicate predicate, DataComponent.Holder holder) {
+        assertTrue(predicate.test(registries, holder));
     }
 
-    private static <T> void assertFail(DataComponentPredicate predicate, DataComponent<T> component, T value) {
+    private <T> void assertFail(DataComponentPredicate predicate, DataComponent<T> component, T value) {
         assertFail(predicate, holderOf(component, value));
     }
 
-    private static void assertFail(DataComponentPredicate predicate, DataComponent.Holder holder) {
-        assertFalse(predicate.test(holder));
+    private void assertFail(DataComponentPredicate predicate, DataComponent.Holder holder) {
+        assertFalse(predicate.test(registries, holder));
     }
 
     @Test

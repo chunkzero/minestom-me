@@ -85,6 +85,9 @@ public sealed interface Registry<T> extends Keyed permits StaticRegistry, Dynami
      */
     RegistryTag<T> getOrCreateTag(TagKey<T> key);
 
+    /** Returns read-only tag membership in this registry, or an empty collection if the tag is absent. */
+    Collection<RegistryKey<T>> tagValues(TagKey<T> key);
+
     /**
      * Removes the given tag from this registry if it exists.
      *

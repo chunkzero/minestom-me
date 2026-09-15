@@ -32,7 +32,7 @@ final class EnvTestExt implements
     public void afterEach(ExtensionContext context) {
         ExtensionContext.Store store = context.getStore(ExtensionContext.Namespace.create(getClass()));
         EnvImpl env = store.remove(ENV_KEY, EnvImpl.class);
-        if (env != null) env.cleanup();
+        if (env != null) env.close();
     }
 
     @Override

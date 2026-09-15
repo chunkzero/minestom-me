@@ -1,5 +1,6 @@
 package net.minestom.server.instance.block.predicate;
 
+import net.minestom.server.MinecraftServer;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.Result;
 import net.minestom.server.codec.Transcoder;
@@ -215,8 +216,12 @@ public record ComponentPredicateSet(List<DataComponentPredicate> predicates) imp
 
     @Override
     public boolean test(DataComponent.Holder holder) {
+        return test(MinecraftServer.getRegistries(), holder);
+    }
+
+    public boolean test(Registries registries, DataComponent.Holder holder) {
         for (DataComponentPredicate predicate : predicates()) {
-            if (!predicate.test(holder)) {
+            if (!predicate.test(registries, holder)) {
                 return false;
             }
         }

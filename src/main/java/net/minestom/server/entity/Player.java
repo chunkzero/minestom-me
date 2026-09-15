@@ -359,7 +359,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         inventory.addViewer(this);
 
         // Difficulty
-        sendPacket(new ServerDifficultyPacket(MinecraftServer.getDifficulty(), true));
+        sendPacket(new ServerDifficultyPacket(getPlayerConnection().process().difficulty(), true));
 
         sendPacket(new SpawnPositionPacket(
                 new WorldPos(spawnInstance.getDimensionName(), respawnPoint),
@@ -583,7 +583,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      */
     private void refreshClientStateAfterRespawn() {
         sendPacket(new ChangeGameStatePacket(ChangeGameStatePacket.Reason.LEVEL_CHUNKS_LOAD_START, 0));
-        sendPacket(new ServerDifficultyPacket(MinecraftServer.getDifficulty(), false));
+        sendPacket(new ServerDifficultyPacket(getPlayerConnection().process().difficulty(), false));
         sendPacket(new UpdateHealthPacket(this.getHealth(), food, foodSaturation));
         sendPacket(new SetExperiencePacket(exp, level, 0));
         triggerStatus((byte) (EntityStatuses.Player.PERMISSION_LEVEL_0 + permissionLevel)); // Set permission level

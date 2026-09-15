@@ -40,6 +40,7 @@ import net.minestom.server.utils.collection.MappedCollection;
 import net.minestom.server.utils.time.Tick;
 import net.minestom.server.utils.validate.Check;
 import net.minestom.server.world.Difficulty;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,6 +85,7 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
 
     private final AtomicBoolean started = new AtomicBoolean();
     private final AtomicBoolean stopped = new AtomicBoolean();
+    private @Nullable Thread shutdownHook;
 
     public ServerProcessImpl(Auth auth) {
         this.auth = Objects.requireNonNull(auth);
@@ -96,7 +98,7 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
         this.instance = new InstanceManager(this);
         this.block = new BlockManager();
         this.command = new CommandManager();
-        this.recipe = new RecipeManager();
+        this.recipe = new RecipeManager(registries);
         this.team = new TeamManager();
         this.eventHandler = new GlobalEventHandler();
         this.scheduler = new SchedulerManager();
@@ -243,6 +245,7 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
 
     @Override
     public synchronized void start(SocketAddress socketAddress) {
+        Check.stateCondition(stopped.get(), "Server is closed");
         if (!started.compareAndSet(false, true)) {
             throw new IllegalStateException("Server already started");
         }
@@ -279,12 +282,25 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
         LOGGER.info("{} server started successfully.", brand);
 
         // Stop the server on SIGINT
-        if (ServerFlag.SHUTDOWN_ON_SIGNAL) Runtime.getRuntime().addShutdownHook(new Thread(this::stop));
+        if (ServerFlag.SHUTDOWN_ON_SIGNAL) {
+            shutdownHook = new Thread(this::stop, "Minestom shutdown");
+            Runtime.getRuntime().addShutdownHook(shutdownHook);
+        }
     }
 
     @Override
     public void stop() {
-        if (!stopped.compareAndSet(false, true)) return;
+        synchronized (this) {
+            if (!stopped.compareAndSet(false, true)) return;
+            if (shutdownHook != null) {
+                try {
+                    Runtime.getRuntime().removeShutdownHook(shutdownHook);
+                } catch (IllegalStateException _) {
+                    // Shutdown hooks cannot be removed once JVM shutdown has begun.
+                }
+                shutdownHook = null;
+            }
+        }
         final String brand = brandName;
         LOGGER.info("Stopping {} server.", brand);
         scheduler.shutdown();

@@ -1,9 +1,11 @@
 package net.minestom.server.item.component;
 
+import net.minestom.server.MinecraftServer;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.predicate.BlockPredicate;
 import net.minestom.server.network.NetworkBuffer;
+import net.minestom.server.registry.Registries;
 
 import java.util.List;
 import java.util.function.Predicate;
@@ -29,8 +31,12 @@ public record BlockPredicates(List<BlockPredicate> predicates) implements Predic
 
     @Override
     public boolean test(Block block) {
+        return test(MinecraftServer.getRegistries(), block);
+    }
+
+    public boolean test(Registries registries, Block block) {
         for (BlockPredicate predicate : predicates) {
-            if (predicate.test(block)) {
+            if (predicate.test(registries, block)) {
                 return true;
             }
         }

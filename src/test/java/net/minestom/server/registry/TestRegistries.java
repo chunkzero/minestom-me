@@ -3,6 +3,7 @@ package net.minestom.server.registry;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.StructCodec;
 import net.minestom.server.dialog.Dialog;
+import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.damage.DamageType;
 import net.minestom.server.entity.metadata.animal.ChickenSoundVariant;
 import net.minestom.server.entity.metadata.animal.ChickenVariant;
@@ -18,9 +19,14 @@ import net.minestom.server.entity.metadata.animal.tameable.WolfSoundVariant;
 import net.minestom.server.entity.metadata.animal.tameable.WolfVariant;
 import net.minestom.server.entity.metadata.cube.SulfurCubeArchetype;
 import net.minestom.server.entity.metadata.other.PaintingVariant;
+import net.minestom.server.game.GameEvent;
+import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.banner.BannerPattern;
 import net.minestom.server.instance.block.jukebox.JukeboxSong;
 import net.minestom.server.instance.block.predicate.DataComponentPredicate;
+import net.minestom.server.instance.fluid.Fluid;
+import net.minestom.server.instance.gamerule.GameRule;
+import net.minestom.server.item.Material;
 import net.minestom.server.item.armor.TrimMaterial;
 import net.minestom.server.item.armor.TrimPattern;
 import net.minestom.server.item.enchant.Enchantment;
@@ -30,6 +36,8 @@ import net.minestom.server.item.enchant.LocationEffect;
 import net.minestom.server.item.enchant.ValueEffect;
 import net.minestom.server.item.instrument.Instrument;
 import net.minestom.server.message.ChatType;
+import net.minestom.server.potion.PotionEffect;
+import net.minestom.server.potion.PotionType;
 import net.minestom.server.world.DimensionType;
 import net.minestom.server.world.biome.Biome;
 import net.minestom.server.world.clock.WorldClock;
@@ -40,6 +48,14 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 public class TestRegistries implements Registries {
+    public Registry<GameRule<?>> gameRule = StaticRegistry.copyOf(GameRule.staticRegistry());
+    public Registry<GameEvent> gameEvent = StaticRegistry.copyOf(GameEvent.staticRegistry());
+    public Registry<Fluid> fluid = StaticRegistry.copyOf(Fluid.staticRegistry());
+    public Registry<EntityType> entityType = StaticRegistry.copyOf(EntityType.staticRegistry());
+    public Registry<PotionType> potionType = StaticRegistry.copyOf(PotionType.staticRegistry());
+    public Registry<PotionEffect> potionEffect = StaticRegistry.copyOf(PotionEffect.staticRegistry());
+    public Registry<Material> material = StaticRegistry.copyOf(Material.staticRegistry());
+    public Registry<Block> blocks = StaticRegistry.copyOf(Block.staticRegistry());
     public @Nullable DynamicRegistry<ChatType> chatType = null;
     public @Nullable DynamicRegistry<DimensionType> dimensionType = null;
     public @Nullable DynamicRegistry<Biome> biome = null;
@@ -72,6 +88,46 @@ public class TestRegistries implements Registries {
     public @Nullable DynamicRegistry<StructCodec<? extends EntityEffect>> enchantmentEntityEffects = null;
     public @Nullable DynamicRegistry<StructCodec<? extends LocationEffect>> enchantmentLocationEffects = null;
     public @Nullable DynamicRegistry<Codec<? extends DataComponentPredicate>> componentPredicateTypes = null;
+
+    @Override
+    public Registry<Block> blocks() {
+        return blocks;
+    }
+
+    @Override
+    public Registry<Material> material() {
+        return material;
+    }
+
+    @Override
+    public Registry<PotionEffect> potionEffect() {
+        return potionEffect;
+    }
+
+    @Override
+    public Registry<PotionType> potionType() {
+        return potionType;
+    }
+
+    @Override
+    public Registry<EntityType> entityType() {
+        return entityType;
+    }
+
+    @Override
+    public Registry<Fluid> fluid() {
+        return fluid;
+    }
+
+    @Override
+    public Registry<GameEvent> gameEvent() {
+        return gameEvent;
+    }
+
+    @Override
+    public Registry<GameRule<?>> gameRule() {
+        return gameRule;
+    }
 
     @SuppressWarnings("this-escape") // test helper, init consumer runs last
 

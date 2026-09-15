@@ -31,7 +31,9 @@ public interface ServerProcess extends Registries, Snapshotable, AutoCloseable {
     /**
      * Creates a process with its own managers, configuration, and registries, without changing
      * {@link MinecraftServer#process()}.
-     * <p>Gameplay and packet routing are not yet independent of the default process.</p>
+     * <p>Gameplay and packet routing are not yet independent of the default process. In particular,
+     * compression negotiation, encoded packet caches, and outgoing buffer pools still use default-process
+     * state. Different compression settings cannot yet be used for independent client connections.</p>
      * {@snippet :
      * try (var first = ServerProcess.create(); var second = ServerProcess.create()) {
      *     first.setBrandName("First");
@@ -164,6 +166,7 @@ public interface ServerProcess extends Registries, Snapshotable, AutoCloseable {
      */
     ClickCallbackManager clickCallbackManager();
 
+    /** Starts this process's socket server. A closed process cannot be started. */
     void start(SocketAddress socketAddress);
 
     void stop();

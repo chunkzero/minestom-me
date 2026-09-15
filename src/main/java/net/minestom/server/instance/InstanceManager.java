@@ -25,13 +25,8 @@ import java.util.concurrent.CopyOnWriteArraySet;
 public final class InstanceManager {
 
     private final Registries registries;
-    private final @Nullable ServerProcess process;
+    private final ServerProcess process;
     private final Set<Instance> instances = new CopyOnWriteArraySet<>();
-
-    public InstanceManager(Registries registries) {
-        this.registries = registries;
-        this.process = registries instanceof ServerProcess owner ? owner : MinecraftServer.process();
-    }
 
     public InstanceManager(ServerProcess process) {
         this.process = Objects.requireNonNull(process);
@@ -39,7 +34,7 @@ public final class InstanceManager {
     }
 
     public ServerProcess process() {
-        return Objects.requireNonNull(process, "Instance manager has no server process");
+        return process;
     }
 
     /**

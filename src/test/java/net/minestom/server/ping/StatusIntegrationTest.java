@@ -1,6 +1,7 @@
 package net.minestom.server.ping;
 
 import net.minestom.server.ServerFlag;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.MainHand;
 import net.minestom.server.listener.preplay.StatusListener;
@@ -46,8 +47,8 @@ public class StatusIntegrationTest {
     }
 
     @Test
-    void statusRequestOnlyRespondsOnce() throws InterruptedException {
-        final TestConnection connection = new TestConnection();
+    void statusRequestOnlyRespondsOnce(Env env) throws InterruptedException {
+        final TestConnection connection = new TestConnection(env.process());
         connection.setClientState(ConnectionState.STATUS);
 
         final Thread readThread = Thread.startVirtualThread(() -> {
@@ -89,6 +90,9 @@ public class StatusIntegrationTest {
     }
 
     private static final class TestConnection extends PlayerConnection {
+        TestConnection(ServerProcess process) {
+            super(process);
+        }
         private final List<SendablePacket> packets = new ArrayList<>();
 
         @Override

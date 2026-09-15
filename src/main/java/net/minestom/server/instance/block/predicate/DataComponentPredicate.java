@@ -4,6 +4,7 @@ import net.kyori.adventure.key.Key;
 import net.kyori.adventure.nbt.BinaryTag;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
 import net.kyori.adventure.text.Component;
+import net.minestom.server.MinecraftServer;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.StructCodec;
 import net.minestom.server.component.DataComponent;
@@ -44,8 +45,14 @@ import java.util.function.Predicate;
  *
  * <p>Registered predicates inspect the value of a particular component, while {@link Exists}
  * only requires that a component be present.</p>
+ * <p>Pass registries to {@link #test(Registries, DataComponent.Holder)} when evaluating named tags.
+ * Tag-dependent {@link Predicate} adapters use the initialized default server.</p>
  */
 public sealed interface DataComponentPredicate extends Predicate<DataComponent.Holder> {
+
+    default boolean test(Registries registries, DataComponent.Holder holder) {
+        return test(holder);
+    }
 
     @ApiStatus.Internal
     static DynamicRegistry<Codec<? extends DataComponentPredicate>> createDefaultRegistry() {
@@ -152,8 +159,12 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
 
         @Override
         public boolean test(EnchantmentList enchantmentList) {
+            return test(MinecraftServer.getRegistries(), enchantmentList);
+        }
+
+        public boolean test(Registries registries, EnchantmentList enchantmentList) {
             if (enchantments != null) {
-                for (RegistryKey<Enchantment> key : enchantments) {
+                for (RegistryKey<Enchantment> key : enchantments.resolve(registries.enchantment())) {
                     if (enchantmentList.has(key) && (levels == null || levels.inRange(enchantmentList.level(key)))) {
                         return true;
                     }
@@ -194,10 +205,15 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
 
         @Override
         public boolean test(DataComponent.Holder holder) {
+            return test(MinecraftServer.getRegistries(), holder);
+        }
+
+        @Override
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             EnchantmentList enchantments = holder.get(DataComponents.ENCHANTMENTS);
             if (enchantments == null) return false;
             for (EnchantmentListPredicate child : children) {
-                if (!child.test(enchantments)) {
+                if (!child.test(registries, enchantments)) {
                     return false;
                 }
             }
@@ -231,10 +247,15 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
 
         @Override
         public boolean test(DataComponent.Holder holder) {
+            return test(MinecraftServer.getRegistries(), holder);
+        }
+
+        @Override
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             EnchantmentList enchantments = holder.get(DataComponents.STORED_ENCHANTMENTS);
             if (enchantments == null) return false;
             for (EnchantmentListPredicate child : children) {
-                if (!child.test(enchantments)) {
+                if (!child.test(registries, enchantments)) {
                     return false;
                 }
             }
@@ -262,9 +283,14 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
 
         @Override
         public boolean test(DataComponent.Holder holder) {
+            return test(MinecraftServer.getRegistries(), holder);
+        }
+
+        @Override
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             var potion = holder.get(DataComponents.POTION_CONTENTS);
             if (potion == null || potion.potion() == null) return false;
-            return potionTypes.contains(potion.potion().registryKey());
+            return potionTypes.contains(registries.potionType(), potion.potion().registryKey());
         }
 
         @Override
@@ -312,11 +338,16 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
 
         @Override
         public boolean test(DataComponent.Holder holder) {
+            return test(MinecraftServer.getRegistries(), holder);
+        }
+
+        @Override
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             final List<ItemStack> container = holder.get(DataComponents.CONTAINER);
             if (container == null) return false;
             List<ItemStack> itemStacks = new ArrayList<>(container);
             itemStacks.removeIf(ItemStack::isAir);
-            return items == null || items.test(itemStacks);
+            return items == null || items.test(itemStacks, (predicate, item) -> predicate.test(registries, item));
         }
 
         @Override
@@ -340,8 +371,13 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
 
         @Override
         public boolean test(DataComponent.Holder holder) {
+            return test(MinecraftServer.getRegistries(), holder);
+        }
+
+        @Override
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             List<ItemStack> itemStacks = holder.get(DataComponents.BUNDLE_CONTENTS);
-            return itemStacks != null && (items == null || items.test(itemStacks));
+            return itemStacks != null && (items == null || items.test(itemStacks, (predicate, item) -> predicate.test(registries, item)));
         }
 
         @Override
@@ -602,11 +638,16 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
 
         @Override
         public boolean test(DataComponent.Holder holder) {
+            return test(MinecraftServer.getRegistries(), holder);
+        }
+
+        @Override
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             var trim = holder.get(DataComponents.TRIM);
             if (trim == null) return false;
-            if (material != null && (trim.material().asKey() == null || !material.contains(trim.material().asKey())))
+            if (material != null && (trim.material().asKey() == null || !material.contains(registries.trimMaterial(), trim.material().asKey())))
                 return false;
-            return pattern == null || (trim.pattern().asKey() != null && pattern.contains(trim.pattern().asKey()));
+            return pattern == null || (trim.pattern().asKey() != null && pattern.contains(registries.trimPattern(), trim.pattern().asKey()));
         }
 
         @Override
@@ -629,9 +670,14 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
 
         @Override
         public boolean test(DataComponent.Holder holder) {
+            return test(MinecraftServer.getRegistries(), holder);
+        }
+
+        @Override
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             var song = holder.get(DataComponents.JUKEBOX_PLAYABLE);
             if (song == null) return false;
-            return songs == null || songs.contains(song);
+            return songs == null || songs.contains(registries.jukeboxSong(), song);
         }
 
         @Override

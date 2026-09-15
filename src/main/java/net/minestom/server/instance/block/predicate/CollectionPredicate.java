@@ -9,6 +9,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 /**
@@ -37,8 +38,12 @@ public record CollectionPredicate<T, P extends Predicate<T>>(@Nullable Contains<
 
     @Override
     public boolean test(Collection<T> collection) {
-        return (contains == null || contains.test(collection)) &&
-                (counts == null || counts.test(collection)) &&
+        return test(collection, Predicate::test);
+    }
+
+    public boolean test(Collection<T> collection, BiPredicate<P, T> evaluator) {
+        return (contains == null || contains.test(collection, evaluator)) &&
+                (counts == null || counts.test(collection, evaluator)) &&
                 (size == null || size.inRange(collection.size()));
     }
 
@@ -57,6 +62,10 @@ public record CollectionPredicate<T, P extends Predicate<T>>(@Nullable Contains<
 
         @Override
         public boolean test(Collection<T> collection) {
+            return test(collection, Predicate::test);
+        }
+
+        public boolean test(Collection<T> collection, BiPredicate<P, T> evaluator) {
             if (predicates.isEmpty()) {
                 return true;
             } else if (collection.isEmpty()) {
@@ -64,7 +73,7 @@ public record CollectionPredicate<T, P extends Predicate<T>>(@Nullable Contains<
             }
             outer: for (P predicate : predicates) {
                 for (T item : collection) {
-                    if (predicate.test(item)) {
+                    if (evaluator.test(predicate, item)) {
                         continue outer;
                     }
                 }
@@ -96,9 +105,13 @@ public record CollectionPredicate<T, P extends Predicate<T>>(@Nullable Contains<
 
             @Override
             public boolean test(Collection<T> collection) {
+                return test(collection, Predicate::test);
+            }
+
+            public boolean test(Collection<T> collection, BiPredicate<P, T> evaluator) {
                 int count = 0;
                 for (T item : collection) {
-                    if (this.predicate.test(item)) {
+                    if (evaluator.test(this.predicate, item)) {
                         count++;
                     }
                 }
@@ -112,8 +125,12 @@ public record CollectionPredicate<T, P extends Predicate<T>>(@Nullable Contains<
 
         @Override
         public boolean test(Collection<T> collection) {
+            return test(collection, Predicate::test);
+        }
+
+        public boolean test(Collection<T> collection, BiPredicate<P, T> evaluator) {
             for (Entry<T, P> entry : entries) {
-                if (!entry.test(collection)) {
+                if (!entry.test(collection, evaluator)) {
                     return false;
                 }
             }

@@ -2,7 +2,6 @@ package net.minestom.server.network;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Player;
@@ -60,20 +59,16 @@ public final class ConnectionManager {
     private static final Component TIMEOUT_TEXT = Component.text("Timeout", NamedTextColor.RED);
     private static final Component SHUTDOWN_TEXT = Component.text("Server shutting down");
 
-    private final @Nullable ServerProcess process;
+    private final ServerProcess process;
     private final CachedPacket cachedTagsPacket = new CachedPacket(() -> Registries.tagsPacket(process().registries()));
     private long cachedTagsRevision = Long.MIN_VALUE;
-
-    public ConnectionManager() {
-        this.process = MinecraftServer.process();
-    }
 
     public ConnectionManager(ServerProcess process) {
         this.process = Objects.requireNonNull(process);
     }
 
     public ServerProcess process() {
-        return Objects.requireNonNull(process, "Connection manager has no server process");
+        return process;
     }
 
     // All players once their Player object has been instantiated.
@@ -218,11 +213,6 @@ public final class ConnectionManager {
             cachedTagsRevision = revision;
         }
         return cachedTagsPacket;
-    }
-
-    @ApiStatus.Internal
-    public void invalidateTags() {
-        this.cachedTagsPacket.invalidate();
     }
 
     public GameProfile transitionLoginToConfig(PlayerConnection connection, GameProfile gameProfile) {

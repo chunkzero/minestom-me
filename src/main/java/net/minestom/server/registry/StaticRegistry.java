@@ -9,7 +9,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -131,13 +130,18 @@ final class StaticRegistry<T extends StaticProtocolObject<T>> implements Registr
     }
 
     @Override
+    public Collection<RegistryKey<T>> tagValues(TagKey<T> key) {
+        return tags.entries(key);
+    }
+
+    @Override
     public boolean removeTag(TagKey<T> key) {
         return this.tags.remove(key);
     }
 
     @Override
-    public Collection<RegistryTag<T>> tags() {
-        return Collections.unmodifiableCollection(this.tags.values());
+    public List<RegistryTag<T>> tags() {
+        return tags.references();
     }
 
     @Override

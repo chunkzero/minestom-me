@@ -108,7 +108,7 @@ public class BlockPlacementListener {
         } else if (player.getGameMode() == GameMode.ADVENTURE) {
             //Check if the block can be placed on the block
             BlockPredicates placePredicate = usedItem.get(DataComponents.CAN_PLACE_ON, BlockPredicates.NEVER);
-            canPlaceBlock = placePredicate.test(interactedBlock);
+            canPlaceBlock = placePredicate.test(instance.registries(), interactedBlock);
         }
 
 
