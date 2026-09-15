@@ -14,7 +14,7 @@ import java.util.Objects;
  * usually to display information on the server list.
  */
 public class ServerListPingEvent implements CancellableEvent, AsyncEvent {
-    private final PlayerConnection connection;
+    private final @Nullable PlayerConnection connection;
     private final ServerListPingType type;
 
     private boolean cancelled;
@@ -32,11 +32,15 @@ public class ServerListPingEvent implements CancellableEvent, AsyncEvent {
     /**
      * Creates a new server list ping event.
      *
-     * @param connection the player connection, if the ping type is modern
+     * @param connection the player connection, or null for a connectionless ping such as LAN advertisement
      * @param type       the ping type to respond with
      */
     public ServerListPingEvent(@Nullable PlayerConnection connection, ServerListPingType type) {
-        this.status = Status.builder().build();
+        var status = Status.builder();
+        if (connection != null) {
+            status.playerInfo(Status.PlayerInfo.onlineCount(connection.process().connection().getOnlinePlayerCount()));
+        }
+        this.status = status.build();
         this.connection = connection;
         this.type = type;
     }
@@ -62,7 +66,7 @@ public class ServerListPingEvent implements CancellableEvent, AsyncEvent {
 
     /**
      * PlayerConnection of received packet. Note that the player has not joined the server
-     * at this time. This will <b>only</b> be non-null for modern server list pings.
+     * at this time. Connectionless pings, such as LAN advertisements, return null.
      *
      * @return the playerConnection.
      */

@@ -12,6 +12,7 @@ import net.minestom.server.network.packet.client.play.ClientPickItemFromEntityPa
 
 public class PlayerPickListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void playerPickBlockListener(ClientPickItemFromBlockPacket packet, Player player) {
         final Instance instance = player.getInstance();
         if (instance == null) return;
@@ -22,6 +23,7 @@ public class PlayerPickListener {
         EventDispatcher.call(playerPickBlockEvent);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void playerPickEntityListener(ClientPickItemFromEntityPacket packet, Player player) {
         final Instance instance = player.getInstance();
         if (instance == null) return;

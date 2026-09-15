@@ -173,6 +173,7 @@ import java.util.function.UnaryOperator;
  * You can easily create your own implementation of this and use it with {@link ConnectionManager#setPlayerProvider(PlayerProvider)}.
  */
 public class Player extends LivingEntity implements CommandSender, HoverEventSource<ShowEntity>, NamedAndIdentified {
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static final DynamicRegistry<DimensionType> DIMENSION_TYPE_REGISTRY = MinecraftServer.getDimensionTypeRegistry();
 
     private static final Component REMOVE_MESSAGE = Component.text("You have been removed from the server without reason.", NamedTextColor.RED);
@@ -226,6 +227,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         // Load new chunks
         var _ = this.instance.loadOptionalChunk(chunkX, chunkZ).thenAccept(this::sendChunk);
     };
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     final ChunkRange.ChunkConsumer chunkRemover = (chunkX, chunkZ) -> {
         // Unload old chunks
         sendPacket(new UnloadChunkPacket(chunkX, chunkZ));
@@ -335,6 +337,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * WARNING: executed in the main update thread
      * UNSAFE: Only meant to be used when a socket player connects through the server.
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Internal
     public CompletableFuture<Void> UNSAFE_init() {
         final Instance spawnInstance = this.pendingInstance;
@@ -359,7 +362,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         inventory.addViewer(this);
 
         // Difficulty
-        sendPacket(new ServerDifficultyPacket(MinecraftServer.getDifficulty(), true));
+        sendPacket(new ServerDifficultyPacket(getPlayerConnection().process().difficulty(), true));
 
         sendPacket(new SpawnPositionPacket(
                 new WorldPos(spawnInstance.getDimensionName(), respawnPoint),
@@ -419,6 +422,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      *
      * <p>This will result in them being removed from the current instance, player list, etc.</p>
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void startConfigurationPhase() {
         Check.stateCondition(playerConnection.getServerState() != ConnectionState.PLAY,
                 "Player must be in the play state for reconfiguration.");
@@ -434,6 +438,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         if (connection != null) connection.setPlayer(this);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void update(long time) {
         // Process received packets
@@ -491,6 +496,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         EventDispatcher.call(new PlayerTickEvent(this));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void kill() {
         if (!isDead()) {
@@ -544,6 +550,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * Respawns the player by sending a {@link RespawnPacket} to the player and teleporting him
      * to {@link #getRespawnPoint()}. It also resets fire and health.
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void respawn() {
         if (!isDead())
             return;
@@ -583,7 +590,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      */
     private void refreshClientStateAfterRespawn() {
         sendPacket(new ChangeGameStatePacket(ChangeGameStatePacket.Reason.LEVEL_CHUNKS_LOAD_START, 0));
-        sendPacket(new ServerDifficultyPacket(MinecraftServer.getDifficulty(), false));
+        sendPacket(new ServerDifficultyPacket(getPlayerConnection().process().difficulty(), false));
         sendPacket(new UpdateHealthPacket(this.getHealth(), food, foodSaturation));
         sendPacket(new SetExperiencePacket(exp, level, 0));
         triggerStatus((byte) (EntityStatuses.Player.PERMISSION_LEVEL_0 + permissionLevel)); // Set permission level
@@ -596,6 +603,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * {@link net.minestom.server.command.builder.condition.CommandCondition}s
      * again, and any changes will be visible to the player.
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void refreshCommands() {
         sendPacket(MinecraftServer.getCommandManager().createDeclareCommandsPacket(this));
     }
@@ -603,6 +611,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     /**
      * Refreshes the recipes and recipe book for this player, testing recipe predicates again.
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void refreshRecipes() {
         RecipeManager recipeManager = MinecraftServer.getRecipeManager();
         sendPackets(
@@ -616,6 +625,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         return onGround;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void remove(boolean permanent) {
         if (isRemoved()) return;
@@ -671,6 +681,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @param spawnPosition the new position of the player
      * @return a future called once the player instance changed
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public CompletableFuture<Void> setInstance(Instance instance, Pos spawnPosition) {
         final Instance currentInstance = this.instance;
@@ -759,6 +770,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @param updateChunks  true if chunks should be refreshed, false if the new instance shares the same
      *                      chunks
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void spawnPlayer(Instance instance, Pos spawnPosition,
                              boolean firstSpawn, boolean dimensionChange, boolean updateChunks) {
         if (!firstSpawn && !dimensionChange) {
@@ -853,6 +865,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void sendPendingChunks() {
         // If we have nothing to send or have sent the max # of batches without reply, do nothing
         if (chunkQueue.isEmpty() || chunkBatchLead >= maxChunkBatchLead) return;
@@ -1073,11 +1086,13 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         sendPacket(new ClearTitlesPacket(false));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void showBossBar(BossBar bar) {
         MinecraftServer.getBossBarManager().addBossBar(this, bar);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void hideBossBar(BossBar bar) {
         MinecraftServer.getBossBarManager().removeBossBar(this, bar);
@@ -1260,6 +1275,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      *
      * @param displayName the display name, null to display the username
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void setDisplayName(@Nullable Component displayName) {
         this.displayName = displayName;
         if (isActive()) {
@@ -1281,6 +1297,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      *
      * @param listed whether the player should be displayed in the tab-list
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void setListed(boolean listed) {
         this.listed = listed;
         if (isActive()) {
@@ -1308,6 +1325,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @param listOrder the order in which the player should be displayed in the tab-list. A higher number means
      *                  the player will appear higher in the tab-list.
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void setListOrder(int listOrder) {
         this.listOrder = listOrder;
         if (isActive()) {
@@ -1333,6 +1351,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @param skin the player skin, null to reset it to his {@link #getUuid()} default skin
      * @see PlayerSkinInitEvent if you want to apply the skin at connection
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public synchronized void setSkin(@Nullable PlayerSkin skin) {
         this.skin = skin;
         if (instance == null)
@@ -1427,6 +1446,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @param item the item to drop
      * @return true if player can drop the item (event not cancelled), false otherwise
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public boolean dropItem(ItemStack item) {
         if (item.isAir()) return false;
         ItemDropEvent itemDropEvent = new ItemDropEvent(this, item);
@@ -1773,6 +1793,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @param gameMode the new player GameMode
      * @return true if the gamemode was changed successfully, false otherwise (cancelled by event)
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public boolean setGameMode(GameMode gameMode) {
         PlayerGameModeChangeEvent playerGameModeChangeEvent = new PlayerGameModeChangeEvent(this, gameMode);
         EventDispatcher.call(playerGameModeChangeEvent);
@@ -1901,6 +1922,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @param inventory the inventory to open
      * @return true if the inventory has been opened/sent to the player, false otherwise (cancelled by event)
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public boolean openInventory(Inventory inventory) {
         InventoryOpenEvent inventoryOpenEvent = new InventoryOpenEvent(inventory, this);
 
@@ -1929,6 +1951,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         closeInventory(false, id);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Internal
     public void closeInventory(boolean fromClient, byte windowId) {
         AbstractInventory openInventory = windowId == 0 ? getInventory() : getOpenInventory();
@@ -2271,6 +2294,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Internal
     public void interpretPacketQueue() {
         final PacketListenerManager manager = MinecraftServer.getPacketListenerManager();
@@ -2283,6 +2307,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      *
      * @param latency the new player latency
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void refreshLatency(int latency) {
         this.latency = latency;
         if (getPlayerConnection().getServerState() == ConnectionState.PLAY) {
@@ -2290,6 +2315,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void refreshOnGround(boolean onGround) {
         this.onGround = onGround;
         if (this.onGround && this.isFlyingWithElytra()) {
@@ -2348,6 +2374,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         refreshItemUse(null, 0);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void refreshInput(boolean forward, boolean backward, boolean left, boolean right, boolean jump, boolean shift, boolean sprint) {
         boolean oldForward = this.inputs.forward();
         boolean oldBackward = this.inputs.backward();

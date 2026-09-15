@@ -62,9 +62,13 @@ final class EnvImpl implements Env {
         return flexible;
     }
 
-    void cleanup() {
-        this.listeners.forEach(FlexibleListenerImpl::check);
-        this.process.stop();
+    @Override
+    public void close() {
+        try {
+            this.listeners.forEach(FlexibleListenerImpl::check);
+        } finally {
+            this.process.stop();
+        }
     }
 
     final class EventCollector<E extends Event> implements Collector<E> {

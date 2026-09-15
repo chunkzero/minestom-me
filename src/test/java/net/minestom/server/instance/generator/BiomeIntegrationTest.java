@@ -18,8 +18,8 @@ public class BiomeIntegrationTest {
 
     @BeforeAll
     public static void prepareTest(Env env) {
-        plainsId = env.process().biome().getId(Biome.PLAINS);
-        badlandsId = env.process().biome().getId(Biome.BADLANDS);
+        plainsId = env.process().registries().biome().getId(Biome.PLAINS);
+        badlandsId = env.process().registries().biome().getId(Biome.BADLANDS);
     }
 
     @Test
@@ -31,7 +31,7 @@ public class BiomeIntegrationTest {
         final int sectionCount = maxSection - minSection;
         GenSection[] sections = new GenSection[sectionCount];
         Arrays.setAll(sections, _ -> new GenSection());
-        var chunkUnits = GeneratorImpl.chunk(env.process().biome(), sections, chunkX, minSection, chunkZ);
+        var chunkUnits = GeneratorImpl.chunk(env.process().registries().biome(), sections, chunkX, minSection, chunkZ);
         Generator generator = unit -> {
             var modifier = unit.modifier();
             modifier.setBiome(48, -16, -32, Biome.BADLANDS);
@@ -54,7 +54,7 @@ public class BiomeIntegrationTest {
         final int sectionCount = maxSection - minSection;
         GenSection[] sections = new GenSection[sectionCount];
         Arrays.setAll(sections, _ -> new GenSection());
-        var chunkUnits = GeneratorImpl.chunk(env.process().biome(), sections, chunkX, minSection, chunkZ);
+        var chunkUnits = GeneratorImpl.chunk(env.process().registries().biome(), sections, chunkX, minSection, chunkZ);
         Generator generator = chunk -> {
             var modifier = chunk.modifier();
             modifier.fillBiome(Biome.PLAINS);

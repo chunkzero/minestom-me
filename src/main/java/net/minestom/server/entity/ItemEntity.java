@@ -69,6 +69,7 @@ public class ItemEntity extends Entity {
         ItemEntity.mergeDelay = delay;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void update(long time) {
         if (isMergeable() && isPickable() &&

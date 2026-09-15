@@ -27,7 +27,7 @@ public final class MinestomDataComponentValueConverterProvider implements DataCo
     }
 
     @Override
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"removal", "unchecked"})
     public List<DataComponentValueConverterRegistry.Conversion<?, ?>> conversions() {
         return List.of(
                 // GSON

@@ -11,6 +11,7 @@ import net.minestom.server.network.packet.server.play.DeclareRecipesPacket;
 import net.minestom.server.network.packet.server.play.RecipeBookAddPacket;
 import net.minestom.server.recipe.display.RecipeDisplay;
 import net.minestom.server.recipe.display.SlotDisplay;
+import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.RegistryTag;
 import net.minestom.server.utils.validate.Check;
 import org.jetbrains.annotations.Nullable;
@@ -20,6 +21,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -36,10 +38,16 @@ public final class RecipeManager {
     }
 
     private final CachedPacket declareRecipesPacket = new CachedPacket(this::createDeclareRecipesPacket);
+    private final Registries registries;
+    private long materialTagsRevision = Long.MIN_VALUE;
 
     private final Map<Recipe, RecipeData> recipes = new ConcurrentHashMap<>();
     private final Int2ObjectMap<Map.Entry<RecipeBookAddPacket.Entry, Predicate<Player>>> recipeBookEntryIdMap =
             Int2ObjectMaps.synchronize(new Int2ObjectArrayMap<>());
+
+    public RecipeManager(Registries registries) {
+        this.registries = Objects.requireNonNull(registries);
+    }
 
     public void addRecipe(Recipe recipe) {
         addRecipe(recipe, _ -> true);
@@ -63,6 +71,7 @@ public final class RecipeManager {
         for (RecipeBookAddPacket.Entry entry : recipeBookEntries) {
             recipeBookEntryIdMap.put(entry.displayId(), Map.entry(entry, predicate));
         }
+        declareRecipesPacket.invalidate();
     }
 
     public void removeRecipe(Recipe recipe) {
@@ -71,6 +80,7 @@ public final class RecipeManager {
             for (var entry : removed.displays) {
                 recipeBookEntryIdMap.remove(entry.displayId());
             }
+            declareRecipesPacket.invalidate();
         }
     }
 
@@ -92,7 +102,12 @@ public final class RecipeManager {
         return recipeBookEntry.getKey().display();
     }
 
-    public SendablePacket getDeclareRecipesPacket() {
+    public synchronized SendablePacket getDeclareRecipesPacket() {
+        final long revision = registries.material().tagsRevision();
+        if (materialTagsRevision != revision) {
+            declareRecipesPacket.invalidate();
+            materialTagsRevision = revision;
+        }
         return declareRecipesPacket;
     }
 
@@ -141,12 +156,12 @@ public final class RecipeManager {
         return new DeclareRecipesPacket(itemPropertiesLists, stonecutterRecipes);
     }
 
-    private static @Nullable Ingredient ingredientFromSlotDisplay(SlotDisplay slotDisplay) {
+    private @Nullable Ingredient ingredientFromSlotDisplay(SlotDisplay slotDisplay) {
         return switch (slotDisplay) {
             case SlotDisplay.Item item -> new Ingredient(item.material());
             case SlotDisplay.Tag tag -> {
-                final RegistryTag<Material> tagValue = Material.staticRegistry().getTag(tag.tag());
-                yield tagValue != null ? new Ingredient(tagValue) : null;
+                final RegistryTag<Material> tagValue = registries.material().getTag(tag.tag());
+                yield tagValue != null ? new Ingredient(RegistryTag.reference(tag.tag())) : null;
             }
             default -> null;
         };

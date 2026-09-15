@@ -9,8 +9,11 @@ import net.minestom.server.entity.Player;
 import java.util.function.Predicate;
 
 /**
- * Utility class to access Adventure audiences.
+ * Default-process Adventure audiences.
+ * @deprecated Scheduled for deletion. Build audiences from the owning process's players and console.
+ * Custom audience registries must belong to that process.
  */
+@Deprecated(forRemoval = true)
 public class Audiences {
     private static final SingleAudienceProvider audience = new SingleAudienceProvider();
 
@@ -58,6 +61,7 @@ public class Audiences {
      * @param filter the predicate
      * @return all players matching the predicate
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static Audience players(Predicate<? super Player> filter) {
         return PacketGroupingAudience.of(MinecraftServer.getConnectionManager().getOnlinePlayers().stream().filter(filter).toList());
     }
@@ -67,6 +71,7 @@ public class Audiences {
      *
      * @return the console
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static Audience console() {
         return MinecraftServer.getCommandManager().getConsoleSender();
     }

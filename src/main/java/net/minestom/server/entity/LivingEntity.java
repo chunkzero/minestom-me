@@ -163,6 +163,7 @@ public class LivingEntity extends Entity implements EquipmentHandler {
         updateEquipmentAttributes(oldItem, newItem, slot);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private ItemStack slotChangeEvent(ItemStack itemStack, EquipmentSlot slot) {
         EntityEquipEvent entityEquipEvent = new EntityEquipEvent(this, itemStack, slot);
         EventDispatcher.call(entityEquipEvent);
@@ -202,6 +203,7 @@ public class LivingEntity extends Entity implements EquipmentHandler {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void update(long time) {
         // Fire
@@ -270,6 +272,7 @@ public class LivingEntity extends Entity implements EquipmentHandler {
     /**
      * Kills the entity, trigger the {@link EntityDeathEvent} event.
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void kill() {
         refreshIsDead(true); // So the entity isn't killed over and over again
         triggerStatus((byte) EntityStatuses.LivingEntity.PLAY_DEATH_SOUND); // Start death animation status
@@ -302,6 +305,7 @@ public class LivingEntity extends Entity implements EquipmentHandler {
      *
      * @param ticks duration of fire in ticks
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void setFireTicks(int ticks) {
         int fireTicks = Math.max(0, ticks);
         if (fireTicks > 0) {
@@ -335,6 +339,7 @@ public class LivingEntity extends Entity implements EquipmentHandler {
      * @param damage the damage to be applied
      * @return true if damage has been applied, false if it didn't
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public boolean damage(Damage damage) {
         if (isDead())
             return false;

@@ -15,6 +15,7 @@ import net.minestom.server.network.packet.client.play.ClientInteractEntityPacket
 
 public class UseEntityListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void useEntityListener(ClientInteractEntityPacket packet, Player player) {
         final Entity entity = player.getInstance().getEntityById(packet.targetId());
         if (entity == null || invalidUse(player, entity))
@@ -22,6 +23,7 @@ public class UseEntityListener {
         EventDispatcher.call(new PlayerEntityInteractEvent(player, entity, packet.hand(), packet.location()));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void attackEntityListener(ClientAttackPacket packet, Player player) {
         final Entity entity = player.getInstance().getEntityById(packet.targetId());
         if (entity == null || invalidUse(player, entity))

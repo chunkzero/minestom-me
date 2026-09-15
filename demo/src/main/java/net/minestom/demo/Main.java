@@ -56,6 +56,7 @@ import net.minestom.demo.commands.WorldBorderCommand;
 import net.minestom.demo.recipe.ShapelessRecipe;
 import net.minestom.server.Auth;
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.component.DataComponents;
 import net.minestom.server.event.server.ServerListPingEvent;
@@ -80,28 +81,29 @@ import java.util.Objects;
 
 public class Main {
 
+    @SuppressWarnings("removal") // Default-process bootstrap until engine ownership and ticking are migrated.
     static void main(String[] args) {
         System.setProperty("minestom.new-socket-write-lock", "true");
         System.setProperty("minestom.registry.unsafe-ops", "true");
-        MinecraftServer.setCompressionThreshold(0);
-
         MinecraftServer minecraftServer = MinecraftServer.init(new Auth.Offline());
+        ServerProcess process = Objects.requireNonNull(MinecraftServer.process());
+        process.setCompressionThreshold(0);
 
-        BlockManager blockManager = MinecraftServer.getBlockManager();
+        BlockManager blockManager = process.block();
         blockManager.registerBlockPlacementRule(new DripstonePlacementRule());
         var beds = Block.values().stream().filter(block -> block.key().value().contains("bed")).toList();
         beds.forEach(block -> blockManager.registerBlockPlacementRule(new BedPlacementRule(block)));
         blockManager.registerHandler(TestBlockHandler.INSTANCE.getKey(), () -> TestBlockHandler.INSTANCE);
 
-        CommandManager commandManager = MinecraftServer.getCommandManager();
+        CommandManager commandManager = process.command();
         commandManager.register(new TestCommand());
         commandManager.register(new EntitySelectorCommand());
         commandManager.register(new HealthCommand());
         commandManager.register(new LegacyCommand());
-        commandManager.register(new DimensionCommand());
-        commandManager.register(new ShutdownCommand());
-        commandManager.register(new TeleportCommand());
-        commandManager.register(new PlayersCommand());
+        commandManager.register(new DimensionCommand(process));
+        commandManager.register(new ShutdownCommand(process));
+        commandManager.register(new TeleportCommand(process));
+        commandManager.register(new PlayersCommand(process));
         commandManager.register(new FindCommand());
         commandManager.register(new TitleCommand());
         commandManager.register(new BookCommand());
@@ -113,12 +115,12 @@ public class Main {
         commandManager.register(new GiveCommand());
         commandManager.register(new SetBlockCommand());
         commandManager.register(new AutoViewCommand());
-        commandManager.register(new SaveCommand());
+        commandManager.register(new SaveCommand(process));
         commandManager.register(new GamemodeCommand());
         commandManager.register(new ExecuteCommand());
         commandManager.register(new RedirectTestCommand());
         commandManager.register(new DebugGridCommand());
-        commandManager.register(new DisplayCommand());
+        commandManager.register(new DisplayCommand(process));
         commandManager.register(new NotificationCommand());
         commandManager.register(new TestCommand2());
         commandManager.register(new ConfigCommand());
@@ -137,15 +139,16 @@ public class Main {
         commandManager.register(new SleepCommand());
         commandManager.register(new MinecartCommand());
         commandManager.register(new BelowNameCommand());
-        commandManager.register(new TestBiomeAmbientParticleCommand());
+        commandManager.register(new TestBiomeAmbientParticleCommand(process));
 
         commandManager.setUnknownCommandCallback((sender, _) -> sender.sendMessage(Component.text("Unknown command", NamedTextColor.RED)));
 
-        MinecraftServer.getSchedulerManager().buildShutdownTask(() -> System.out.println("Good night"));
+        process.scheduler().buildShutdownTask(() -> System.out.println("Good night"));
 
-        RegistryTag<Block> tag = Block.staticRegistry().getTag(TagKey.ofHash("#minecraft:all_signs"));
+        var blocks = process.registries().blocks();
+        RegistryTag<Block> tag = blocks.getTag(TagKey.ofHash("#minecraft:all_signs"));
         SignHandler signHandler = new SignHandler();
-        for (RegistryKey<Block> key : Objects.requireNonNull(tag)) {
+        for (RegistryKey<Block> key : Objects.requireNonNull(tag).resolve(blocks)) {
             blockManager.registerHandler(key.key(), () -> signHandler);
         }
 
@@ -157,8 +160,8 @@ public class Main {
             throw new RuntimeException(e);
         }
 
-        MinecraftServer.getGlobalEventHandler().addListener(ServerListPingEvent.class, event -> {
-            Status.PlayerInfo.Builder builder = Status.PlayerInfo.builder(Status.PlayerInfo.online(20))
+        process.eventHandler().addListener(ServerListPingEvent.class, event -> {
+            Status.PlayerInfo.Builder builder = Status.PlayerInfo.builder(Status.PlayerInfo.online(process.connection().getOnlinePlayers(), 20))
                     .sample("The first line is separated from the others")
                     .sample("Could be a name, or a message");
 
@@ -195,7 +198,7 @@ public class Main {
                     .build());
         });
 
-        MinecraftServer.getRecipeManager().addRecipe(new ShapelessRecipe(
+        process.recipe().addRecipe(new ShapelessRecipe(
                 RecipeBookCategory.CRAFTING_MISC,
                 List.of(Material.DIRT),
                 ItemStack.builder(Material.GOLD_BLOCK)
@@ -203,7 +206,7 @@ public class Main {
                         .build()
         ));
 
-        new PlayerInit().init();
+        new PlayerInit(process).init();
 
 //        VelocityProxy.enable("abcdef");
         //BungeeCordProxy.enable();
@@ -212,9 +215,9 @@ public class Main {
 
         // useful for testing - we don't need to worry about event calls so just set this to a long time
         OpenToLAN.open(new OpenToLANConfig().eventCallDelay(Duration.of(1, TimeUnit.DAY)));
+        process.scheduler().buildShutdownTask(OpenToLAN::close);
 
         minecraftServer.start("0.0.0.0", 25565);
 //        minecraftServer.start(java.net.UnixDomainSocketAddress.of("minestom-demo.sock"));
-        //Runtime.getRuntime().addShutdownHook(new Thread(MinecraftServer::stopCleanly));
     }
 }

@@ -69,6 +69,7 @@ public final class PlayerActionListener {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static DiggingResult startDigging(Player player, Instance instance, Point blockPosition, BlockFace blockFace) {
         final Block block = instance.getBlock(blockPosition);
 
@@ -88,6 +89,7 @@ public final class PlayerActionListener {
         return breakBlock(instance, player, blockPosition, block, blockFace);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static DiggingResult cancelDigging(Player player, Instance instance, Point blockPosition) {
         final Block block = instance.getBlock(blockPosition);
 
@@ -96,6 +98,7 @@ public final class PlayerActionListener {
         return new DiggingResult(block, true);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static DiggingResult finishDigging(Player player, Instance instance, Point blockPosition, BlockFace blockFace) {
         final Block block = instance.getBlock(blockPosition);
 
@@ -129,7 +132,7 @@ public final class PlayerActionListener {
             // Check if the currently held item can break the block
             case ADVENTURE -> !itemInMainHand
                     .get(DataComponents.CAN_BREAK, BlockPredicates.NEVER)
-                    .test(block);
+                    .test(player.getPlayerConnection().process().registries(), block);
             // Certain tools (swords, tridents, maces) can't break blocks in creative
             case CREATIVE -> {
                 final Tool tool = itemInMainHand.get(DataComponents.TOOL);
@@ -158,6 +161,7 @@ public final class PlayerActionListener {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void updateItemState(Player player) {
         LivingEntityMeta meta = player.getLivingEntityMeta();
         if (meta == null || !meta.isHandActive()) return;
@@ -172,6 +176,7 @@ public final class PlayerActionListener {
         player.clearItemUse();
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void swapItemHand(Player player) {
         final ItemStack mainHand = player.getItemInMainHand();
         final ItemStack offHand = player.getItemInOffHand();
@@ -209,6 +214,7 @@ public final class PlayerActionListener {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void stab(Player player) {
         final ItemStack itemInMainHand = player.getItemInMainHand();
         if (!itemInMainHand.has(DataComponents.PIERCING_WEAPON))

@@ -52,7 +52,7 @@ public class ArgumentItemStack extends Argument<ItemStack> {
     /**
      * @deprecated use {@link Argument#parse(CommandSender, Argument)}
      */
-    @SuppressWarnings("unchecked") @Deprecated
+    @SuppressWarnings({"removal", "unchecked"}) @Deprecated
     public static ItemStack staticParse(String input) throws ArgumentSyntaxException {
         var reader = new StringReader(input);
 

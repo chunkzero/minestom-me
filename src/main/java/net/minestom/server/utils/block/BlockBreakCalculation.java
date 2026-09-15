@@ -12,18 +12,17 @@ import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.item.component.Tool;
 import net.minestom.server.potion.PotionEffect;
-import net.minestom.server.registry.RegistryTag;
+import net.minestom.server.registry.Registry;
 import net.minestom.server.registry.TagKey;
 import org.jetbrains.annotations.Nullable;
 
 public class BlockBreakCalculation {
 
     public static final int UNBREAKABLE = -1;
-    private static final RegistryTag<Fluid> WATER_TAG = Fluid.staticRegistry().getOrCreateTag(TagKey.ofHash("#minecraft:water"));
+    private static final TagKey<Fluid> WATER_TAG = TagKey.ofHash("#minecraft:water");
     // The vanilla client checks for bamboo breaking speed with item instanceof SwordItem.
     // We could either check all sword ID's, or the sword tag.
-    // Since tags are immutable, checking the tag seems easier to understand
-    private static final RegistryTag<Material> SWORD_TAG = Material.staticRegistry().getOrCreateTag(TagKey.ofHash("#minecraft:swords"));
+    private static final TagKey<Material> SWORD_TAG = TagKey.ofHash("#minecraft:swords");
 
     /**
      * Calculates the block break time in ticks
@@ -43,19 +42,21 @@ public class BlockBreakCalculation {
             // Bedrock, barrier, and unbreakable blocks
             return UNBREAKABLE;
         }
+        final var registries = player.getPlayerConnection().process().registries();
         ItemStack item = player.getItemInMainHand();
         // Bamboo is hard-coded in client
         if (block.id() == Block.BAMBOO.id() || block.id() == Block.BAMBOO_SAPLING.id()) {
-            if (SWORD_TAG.contains(item.material().registryKey())) {
+            var swords = registries.material().getTag(SWORD_TAG);
+            if (swords != null && swords.contains(registries.material(), item.material().registryKey())) {
                 return 0;
             }
         }
         Tool tool = item.get(DataComponents.TOOL);
-        boolean isBestTool = canBreakBlock(tool, block);
+        boolean isBestTool = canBreakBlock(registries.blocks(), tool, block);
         float speedMultiplier;
 
         if (isBestTool) {
-            speedMultiplier = getMiningSpeed(tool, block);
+            speedMultiplier = getMiningSpeed(registries.blocks(), tool, block);
 
             // wiki seems to be incorrect here, taken from minecraft's code
             if (speedMultiplier > 1F) {
@@ -122,7 +123,9 @@ public class BlockBreakCalculation {
         Block block = instance.getBlock(eye);
 
         final Fluid fluid = Fluid.fromKey(block.key());
-        if (fluid == null || !WATER_TAG.contains(fluid.registryKey())) {
+        final var fluids = instance.registries().fluid();
+        final var water = fluids.getTag(WATER_TAG);
+        if (fluid == null || water == null || !water.contains(fluids, fluid.registryKey())) {
             return false;
         }
         float fluidHeight = getFluidHeight(player.getInstance(), x, y, z, block);
@@ -173,18 +176,18 @@ public class BlockBreakCalculation {
         return (1F + 0.2F * level);
     }
 
-    private static float getMiningSpeed(@Nullable Tool tool, Block block) {
+    private static float getMiningSpeed(Registry<Block> registry, @Nullable Tool tool, Block block) {
         if (tool == null) {
             return 1;
         }
-        return tool.getSpeed(block.registryKey());
+        return tool.getSpeed(registry, block.registryKey());
     }
 
-    private static boolean canBreakBlock(@Nullable Tool tool, Block block) {
-        return !block.requiresTool() || isEffective(tool, block);
+    private static boolean canBreakBlock(Registry<Block> registry, @Nullable Tool tool, Block block) {
+        return !block.requiresTool() || isEffective(registry, tool, block);
     }
 
-    private static boolean isEffective(@Nullable Tool tool, Block block) {
-        return tool != null && tool.isCorrectForDrops(block.registryKey());
+    private static boolean isEffective(Registry<Block> registry, @Nullable Tool tool, Block block) {
+        return tool != null && tool.isCorrectForDrops(registry, block.registryKey());
     }
 }

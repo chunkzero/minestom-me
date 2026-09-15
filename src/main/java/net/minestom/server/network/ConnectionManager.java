@@ -2,8 +2,8 @@ package net.minestom.server.network;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.AsyncPlayerConfigurationEvent;
@@ -59,8 +59,17 @@ public final class ConnectionManager {
     private static final Component TIMEOUT_TEXT = Component.text("Timeout", NamedTextColor.RED);
     private static final Component SHUTDOWN_TEXT = Component.text("Server shutting down");
 
-    private final CachedPacket cachedTagsPacket =
-            new CachedPacket(() -> Registries.tagsPacket(MinecraftServer.getRegistries()));
+    private final ServerProcess process;
+    private final CachedPacket cachedTagsPacket = new CachedPacket(() -> Registries.tagsPacket(process().registries()));
+    private long cachedTagsRevision = Long.MIN_VALUE;
+
+    public ConnectionManager(ServerProcess process) {
+        this.process = Objects.requireNonNull(process);
+    }
+
+    public ServerProcess process() {
+        return process;
+    }
 
     // All players once their Player object has been instantiated.
     private final Map<PlayerConnection, Player> connectionPlayerMap = new ConcurrentHashMap<>();
@@ -194,21 +203,24 @@ public final class ConnectionManager {
     }
 
     public void sendRegistryTags(Player player) {
-        player.sendPacket(cachedTagsPacket);
+        player.sendPacket(tagsPacket());
     }
 
-    // This is a somewhat weird implementation where connectionmanager owns the caching of tags.
-    // There should be no registry->connectionmanager communication.
-    @ApiStatus.Internal
-    public void invalidateTags() {
-        this.cachedTagsPacket.invalidate();
+    synchronized CachedPacket tagsPacket() {
+        final long revision = Registries.tagsRevision(process().registries());
+        if (cachedTagsRevision != revision) {
+            cachedTagsPacket.invalidate();
+            cachedTagsRevision = revision;
+        }
+        return cachedTagsPacket;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public GameProfile transitionLoginToConfig(PlayerConnection connection, GameProfile gameProfile) {
         assert ServerFlag.INSIDE_TEST || Thread.currentThread().isVirtual();
         // Compression
         if (connection instanceof PlayerSocketConnection socketConnection) {
-            final int threshold = MinecraftServer.getCompressionThreshold();
+            final int threshold = process().compressionThreshold();
             if (threshold > 0) socketConnection.startCompression();
         }
         // Call pre login event
@@ -242,6 +254,7 @@ public final class ConnectionManager {
     /**
      * Return value exposed for testing
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Internal
     public void doConfiguration(Player player, boolean isFirstConfig) {
         assert ServerFlag.INSIDE_TEST || Thread.currentThread().isVirtual();
@@ -249,7 +262,7 @@ public final class ConnectionManager {
             configurationPlayers.add(player);
             keepAlivePlayers.add(player);
         }
-        player.sendPacket(PluginMessagePacket.brandPacket(MinecraftServer.getBrandName()));
+        player.sendPacket(PluginMessagePacket.brandPacket(process().brandName()));
         // Request known packs immediately, but don't wait for the response until required (sending registry data).
         final var knownPacksFuture = player.getPlayerConnection().requestKnownPacks(List.of(SelectKnownPacksPacket.MINECRAFT_CORE));
 
@@ -279,7 +292,7 @@ public final class ConnectionManager {
             }
             boolean excludeVanilla = knownPacks.contains(SelectKnownPacksPacket.MINECRAFT_CORE);
 
-            Registries registries = MinecraftServer.getRegistries();
+            Registries registries = process().registries();
             player.sendPackets(Registries.registryDataPackets(registries, excludeVanilla));
             // TODO: TEST_ENVIRONMENT, TEST_INSTANCE
 

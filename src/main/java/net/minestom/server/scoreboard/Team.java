@@ -119,6 +119,7 @@ public class Team implements PacketGroupingAudience {
      *
      * @param toAdd The members to be added
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void addMembers(Collection<String> toAdd) {
         // Adds a new member to the team
         this.members.addAll(toAdd);
@@ -153,6 +154,7 @@ public class Team implements PacketGroupingAudience {
      *
      * @param toRemove The members to be removed
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void removeMembers(Collection<String> toRemove) {
         // Initializes remove player packet
         final TeamsPacket removePlayerPacket = new TeamsPacket(teamName,
@@ -465,6 +467,7 @@ public class Team implements PacketGroupingAudience {
     /**
      * Sends an {@link TeamsPacket.UpdateTeamAction} action packet.
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void sendUpdatePacket() {
         final var info = new TeamsPacket.UpdateTeamAction(new TeamsPacket.Settings(
                 teamDisplayName, prefix, suffix,
@@ -474,6 +477,7 @@ public class Team implements PacketGroupingAudience {
         PacketSendingUtils.broadcastPlayPacket(new TeamsPacket(teamName, info));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public Collection<? extends Player> getPlayers() {
         if (!this.isPlayerMembersUpToDate) {

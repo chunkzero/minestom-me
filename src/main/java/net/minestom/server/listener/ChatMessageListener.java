@@ -16,7 +16,9 @@ import net.minestom.server.network.packet.client.play.ClientSignedCommandChatPac
 import java.util.Collection;
 
 public class ChatMessageListener {
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static final CommandManager COMMAND_MANAGER = MinecraftServer.getCommandManager();
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static final ConnectionManager CONNECTION_MANAGER = MinecraftServer.getConnectionManager();
 
     public static void commandChatListener(ClientCommandChatPacket packet, Player player) {
@@ -41,6 +43,7 @@ public class ChatMessageListener {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void chatMessageListener(ClientChatMessagePacket packet, Player player) {
         final String message = packet.message();
         EventsJFR.newPlayerChat(player.getUuid(), message).commit();

@@ -9,6 +9,7 @@ import net.minestom.server.utils.inventory.PlayerInventoryUtils;
 
 public class BookListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientEditBookPacket packet, Player player) {
         int minestomSlot = PlayerInventoryUtils.convertPlayerInventorySlotToMinestomSlot(packet.slot());
         if (!PlayerInventoryUtils.isHotbarOrOffHandSlot(minestomSlot)) return;

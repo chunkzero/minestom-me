@@ -4,6 +4,7 @@ import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.StructCodec;
 import net.minestom.server.component.DataComponents;
 import net.minestom.server.dialog.Dialog;
+import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.damage.DamageType;
 import net.minestom.server.entity.metadata.animal.ChickenSoundVariant;
 import net.minestom.server.entity.metadata.animal.ChickenVariant;
@@ -19,9 +20,14 @@ import net.minestom.server.entity.metadata.animal.tameable.WolfSoundVariant;
 import net.minestom.server.entity.metadata.animal.tameable.WolfVariant;
 import net.minestom.server.entity.metadata.cube.SulfurCubeArchetype;
 import net.minestom.server.entity.metadata.other.PaintingVariant;
+import net.minestom.server.game.GameEvent;
+import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.banner.BannerPattern;
 import net.minestom.server.instance.block.jukebox.JukeboxSong;
 import net.minestom.server.instance.block.predicate.DataComponentPredicate;
+import net.minestom.server.instance.fluid.Fluid;
+import net.minestom.server.instance.gamerule.GameRule;
+import net.minestom.server.item.Material;
 import net.minestom.server.item.armor.TrimMaterial;
 import net.minestom.server.item.armor.TrimPattern;
 import net.minestom.server.item.enchant.Enchantment;
@@ -31,12 +37,23 @@ import net.minestom.server.item.enchant.LocationEffect;
 import net.minestom.server.item.enchant.ValueEffect;
 import net.minestom.server.item.instrument.Instrument;
 import net.minestom.server.message.ChatType;
+import net.minestom.server.potion.PotionEffect;
+import net.minestom.server.potion.PotionType;
 import net.minestom.server.world.DimensionType;
 import net.minestom.server.world.biome.Biome;
 import net.minestom.server.world.clock.WorldClock;
 import net.minestom.server.world.timeline.Timeline;
 
 final class VanillaRegistries implements Registries {
+    private final Registry<Block> blocks;
+    private final Registry<Material> material;
+    private final Registry<PotionEffect> potionEffect;
+    private final Registry<PotionType> potionType;
+    private final Registry<EntityType> entityType;
+    private final Registry<Fluid> fluid;
+    private final Registry<GameEvent> gameEvent;
+    private final Registry<GameRule<?>> gameRule;
+
     private final DynamicRegistry<StructCodec<? extends LevelBasedValue>> enchantmentLevelBasedValues;
     private final DynamicRegistry<StructCodec<? extends ValueEffect>> enchantmentValueEffects;
     private final DynamicRegistry<StructCodec<? extends EntityEffect>> enchantmentEntityEffects;
@@ -76,6 +93,15 @@ final class VanillaRegistries implements Registries {
         // The order of initialization here is relevant, we must load the enchantment util registries before the vanilla data is loaded.
         var _ = DataComponents.ITEM_NAME;
 
+        this.blocks = StaticRegistry.copyOf(Block.staticRegistry());
+        this.material = StaticRegistry.copyOf(Material.staticRegistry());
+        this.potionEffect = StaticRegistry.copyOf(PotionEffect.staticRegistry());
+        this.potionType = StaticRegistry.copyOf(PotionType.staticRegistry());
+        this.entityType = StaticRegistry.copyOf(EntityType.staticRegistry());
+        this.fluid = StaticRegistry.copyOf(Fluid.staticRegistry());
+        this.gameEvent = StaticRegistry.copyOf(GameEvent.staticRegistry());
+        this.gameRule = StaticRegistry.copyOf(GameRule.staticRegistry());
+
         this.enchantmentLevelBasedValues = LevelBasedValue.createDefaultRegistry();
         this.enchantmentValueEffects = ValueEffect.createDefaultRegistry();
         this.enchantmentEntityEffects = EntityEffect.createDefaultRegistry();
@@ -110,11 +136,49 @@ final class VanillaRegistries implements Registries {
         this.dimensionType = DimensionType.createDefaultRegistry(this); // depends on timelines
         this.sulfurCubeArchetype = SulfurCubeArchetype.createDefaultRegistry(this);
 
-        // Quite a hack because materials are a static registry, and can be loaded before but are cyclic on components.
-        // So we break the loop and bind them here
-        for (var entry: material().values()) {
+        for (var entry : material().values()) {
             entry.registry().bindComponents(this);
         }
+    }
+
+    @Override
+    public Registry<Block> blocks() {
+        return blocks;
+    }
+
+    @Override
+    public Registry<Material> material() {
+        return material;
+    }
+
+    @Override
+    public Registry<PotionEffect> potionEffect() {
+        return potionEffect;
+    }
+
+    @Override
+    public Registry<PotionType> potionType() {
+        return potionType;
+    }
+
+    @Override
+    public Registry<EntityType> entityType() {
+        return entityType;
+    }
+
+    @Override
+    public Registry<Fluid> fluid() {
+        return fluid;
+    }
+
+    @Override
+    public Registry<GameEvent> gameEvent() {
+        return gameEvent;
+    }
+
+    @Override
+    public Registry<GameRule<?>> gameRule() {
+        return gameRule;
     }
 
     @Override

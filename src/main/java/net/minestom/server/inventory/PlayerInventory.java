@@ -124,6 +124,7 @@ public non-sealed class PlayerInventory extends AbstractInventory {
         if (sendPacket) sendPacketToViewers(new SetCursorItemPacket(cursorItem));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     protected void UNSAFE_itemInsert(int slot, ItemStack item, ItemStack previous, boolean sendPacket) {
         for (Player player : getViewers()) {

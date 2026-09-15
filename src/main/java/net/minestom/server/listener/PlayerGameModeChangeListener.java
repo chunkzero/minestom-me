@@ -7,6 +7,7 @@ import net.minestom.server.network.packet.client.play.ClientChangeGameModePacket
 
 public final class PlayerGameModeChangeListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientChangeGameModePacket packet, Player player) {
         PlayerGameModeRequestEvent playerGameModeRequestEvent = new PlayerGameModeRequestEvent(player, packet.gameMode());
         EventDispatcher.call(playerGameModeRequestEvent);

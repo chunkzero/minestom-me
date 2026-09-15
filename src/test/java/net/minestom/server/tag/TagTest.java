@@ -111,6 +111,7 @@ public class TagTest {
         assertEquals("hey", handler.getTag(tag2.defaultValue("hey")));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void item() {
         var item = ItemStack.of(Material.DIAMOND);

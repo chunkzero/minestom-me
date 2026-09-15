@@ -1,6 +1,7 @@
 package net.minestom.server.instance;
 
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.instance.InstanceRegisterEvent;
@@ -24,10 +25,16 @@ import java.util.concurrent.CopyOnWriteArraySet;
 public final class InstanceManager {
 
     private final Registries registries;
+    private final ServerProcess process;
     private final Set<Instance> instances = new CopyOnWriteArraySet<>();
 
-    public InstanceManager(Registries registries) {
-        this.registries = registries;
+    public InstanceManager(ServerProcess process) {
+        this.process = Objects.requireNonNull(process);
+        this.registries = process.registries();
+    }
+
+    public ServerProcess process() {
+        return process;
     }
 
     /**
@@ -114,6 +121,7 @@ public final class InstanceManager {
      *
      * @param instance the {@link Instance} to unregister
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void unregisterInstance(Instance instance) {
         long onlinePlayers = instance.getPlayers().stream().filter(Player::isOnline).count();
         Check.stateCondition(onlinePlayers > 0, "You cannot unregister an instance with players inside.");
@@ -166,6 +174,7 @@ public final class InstanceManager {
      *
      * @param instance the {@link Instance} to register
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void UNSAFE_registerInstance(Instance instance) {
         instance.setRegistered(true);
         this.instances.add(instance);

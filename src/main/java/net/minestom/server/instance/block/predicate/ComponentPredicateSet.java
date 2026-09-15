@@ -17,7 +17,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Predicate;
+import java.util.function.BiPredicate;
 
 /**
  * A list of {@link DataComponentPredicate}s.
@@ -25,7 +25,7 @@ import java.util.function.Predicate;
  * Note: instances of this class are immutable. Calling {@link #add} or {@link #remove}
  * will return a new instance of this class with the element added or removed.
  */
-public record ComponentPredicateSet(List<DataComponentPredicate> predicates) implements Predicate<DataComponent.Holder> {
+public record ComponentPredicateSet(List<DataComponentPredicate> predicates) implements BiPredicate<Registries, DataComponent.Holder> {
 
     private static final int MAX_NETWORK_SIZE = 64;
     private static final Codec<Either<RegistryKey<Codec<? extends DataComponentPredicate>>, DataComponent<?>>> PREDICATE_TYPE_CODEC =
@@ -214,9 +214,9 @@ public record ComponentPredicateSet(List<DataComponentPredicate> predicates) imp
     }
 
     @Override
-    public boolean test(DataComponent.Holder holder) {
+    public boolean test(Registries registries, DataComponent.Holder holder) {
         for (DataComponentPredicate predicate : predicates()) {
-            if (!predicate.test(holder)) {
+            if (!predicate.test(registries, holder)) {
                 return false;
             }
         }

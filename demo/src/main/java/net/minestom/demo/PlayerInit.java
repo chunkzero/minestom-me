@@ -11,11 +11,11 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.object.ObjectContents;
 import net.minestom.demo.entity.PlayerEntity;
 import net.minestom.server.FeatureFlag;
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.advancements.FrameType;
 import net.minestom.server.advancements.Notification;
 import net.minestom.server.adventure.MinestomAdventure;
-import net.minestom.server.adventure.audience.Audiences;
+import net.minestom.server.adventure.audience.PacketGroupingAudience;
 import net.minestom.server.component.DataComponentMap;
 import net.minestom.server.component.DataComponents;
 import net.minestom.server.coordinate.Pos;
@@ -109,9 +109,12 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class PlayerInit {
 
+    private final ServerProcess process;
     private final Inventory inventory;
+    private final EventNode<Event> demoNode;
 
-    private static final EventNode<Event> DEMO_NODE = EventNode.all("demo")
+    private EventNode<Event> createEventNode() {
+        return EventNode.all("demo")
             .addListener(EntityAttackEvent.class, event -> {
                 final Entity source = event.getEntity();
                 final Entity entity = event.getTarget();
@@ -153,7 +156,7 @@ public class PlayerInit {
                 // Show off adding and removing feature flags
                 event.removeFeatureFlag(FeatureFlag.TRADE_REBALANCE); // not enabled by default, just removed for demonstration
 
-                var instances = MinecraftServer.getInstanceManager().getInstances();
+                var instances = process.instance().getInstances();
                 Instance instance = instances.stream().skip(new Random().nextInt(instances.size())).findFirst().orElse(null);
                 event.setSpawningInstance(instance);
                 player.setRespawnPoint(new Pos(0, 40f, 0));
@@ -438,7 +441,7 @@ public class PlayerInit {
                 Block block = event.getBlock();
                 BlockHandler handler = block.handler();
                 if (handler != null) return;
-                event.setBlock(event.getBlock().withHandler(MinecraftServer.getBlockManager().getHandler(block.key().asString())));
+                event.setBlock(event.getBlock().withHandler(process.block().getHandler(block.key().asString())));
             })
             .addListener(PlayerEditSignEvent.class, event -> event.getLines()
                     .stream()
@@ -459,9 +462,12 @@ public class PlayerInit {
                     .append(Component.text(" "))
                     .append(Component.keybind("key.sprint").color(event.isHoldingSprintKey() ? NamedTextColor.GREEN : NamedTextColor.RED))
             ));
+    }
 
-    {
-        InstanceManager instanceManager = MinecraftServer.getInstanceManager();
+    public PlayerInit(ServerProcess process) {
+        this.process = process;
+        this.demoNode = createEventNode();
+        InstanceManager instanceManager = process.instance();
 
         InstanceContainer instanceContainer = instanceManager.createInstanceContainer();
         instanceContainer.setGenerator(unit -> {
@@ -480,28 +486,28 @@ public class PlayerInit {
         inventory.setItemStack(3, ItemStack.of(Material.DIAMOND, 34));
     }
 
-    private static final AtomicReference<TickMonitor> LAST_TICK = new AtomicReference<>();
+    private final AtomicReference<TickMonitor> lastTick = new AtomicReference<>();
 
     public void init() {
-        var eventHandler = MinecraftServer.getGlobalEventHandler();
-        eventHandler.addChild(DEMO_NODE);
+        var eventHandler = process.eventHandler();
+        eventHandler.addChild(demoNode);
 
-        eventHandler.addListener(ServerTickMonitorEvent.class, event -> LAST_TICK.set(event.getTickMonitor()));
+        eventHandler.addListener(ServerTickMonitorEvent.class, event -> lastTick.set(event.getTickMonitor()));
 
-        MinecraftServer.getSchedulerManager().buildTask(() -> {
-            if (LAST_TICK.get() == null || MinecraftServer.getConnectionManager().getOnlinePlayerCount() == 0)
+        process.scheduler().buildTask(() -> {
+            if (lastTick.get() == null || process.connection().getOnlinePlayerCount() == 0)
                 return;
 
             long ramUsage = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
             ramUsage /= 1_000_000; // bytes to MB
 
-            TickMonitor tickMonitor = LAST_TICK.get();
+            TickMonitor tickMonitor = lastTick.get();
             final Component header = Component.text("RAM USAGE: " + ramUsage + " MB")
                     .append(Component.newline())
                     .append(Component.text("TICK TIME: " + MathUtils.round(tickMonitor.getTickTime(), 2) + "ms"))
                     .append(Component.newline())
                     .append(Component.text("ACQ TIME: " + MathUtils.round(tickMonitor.getAcquisitionTime(), 2) + "ms"));
-            Audiences.players().sendPlayerListHeader(header);
+            PacketGroupingAudience.of(process.connection().getOnlinePlayers()).sendPlayerListHeader(header);
         }).repeat(10, TimeUnit.SERVER_TICK).schedule();
     }
 

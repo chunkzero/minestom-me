@@ -359,6 +359,7 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
             this.eventType = eventType;
         }
 
+        @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
         @Override
         public void call(E event) {
             assert !(event instanceof AsyncEvent) || Thread.currentThread().isVirtual() :

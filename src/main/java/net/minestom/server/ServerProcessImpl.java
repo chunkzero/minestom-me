@@ -20,6 +20,8 @@ import net.minestom.server.monitoring.TickMonitor;
 import net.minestom.server.network.ConnectionManager;
 import net.minestom.server.network.packet.PacketParser;
 import net.minestom.server.network.packet.PacketVanilla;
+import net.minestom.server.network.packet.server.common.PluginMessagePacket;
+import net.minestom.server.network.packet.server.play.ServerDifficultyPacket;
 import net.minestom.server.network.socket.Server;
 import net.minestom.server.recipe.RecipeManager;
 import net.minestom.server.registry.Registries;
@@ -36,6 +38,9 @@ import net.minestom.server.timer.SchedulerManager;
 import net.minestom.server.utils.PacketViewableUtils;
 import net.minestom.server.utils.collection.MappedCollection;
 import net.minestom.server.utils.time.Tick;
+import net.minestom.server.utils.validate.Check;
+import net.minestom.server.world.Difficulty;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,14 +48,18 @@ import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
+final class ServerProcessImpl implements ServerProcess {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerProcessImpl.class);
 
     private final Auth auth;
+    private volatile String brandName = "Minestom";
+    private volatile Difficulty difficulty = Difficulty.NORMAL;
+    private volatile int compressionThreshold = 256;
 
     private final ExceptionManager exception;
     private final Registries registries;
@@ -76,19 +85,20 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
 
     private final AtomicBoolean started = new AtomicBoolean();
     private final AtomicBoolean stopped = new AtomicBoolean();
+    private @Nullable Thread shutdownHook;
 
     public ServerProcessImpl(Auth auth) {
-        this.auth = auth;
-        this.exception = new ExceptionManager();
+        this.auth = Objects.requireNonNull(auth);
+        this.exception = new ExceptionManager(this::stop);
         this.registries = Registries.vanilla();
 
-        this.connection = new ConnectionManager();
+        this.connection = new ConnectionManager(this);
         this.packetListener = new PacketListenerManager();
         this.packetParser = PacketVanilla.CLIENT_PACKET_PARSER;
         this.instance = new InstanceManager(this);
         this.block = new BlockManager();
         this.command = new CommandManager();
-        this.recipe = new RecipeManager();
+        this.recipe = new RecipeManager(registries);
         this.team = new TeamManager();
         this.eventHandler = new GlobalEventHandler();
         this.scheduler = new SchedulerManager();
@@ -96,7 +106,7 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
         this.bossBar = new BossBarManager();
         this.clickCallbackManager = new ClickCallbackManager();
 
-        this.server = new Server(packetParser);
+        this.server = new Server(this, packetParser);
 
         this.dispatcher = ThreadDispatcher.dispatcher(ThreadProvider.counter(), ServerFlag.DISPATCHER_THREADS);
         this.ticker = new TickerImpl();
@@ -105,6 +115,41 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
     @Override
     public Auth auth() {
         return auth;
+    }
+
+    @Override
+    public String brandName() {
+        return brandName;
+    }
+
+    @Override
+    public void setBrandName(String brandName) {
+        this.brandName = Objects.requireNonNull(brandName);
+        var packet = PluginMessagePacket.brandPacket(brandName);
+        connection.getOnlinePlayers().forEach(player -> player.sendPacket(packet));
+    }
+
+    @Override
+    public Difficulty difficulty() {
+        return difficulty;
+    }
+
+    @Override
+    public void setDifficulty(Difficulty difficulty) {
+        this.difficulty = Objects.requireNonNull(difficulty);
+        var packet = new ServerDifficultyPacket(difficulty, true);
+        connection.getOnlinePlayers().forEach(player -> player.sendPacket(packet));
+    }
+
+    @Override
+    public int compressionThreshold() {
+        return compressionThreshold;
+    }
+
+    @Override
+    public synchronized void setCompressionThreshold(int compressionThreshold) {
+        Check.stateCondition(isAlive(), "The compression threshold cannot be changed after the server has been started.");
+        this.compressionThreshold = compressionThreshold;
     }
 
     @Override
@@ -199,12 +244,13 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
     }
 
     @Override
-    public void start(SocketAddress socketAddress) {
+    public synchronized void start(SocketAddress socketAddress) {
+        Check.stateCondition(stopped.get(), "Server is closed");
         if (!started.compareAndSet(false, true)) {
             throw new IllegalStateException("Server already started");
         }
 
-        final String brand = MinecraftServer.getBrandName();
+        final String brand = brandName;
         LOGGER.info("Starting {} ({}) server.", brand, Git.version());
         switch (auth) {
             case Auth.Offline _ ->
@@ -228,19 +274,34 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
             throw new RuntimeException(e);
         }
 
+        Registries.freeze(registries);
+
         // Start server
         server.start();
 
         LOGGER.info("{} server started successfully.", brand);
 
         // Stop the server on SIGINT
-        if (ServerFlag.SHUTDOWN_ON_SIGNAL) Runtime.getRuntime().addShutdownHook(new Thread(this::stop));
+        if (ServerFlag.SHUTDOWN_ON_SIGNAL) {
+            shutdownHook = new Thread(this::stop, "Minestom shutdown");
+            Runtime.getRuntime().addShutdownHook(shutdownHook);
+        }
     }
 
     @Override
     public void stop() {
-        if (!stopped.compareAndSet(false, true)) return;
-        final String brand = MinecraftServer.getBrandName();
+        synchronized (this) {
+            if (!stopped.compareAndSet(false, true)) return;
+            if (shutdownHook != null) {
+                try {
+                    Runtime.getRuntime().removeShutdownHook(shutdownHook);
+                } catch (IllegalStateException _) {
+                    // Shutdown hooks cannot be removed once JVM shutdown has begun.
+                }
+                shutdownHook = null;
+            }
+        }
+        final String brand = brandName;
         LOGGER.info("Stopping {} server.", brand);
         scheduler.shutdown();
         connection.shutdown();
@@ -269,6 +330,7 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
     }
 
     private final class TickerImpl implements Ticker {
+        @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
         @Override
         public void tick(long nanoTime) {
             var serverTickEvent = EventsJFR.newServerTick();

@@ -7,6 +7,7 @@ import net.minestom.server.network.packet.client.common.ClientPluginMessagePacke
 
 public class PluginMessageListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientPluginMessagePacket packet, Player player) {
         PlayerPluginMessageEvent pluginMessageEvent = new PlayerPluginMessageEvent(player, packet.channel(), packet.data());
         EventDispatcher.call(pluginMessageEvent);

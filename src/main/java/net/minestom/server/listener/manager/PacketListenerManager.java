@@ -210,6 +210,7 @@ public final class PacketListenerManager {
      * @param connection the connection of the player who sent the packet
      * @param <T>        the packet type
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public <T extends ClientPacket> void processClientPacket(T packet, PlayerConnection connection) {
         // Update connection state 'as we receive' the packet, aka before we send any responses
         // from processing. This is important for sending packets in response which are state-dependent.

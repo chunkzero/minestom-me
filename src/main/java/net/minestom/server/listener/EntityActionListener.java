@@ -22,6 +22,7 @@ public class EntityActionListener {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void setSprinting(Player player, boolean sprinting) {
         boolean oldState = player.isSprinting();
 
@@ -36,11 +37,13 @@ public class EntityActionListener {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void startFlyingElytra(Player player) {
         player.setFlyingWithElytra(true);
         EventDispatcher.call(new PlayerStartFlyingWithElytraEvent(player));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void onLeaveBed(Player player) {
         var event = new PlayerLeaveBedEvent(player);
         EventDispatcher.callCancellable(event, () -> {

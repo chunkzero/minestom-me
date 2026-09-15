@@ -84,11 +84,13 @@ public interface PacketGroupingAudience extends ForwardingAudience {
         sendGroupedPacket(new ClearTitlesPacket(true));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     default void showBossBar(BossBar bar) {
         MinecraftServer.getBossBarManager().addBossBar(this.getPlayers(), bar);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     default void hideBossBar(BossBar bar) {
         MinecraftServer.getBossBarManager().removeBossBar(this.getPlayers(), bar);

@@ -58,10 +58,20 @@ public sealed interface Tag<T extends @UnknownNullability Object> permits TagImp
         return TagImpl.tag(key, Serializers.UUID);
     }
 
+    /**
+     * @deprecated Default-process serialization is scheduled for deletion. Registry-dependent tags
+     * must acquire explicit registry context in the serialization migration.
+     */
+    @Deprecated(forRemoval = true)
     static Tag<ItemStack> ItemStack(String key) {
         return TagImpl.tag(key, Serializers.ITEM);
     }
 
+    /**
+     * @deprecated Default-process serialization is scheduled for deletion. Registry-dependent tags
+     * must acquire explicit registry context in the serialization migration.
+     */
+    @Deprecated(forRemoval = true)
     static Tag<Component> Component(String key) {
         return TagImpl.tag(key, Serializers.COMPONENT);
     }

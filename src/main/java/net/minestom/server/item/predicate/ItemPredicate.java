@@ -12,13 +12,14 @@ import net.minestom.server.utils.Range;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.function.Predicate;
+import java.util.function.BiPredicate;
 
+/** Item filters evaluated against explicitly supplied registries. */
 public record ItemPredicate(
         @Nullable RegistryTag<Material> items,
         @Nullable Range.Int count,
         @Nullable DataComponentPredicates predicates
-) implements Predicate<ItemStack> {
+) implements BiPredicate<Registries, ItemStack> {
 
     public static final Codec<ItemPredicate> CODEC = StructCodec.struct(
             "items", RegistryTag.codec(Registries::material).optional(), ItemPredicate::items,
@@ -43,12 +44,12 @@ public record ItemPredicate(
     }
 
     @Override
-    public boolean test(ItemStack itemStack) {
-        if (items != null && !items.contains(itemStack.material().registryKey()))
+    public boolean test(Registries registries, ItemStack itemStack) {
+        if (items != null && !items.contains(registries.material(), itemStack.material().registryKey()))
             return false;
         if (count != null && !count.inRange(itemStack.amount()))
             return false;
 
-        return predicates == null || predicates.test(itemStack);
+        return predicates == null || predicates.test(registries, itemStack);
     }
 }

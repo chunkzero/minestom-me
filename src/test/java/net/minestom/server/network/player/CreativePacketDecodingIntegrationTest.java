@@ -28,7 +28,7 @@ final class CreativePacketDecodingIntegrationTest {
     @Test
     void skipsCreativePayloadBeforeDecodingUnlessPlayerIsCreative(Env env) throws Exception {
         try (SocketChannel channel = SocketChannel.open()) {
-            final PlayerSocketConnection connection = new PlayerSocketConnection(channel,
+            final PlayerSocketConnection connection = new PlayerSocketConnection(env.process(), channel,
                     new InetSocketAddress(0), Thread.currentThread(), Thread.currentThread());
             final Player player = new Player(connection,
                     new GameProfile(UUID.randomUUID(), "CreativeTest"));

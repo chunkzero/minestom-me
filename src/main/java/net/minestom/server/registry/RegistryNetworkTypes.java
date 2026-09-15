@@ -1,9 +1,9 @@
 package net.minestom.server.registry;
 
 import net.minestom.server.network.NetworkBuffer;
-import net.minestom.server.registry.RegistryTagImpl.Backed;
 import net.minestom.server.registry.RegistryTagImpl.Direct;
 import net.minestom.server.registry.RegistryTagImpl.Empty;
+import net.minestom.server.registry.RegistryTagImpl.Reference;
 import net.minestom.server.utils.Either;
 import net.minestom.server.utils.validate.Check;
 
@@ -72,9 +72,9 @@ final class RegistryNetworkTypes {
         @Override
         public void write(NetworkBuffer buffer, RegistryTag<T> value) {
             switch (value) {
-                case Backed<T> backed -> {
+                case Reference<T> reference -> {
                     buffer.write(NetworkBuffer.VAR_INT, 0);
-                    buffer.write(NetworkBuffer.KEY, backed.key().key());
+                    buffer.write(NetworkBuffer.KEY, reference.key().key());
                 }
                 case Empty() -> buffer.write(NetworkBuffer.VAR_INT, 1);
                 case Direct(var entries) -> {
@@ -99,7 +99,7 @@ final class RegistryNetworkTypes {
                 final var key = buffer.read(NetworkBuffer.KEY);
                 final var tag = registry.getTag(key);
                 Check.stateCondition(tag == null, "No such tag {0} for registry {1}", key, registry.key());
-                return tag;
+                return RegistryTag.reference(TagKey.unsafeOf(key));
             } else if (encodedCount == 1) {
                 return RegistryTag.empty();
             } else {

@@ -9,6 +9,7 @@ import net.minestom.server.instance.block.Block;
 import net.minestom.server.network.packet.client.play.ClientUpdateSignPacket;
 
 public class EditSignListener {
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientUpdateSignPacket packet, Player player) {
         Instance instance = player.getInstance();
         BlockVec position = packet.blockPosition().asBlockVec();

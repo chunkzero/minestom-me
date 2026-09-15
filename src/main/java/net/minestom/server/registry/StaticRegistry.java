@@ -9,15 +9,13 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * A registry for holding static vanilla registry data. Not generally user modifiable, always immutable.
+ * A registry with immutable vanilla entries and mutable tag definitions.
  */
 @ApiStatus.Internal
 final class StaticRegistry<T extends StaticProtocolObject<T>> implements Registry<T> {
@@ -26,7 +24,7 @@ final class StaticRegistry<T extends StaticProtocolObject<T>> implements Registr
     private final Map<T, RegistryKey<T>> valueToKey;
     private final List<T> idToValue;
 
-    private final Map<TagKey<T>, RegistryTagImpl.Backed<T>> tags;
+    private final RegistryTags<T> tags;
 
     StaticRegistry(
             Key key,
@@ -41,7 +39,25 @@ final class StaticRegistry<T extends StaticProtocolObject<T>> implements Registr
             valueToKey.put(entry.getValue(), new RegistryKeyImpl<>(entry.getKey()));
         this.valueToKey = Map.copyOf(valueToKey);
         this.idToValue = ids.toList();
-        this.tags = new ConcurrentHashMap<>(tags);
+        this.tags = new RegistryTags<>();
+        this.tags.load(tags.values());
+    }
+
+    private StaticRegistry(StaticRegistry<T> source) {
+        this.key = source.key;
+        this.keyToValue = source.keyToValue;
+        this.valueToKey = source.valueToKey;
+        this.idToValue = source.idToValue;
+        this.tags = source.tags.copy();
+    }
+
+    static <T extends StaticProtocolObject<T>> Registry<T> copyOf(Registry<T> registry) {
+        return new StaticRegistry<>((StaticRegistry<T>) registry);
+    }
+
+    @Override
+    public long tagsRevision() {
+        return tags.revision();
     }
 
     @Override
@@ -110,17 +126,22 @@ final class StaticRegistry<T extends StaticProtocolObject<T>> implements Registr
 
     @Override
     public RegistryTag<T> getOrCreateTag(TagKey<T> key) {
-        return this.tags.computeIfAbsent(key, RegistryTagImpl.Backed::new);
+        return this.tags.getOrCreate(key);
+    }
+
+    @Override
+    public Collection<RegistryKey<T>> tagValues(TagKey<T> key) {
+        return tags.entries(key);
     }
 
     @Override
     public boolean removeTag(TagKey<T> key) {
-        return this.tags.remove(key) != null;
+        return this.tags.remove(key);
     }
 
     @Override
-    public Collection<RegistryTag<T>> tags() {
-        return Collections.unmodifiableCollection(this.tags.values());
+    public List<RegistryTag<T>> tags() {
+        return tags.references();
     }
 
     @Override

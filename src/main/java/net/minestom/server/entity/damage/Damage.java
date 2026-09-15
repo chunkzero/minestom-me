@@ -21,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
  * This class can be extended if you need to include custom fields and/or methods.
  */
 public class Damage implements Taggable {
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static final DynamicRegistry<DamageType> DAMAGE_TYPE_REGISTRY = MinecraftServer.getDamageTypeRegistry();
 
     private final RegistryKey<DamageType> typeKey;

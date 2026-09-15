@@ -116,6 +116,7 @@ public class TestScheduler {
         assertTrue(result.get(), "Future should be completed");
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void exceptionTask() {
         MinecraftServer.init();

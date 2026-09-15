@@ -7,6 +7,7 @@ import net.minestom.server.network.packet.client.common.ClientResourcePackStatus
 
 public class ResourcePackListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientResourcePackStatusPacket packet, Player player) {
         EventDispatcher.call(new PlayerResourcePackStatusEvent(player, packet.id(), packet.status()));
         if (!player.isOnline()) return;

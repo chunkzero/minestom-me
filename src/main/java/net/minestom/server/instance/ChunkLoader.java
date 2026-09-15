@@ -67,6 +67,7 @@ public interface ChunkLoader {
      *
      * @param chunks the chunks to save
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     default void saveChunks(Collection<Chunk> chunks) {
         if (supportsParallelSaving()) {
             Phaser phaser = new Phaser(1);

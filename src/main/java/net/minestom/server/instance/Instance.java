@@ -162,6 +162,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
      * @param uuid          the {@link UUID} of the instance
      * @param dimensionType the {@link DimensionType} of the instance
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public Instance(UUID uuid, RegistryKey<DimensionType> dimensionType, Key dimensionName) {
         this(MinecraftServer.getRegistries(), uuid, dimensionType, dimensionName);
     }
@@ -172,7 +173,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
      * @param uuid          the {@link UUID} of the instance
      * @param dimensionType the {@link DimensionType} of the instance
      */
-    @SuppressWarnings("this-escape") // deliberate self registration during construction
+    @SuppressWarnings({"removal", "this-escape"}) // deliberate self registration during construction
     public Instance(Registries registries, UUID uuid, RegistryKey<DimensionType> dimensionType, Key dimensionName) {
         this.registries = registries;
         this.uuid = uuid;
@@ -331,6 +332,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         unloadChunk(chunk);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void invalidateSection(int sectionX, int sectionY, int sectionZ) {
         final Chunk chunk = getChunk(sectionX, sectionZ);
         if (chunk != null) {
@@ -817,6 +819,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
      *
      * @param time the tick time in milliseconds, which may only be used as a delta and has no meaning in real life
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void tick(long time) {
         // Scheduled tasks
@@ -969,6 +972,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         return eventNode;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public InstanceSnapshot updateSnapshot(SnapshotUpdater updater) {
         final Map<Long, AtomicReference<ChunkSnapshot>> chunksMap = updater.referencesMapLong(getChunks(),

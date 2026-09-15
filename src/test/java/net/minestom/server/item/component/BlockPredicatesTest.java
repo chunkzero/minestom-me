@@ -12,6 +12,7 @@ import net.minestom.server.instance.block.BlockKeys;
 import net.minestom.server.instance.block.predicate.BlockPredicate;
 import net.minestom.server.instance.block.predicate.ComponentPredicateSet;
 import net.minestom.server.instance.block.predicate.DataComponentPredicate;
+import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.RegistryKey;
 import net.minestom.server.registry.RegistryTag;
 import org.jetbrains.annotations.NotNull;
@@ -48,20 +49,20 @@ public class BlockPredicatesTest extends AbstractItemComponentRegistriesTest<Blo
     }
 
     @Test
-    public void testSingleBlockNbtInput() throws IOException {
+    public void testSingleBlockNbtInput(Registries registries) throws IOException {
         var tag = MinestomAdventure.tagStringIO().asTag("{blocks:'minecraft:stone'}");
         var component = assertOk(DataComponents.CAN_PLACE_ON.decode(Transcoder.NBT, tag));
         var expected = new BlockPredicates(new BlockPredicate(RegistryTag.direct(RegistryKey.unsafeOf("minecraft:stone"))));
         assertEquals(expected, component);
-        assertEquals(1, component.predicates().getFirst().blocks().size());
-        assertTrue(component.predicates().getFirst().blocks().contains(BlockKeys.STONE));
+        assertEquals(1, component.predicates().getFirst().blocks().resolve(registries.blocks()).size());
+        assertTrue(component.predicates().getFirst().blocks().contains(registries.blocks(), BlockKeys.STONE));
     }
 
     @Test
-    public void testMultiMatch() {
+    public void testMultiMatch(Registries registries) {
         // Just sanity check that it actually runs both of the predicates
         var predicate = new BlockPredicates(List.of(BlockPredicate.NONE, BlockPredicate.ALL));
-        assertTrue(predicate.test(Block.AIR));
+        assertTrue(predicate.test(registries, Block.AIR));
     }
 
 }

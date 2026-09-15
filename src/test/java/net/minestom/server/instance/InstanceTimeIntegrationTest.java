@@ -59,7 +59,7 @@ public class InstanceTimeIntegrationTest {
 
     @Test
     void multipleClocks(Env env) {
-        var myOtherClock = env.process().worldClock().register(Key.key("minestom:clock"), WorldClock.create());
+        var myOtherClock = env.process().registries().worldClock().register(Key.key("minestom:clock"), WorldClock.create());
 
         var instance = env.createEmptyInstance();
         var defaultClock = Objects.requireNonNull(instance.defaultClock());

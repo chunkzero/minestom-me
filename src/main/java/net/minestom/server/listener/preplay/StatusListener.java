@@ -14,6 +14,7 @@ import net.minestom.server.ping.ServerListPingType;
 
 public final class StatusListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void requestListener(StatusRequestPacket packet, PlayerConnection connection) {
         if (!connection.markStatusRequestReceived()) {
             connection.disconnect();
@@ -26,6 +27,7 @@ public final class StatusListener {
         EventsJFR.newServerPing(connection.getRemoteAddress().toString()).commit();
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void pingRequestListener(ClientPingRequestPacket packet, PlayerConnection connection) {
         final ClientPingServerEvent clientPingEvent = new ClientPingServerEvent(connection, packet.number());
         EventDispatcher.call(clientPingEvent);

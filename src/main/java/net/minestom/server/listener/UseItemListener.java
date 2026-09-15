@@ -20,6 +20,7 @@ import net.minestom.server.registry.Holder;
 
 public class UseItemListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void useItemListener(ClientUseItemPacket packet, Player player) {
         PlayerPositionListener.playerRotation(player, packet.yaw(), packet.pitch());
 
@@ -102,6 +103,7 @@ public class UseItemListener {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static int getInstrumentTime(ItemStack itemStack) {
         final Holder<Instrument> holder = itemStack.get(DataComponents.INSTRUMENT);
         if (holder == null) return 0;

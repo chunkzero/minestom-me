@@ -59,6 +59,10 @@ public sealed interface Registry<T> extends Keyed permits StaticRegistry, Dynami
 
     // Tags
 
+    /** Revision of this registry's tag definitions, for cache invalidation. */
+    @ApiStatus.Internal
+    long tagsRevision();
+
     /**
      * Get a tag by its key.
      *
@@ -80,6 +84,9 @@ public sealed interface Registry<T> extends Keyed permits StaticRegistry, Dynami
      * @return The tag, never null
      */
     RegistryTag<T> getOrCreateTag(TagKey<T> key);
+
+    /** Returns read-only tag membership in this registry, or an empty collection if the tag is absent. */
+    Collection<RegistryKey<T>> tagValues(TagKey<T> key);
 
     /**
      * Removes the given tag from this registry if it exists.

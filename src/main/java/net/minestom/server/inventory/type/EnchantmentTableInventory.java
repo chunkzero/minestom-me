@@ -11,6 +11,7 @@ import net.minestom.server.registry.RegistryKey;
 import org.jetbrains.annotations.Nullable;
 
 public class EnchantmentTableInventory extends Inventory {
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static final DynamicRegistry<Enchantment> ENCHANTMENT_REGISTRY = MinecraftServer.getEnchantmentRegistry();
 
     private final short[] levelRequirements = new short[EnchantmentSlot.values().length];

@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 @EnvTest
 public class TagComponentIntegrationTest {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void get() {
         var component = Component.text("Hey");
@@ -20,6 +21,7 @@ public class TagComponentIntegrationTest {
         assertEquals(component, handler.getTag(tag));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void empty() {
         var tag = Tag.Component("component");
@@ -27,6 +29,7 @@ public class TagComponentIntegrationTest {
         assertNull(handler.getTag(tag));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void invalidTag(Env env) {
         var tag = Tag.Component("entry");
@@ -35,6 +38,7 @@ public class TagComponentIntegrationTest {
         assertNull(handler.getTag(tag));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void nbtFallback(Env env) {
         var component = Component.text("Hey");

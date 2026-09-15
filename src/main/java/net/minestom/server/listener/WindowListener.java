@@ -1,6 +1,5 @@
 package net.minestom.server.listener;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.GameMode;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.EventDispatcher;
@@ -21,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class WindowListener {
 
-    @SuppressWarnings("LabelledBreakTarget")
+    @SuppressWarnings({"removal", "LabelledBreakTarget"})
     public static void clickWindowListener(ClientClickWindowPacket packet, Player player) {
         final int windowId = packet.windowId();
         final boolean playerInventory = windowId == 0;
@@ -76,7 +75,7 @@ public class WindowListener {
 
         // Resync in case the client sent item does not match what we think it should be.
         ItemStack cursorItem = player.getInventory().getCursorItem();
-        if (!ItemStack.Hash.of(cursorItem, MinecraftServer.process()).equals(packet.clickedItem()))
+        if (!ItemStack.Hash.of(cursorItem, player.getPlayerConnection().process().registries()).equals(packet.clickedItem()))
             player.sendPacket(new SetCursorItemPacket(cursorItem));
     }
 
@@ -88,6 +87,7 @@ public class WindowListener {
         player.closeInventory(true, (byte) packet.windowId());
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void inventoryButtonClickListener(ClientClickWindowButtonPacket packet, Player player) {
         AbstractInventory inventory = player.getOpenInventory();
 
@@ -100,6 +100,7 @@ public class WindowListener {
         EventDispatcher.call(new InventoryButtonClickEvent(player, inventory, packet.buttonId()));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void selectBundleItemListener(ClientSelectBundleItemPacket packet, Player player) {
         final int selectedItemIndex = packet.selectedIndex();
         if (selectedItemIndex < -1) {

@@ -2,7 +2,7 @@
 
 package net.minestom.server.snapshot;
 
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.UnknownNullability;
 
@@ -19,8 +19,9 @@ public sealed interface ServerSnapshot extends Snapshot
 
     @UnknownNullability EntitySnapshot entity(int id);
 
+    /** Builds a snapshot of the supplied process at a safe point, when its state is stable. */
     @ApiStatus.Experimental
-    static ServerSnapshot update() {
-        return SnapshotUpdater.update(MinecraftServer.process());
+    static ServerSnapshot update(ServerProcess process) {
+        return SnapshotUpdater.update(process);
     }
 }

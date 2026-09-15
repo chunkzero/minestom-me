@@ -15,7 +15,15 @@ import java.time.Duration;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
-public interface Env {
+public interface Env extends AutoCloseable {
+    /** Creates a test environment. Closing it checks pending expectations and stops the supplied process. */
+    static Env create(ServerProcess process) {
+        return new EnvImpl(process);
+    }
+
+    @Override
+    void close();
+
     ServerProcess process();
 
     TestConnection createConnection(GameProfile gameProfile);

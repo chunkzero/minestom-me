@@ -18,13 +18,19 @@ import java.util.function.BiFunction;
  * using a {@link RegistryKey} object as opposed to the record type. For example, a biome should be stored as
  * `RegistryKey Biome`, as opposed to `Biome` directly.</p>
  *
- * <p>Builtin registries should be accessed via a {@link Registries} instance (currently implemented by
- * {@link net.minestom.server.ServerProcess}, or from {@link net.minestom.server.MinecraftServer} static methods.</p>
+ * <p>Builtin registries should be accessed via the {@link Registries} instance returned by
+ * {@link net.minestom.server.ServerProcess#registries()}.</p>
  *
  * @param <T> The type of the registry entries
  * @see Registries
  */
 public sealed interface DynamicRegistry<T> extends Registry<T> permits DynamicRegistryImpl {
+
+    /** Prevents further entry changes, unless unsafe registry operations are enabled. Tags remain mutable. */
+    void freeze();
+
+    /** Whether entry changes are currently prohibited. */
+    boolean isFrozen();
 
     @SafeVarargs
     static <T> DynamicRegistry<T> fromMap(Key key, Map.Entry<Key, T>... entries) {

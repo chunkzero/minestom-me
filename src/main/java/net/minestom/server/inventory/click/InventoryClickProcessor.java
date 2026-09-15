@@ -103,7 +103,7 @@ public final class InventoryClickProcessor {
             if (equippableComponent != null) {
                 final EquipmentSlot equipmentSlot = equippableComponent.slot();
                 RegistryTag<EntityType> allowed = equippableComponent.allowedEntities();
-                if ((allowed == null || allowed.contains(EntityType.PLAYER.registryKey()))
+                if ((allowed == null || allowed.contains(player.getPlayerConnection().process().registries().entityType(), EntityType.PLAYER.registryKey()))
                         && (equipmentSlot.isArmor() || equipmentSlot == EquipmentSlot.OFF_HAND)
                         && !craftingGridClick) {
                     // Shift-click equip
@@ -326,6 +326,7 @@ public final class InventoryClickProcessor {
         return clickResult;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void callClickEvent(Player player, AbstractInventory inventory, int slot,
                                 ClickType clickType, ItemStack clicked, ItemStack cursor) {
         EventDispatcher.call(new InventoryClickEvent(inventory, player, slot, clickType, clicked, cursor));

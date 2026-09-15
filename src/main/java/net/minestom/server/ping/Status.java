@@ -49,6 +49,7 @@ public record Status(
         }
     }
 
+    /** Creates a status builder with no player information until explicitly supplied. */
     public static Builder builder() {
         return new Builder();
     }
@@ -89,19 +90,19 @@ public record Status(
             this(onlinePlayers, maxPlayers, List.of());
         }
 
-        public static PlayerInfo onlineCount() {
-            final Collection<Player> players = MinecraftServer.getConnectionManager().getOnlinePlayers();
-            return new PlayerInfo(players.size(), players.size() + 1, List.of());
+        /** Creates player information with no sample and a maximum one above the online count. */
+        public static PlayerInfo onlineCount(int onlinePlayers) {
+            return new PlayerInfo(onlinePlayers, onlinePlayers + 1);
         }
 
         /**
          * Creates a {@link PlayerInfo} with the online count and a sample of online players.
          *
+         * @param players The players belonging to the server being listed
          * @param maxSamples The maximum number of player entries to include in the sample
          * @return A {@link PlayerInfo} containing the online count, and a sample of online players.
          */
-        public static PlayerInfo online(int maxSamples) {
-            final Collection<Player> players = MinecraftServer.getConnectionManager().getOnlinePlayers();
+        public static PlayerInfo online(Collection<? extends Player> players, int maxSamples) {
             final List<NamedAndIdentified> samples = new ArrayList<>(Math.min(maxSamples, players.size()));
             for (final Player player : players) {
                 if (!player.getSettings().allowServerListings())
@@ -193,7 +194,6 @@ public record Status(
         private Builder() {
             this.description = DEFAULT_DESCRIPTION;
             this.versionInfo = VersionInfo.DEFAULT;
-            this.playerInfo = PlayerInfo.onlineCount();
         }
 
         private Builder(Status status) {

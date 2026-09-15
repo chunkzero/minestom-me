@@ -3,6 +3,7 @@ package net.minestom.server.network.player;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.crypto.PlayerPublicKey;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
@@ -38,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public abstract class PlayerConnection {
     private Player player;
+    private final ServerProcess process;
 
     // Server & client states can differ during configuration.
     // "server" state means the state the server thinks its in.
@@ -58,10 +60,16 @@ public abstract class PlayerConnection {
 
     private final Map<Key, CompletableFuture<byte @Nullable []>> pendingCookieRequests = new ConcurrentHashMap<>();
 
-    public PlayerConnection() {
+    public PlayerConnection(ServerProcess process) {
+        this.process = Objects.requireNonNull(process);
         this.online = true;
         this.serverState = ConnectionState.HANDSHAKE;
         this.clientState = ConnectionState.HANDSHAKE;
+    }
+
+    /** The process captured when this connection was constructed. */
+    public ServerProcess process() {
+        return process;
     }
 
     /**
@@ -116,7 +124,7 @@ public abstract class PlayerConnection {
      * @return the server address used
      */
     public @Nullable String getServerAddress() {
-        return MinecraftServer.getServer().getAddress();
+        return process().server().getAddress();
     }
 
 
@@ -128,7 +136,7 @@ public abstract class PlayerConnection {
      * @return the server port used
      */
     public int getServerPort() {
-        return MinecraftServer.getServer().getPort();
+        return process().server().getPort();
     }
 
 
@@ -152,11 +160,12 @@ public abstract class PlayerConnection {
     /**
      * Forcing the player to disconnect.
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void disconnect() {
         this.online = false;
-        final Player player = MinecraftServer.getConnectionManager().getPlayer(this);
+        final Player player = process().connection().getPlayer(this);
         if (player != null) {
-            MinecraftServer.getConnectionManager().removePlayer(this);
+            process().connection().removePlayer(this);
             if (serverState == ConnectionState.PLAY && !player.isRemoved())
                 player.scheduleNextTick(Entity::remove);
             else {
@@ -306,6 +315,7 @@ public abstract class PlayerConnection {
      * @param host the host, usually an IP or domain name.
      * @param port the port, usually 25565.
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void transfer(String host, int port) {
         OutgoingTransferEvent event = new OutgoingTransferEvent(this.player, host, port);
         EventDispatcher.callCancellable(event, () -> this.sendPacket(new TransferPacket(event.getHost(), event.getPort())));

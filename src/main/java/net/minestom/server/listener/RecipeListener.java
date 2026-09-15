@@ -9,6 +9,7 @@ import net.minestom.server.recipe.display.RecipeDisplay;
 
 public class RecipeListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientPlaceRecipePacket packet, Player player) {
         final RecipeManager recipeManager = MinecraftServer.getRecipeManager();
         final RecipeDisplay recipeDisplay = recipeManager.getRecipeDisplay(packet.recipeDisplayId(), player);

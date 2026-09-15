@@ -44,14 +44,14 @@ import net.minestom.server.world.DimensionType;
 import net.minestom.server.world.biome.Biome;
 import net.minestom.server.world.clock.WorldClock;
 import net.minestom.server.world.timeline.Timeline;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.List;
 
 /**
- * <p>Provides access to all the dynamic registries. {@link net.minestom.server.ServerProcess} is the most relevant
- * implementation of this interface.</p>
+ * Provides access to a collection of game registries.
  *
- * @see net.minestom.server.MinecraftServer for static access to these
+ * @see net.minestom.server.ServerProcess#registries()
  */
 public interface Registries {
     static Registries vanilla() {
@@ -66,40 +66,34 @@ public interface Registries {
         return RegistriesImpl.tagsPacket(registries);
     }
 
+    /** Freezes this collection's dynamic registry entries. Tags remain mutable. */
+    static void freeze(Registries registries) {
+        RegistriesImpl.freeze(registries);
+    }
+
+    /** Revision of the tag definitions sent to clients. */
+    @ApiStatus.Internal
+    static long tagsRevision(Registries registries) {
+        return RegistriesImpl.tagsRevision(registries);
+    }
+
     // Static registries
 
-    // The name block conflicts with blockmanager :(
-    default Registry<Block> blocks() {
-        return Block.staticRegistry();
-    }
+    Registry<Block> blocks();
 
-    default Registry<Material> material() {
-        return Material.staticRegistry();
-    }
+    Registry<Material> material();
 
-    default Registry<PotionEffect> potionEffect() {
-        return PotionEffect.staticRegistry();
-    }
+    Registry<PotionEffect> potionEffect();
 
-    default Registry<PotionType> potionType() {
-        return PotionType.staticRegistry();
-    }
+    Registry<PotionType> potionType();
 
-    default Registry<EntityType> entityType() {
-        return EntityType.staticRegistry();
-    }
+    Registry<EntityType> entityType();
 
-    default Registry<Fluid> fluid() {
-        return Fluid.staticRegistry();
-    }
+    Registry<Fluid> fluid();
 
-    default Registry<GameEvent> gameEvent() {
-        return GameEvent.staticRegistry();
-    }
+    Registry<GameEvent> gameEvent();
 
-    default Registry<GameRule<?>> gameRule() {
-        return GameRule.staticRegistry();
-    }
+    Registry<GameRule<?>> gameRule();
 
     // Dynamic registries
 
@@ -211,6 +205,11 @@ public interface Registries {
         @Override
         default Registry<GameEvent> gameEvent() {
             return registries().gameEvent();
+        }
+
+        @Override
+        default Registry<GameRule<?>> gameRule() {
+            return registries().gameRule();
         }
 
         @Override

@@ -236,7 +236,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     @SuppressWarnings("this-escape") // deliberate self registration, entities are not usable until spawned
     private final Acquirable<Entity> acquirable = Acquirable.unassigned(this);
 
-    @SuppressWarnings("this-escape") // deliberate self registration, entities are not usable until spawned
+    @SuppressWarnings({"removal", "this-escape"}) // deliberate self registration, entities are not usable until spawned
     public Entity(EntityType entityType, UUID uuid) {
         this.id = generateId();
         this.entityType = entityType;
@@ -418,6 +418,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * @param shouldConfirm if false, the teleportation will be done without confirmation
      * @throws IllegalStateException if you try to teleport an entity before settings its instance
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public CompletableFuture<Void> teleport(Pos position, Vec velocity, long @Nullable [] chunks,
                                             @MagicConstant(flagsFromClass = RelativeFlags.class) int flags,
                                             boolean shouldConfirm) {
@@ -663,6 +664,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      *
      * @param time the update time in milliseconds. This may only be used as a delta and has no meaning in the real world.
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void tick(long time) {
         if (instance == null || isRemoved() || !ChunkUtils.isLoaded(currentChunk))
@@ -760,6 +762,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void effectTick() {
         final List<TimedPotion> effects = this.effects;
         if (effects.isEmpty()) return;
@@ -888,6 +891,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         return currentChunk;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Internal
     protected void refreshCurrentChunk(Chunk currentChunk) {
         this.currentChunk = currentChunk;
@@ -912,6 +916,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * this is due to chunks needing to load
      * @throws IllegalStateException if {@code instance} has not been registered in {@link InstanceManager}
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public CompletableFuture<Void> setInstance(Instance instance, Pos spawnPosition) {
         Check.stateCondition(!instance.isRegistered(),
                 "Instances need to be registered, please use InstanceManager#registerInstance or InstanceManager#registerSharedInstance");
@@ -970,6 +975,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         return setInstance(instance, this.position);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void removeFromInstance(Instance instance) {
         EventDispatcher.call(new RemoveEntityFromInstanceEvent(instance, this));
         if (this instanceof Player player) instance.bossBars().forEach(player::hideBossBar);
@@ -994,6 +1000,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      *
      * @param velocity the new entity velocity
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void setVelocity(Vec velocity) {
         EntityVelocityEvent entityVelocityEvent = new EntityVelocityEvent(this, velocity);
         EventDispatcher.callCancellable(entityVelocityEvent, () -> {
@@ -1544,6 +1551,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      *
      * @param potion The potion to add
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void addEffect(Potion potion) {
         EventDispatcher.callCancellable(new EntityPotionAddEvent(this, potion), () -> {
             removeEffect(potion.effect());
@@ -1557,6 +1565,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      *
      * @param effect The effect to remove
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void removeEffect(PotionEffect effect) {
         this.effects.removeIf(timedPotion -> {
             if (timedPotion.potion().effect() == effect) {
@@ -1601,6 +1610,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     /**
      * Removes all the effects currently applied to the entity.
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void clearEffects() {
         for (TimedPotion timedPotion : effects) {
             timedPotion.potion().sendRemovePacket(this);
@@ -1618,6 +1628,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         remove(true);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     protected void remove(boolean permanent) {
         if (isRemoved()) return;
         EventDispatcher.call(new EntityDespawnEvent(this));

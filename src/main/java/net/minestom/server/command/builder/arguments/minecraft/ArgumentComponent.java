@@ -21,6 +21,7 @@ public class ArgumentComponent extends Argument<Component> {
         super(id, true);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public Component parse(CommandSender sender, String input) throws ArgumentSyntaxException {
         try {

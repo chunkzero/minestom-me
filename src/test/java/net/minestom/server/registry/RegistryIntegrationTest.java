@@ -26,7 +26,7 @@ public class RegistryIntegrationTest {
 
     @Test
     void testUnnamedPack(Env env) {
-        DynamicRegistry<DimensionType> dimensionRegistry = env.process().dimensionType();
+        DynamicRegistry<DimensionType> dimensionRegistry = env.process().registries().dimensionType();
         DimensionType dimensionType = DimensionType.builder()
                 .ambientLight(2f)
                 .build();
@@ -34,13 +34,13 @@ public class RegistryIntegrationTest {
         assertEquals(dimensionType, dimensionRegistry.get(registryKey));
         assertEquals(DataPack.MINESTOM_UNNAMED, dimensionRegistry.getPack(registryKey));
         assertDoesNotThrow(() -> {
-            dimensionRegistry.registryDataPacket(env.process(), false);
+            dimensionRegistry.registryDataPacket(env.process().registries(), false);
         }, "Registry data packet should not throw for null pack");
     }
 
     @Test
     void testDifferentPacksInterlaced(Env env) {
-        DynamicRegistry<DimensionType> dimensionRegistry = env.process().dimensionType();
+        DynamicRegistry<DimensionType> dimensionRegistry = env.process().registries().dimensionType();
         DimensionType dimensionType = DimensionType.builder()
                 .ambientLight(2f)
                 .build();

@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class BlockPredicateIntegrationTest {
     @Test
     public void testEmptySource(Env env) {
-        var itemNbt = ItemStack.of(Material.STONE).toItemNBT(env.process());
+        var itemNbt = ItemStack.of(Material.STONE).toItemNBT(env.process().registries());
         var predicate = new BlockPredicate(CompoundBinaryTag.builder()
                 .putString("LootTable", "minecraft:test")
                 .put("item", itemNbt)
@@ -27,13 +27,13 @@ public class BlockPredicateIntegrationTest {
                 .putString("LootTable", "minecraft:test")
                 .put("item", itemNbt)
                 .build());
-        assertTrue(predicate.test(block));
+        assertTrue(predicate.test(env.process().registries(), block));
     }
 
     @Test
     public void testNoMatchDeep(Env env) {
-        var itemNbt1 = ItemStack.of(Material.STONE).toItemNBT(env.process());
-        var itemNbt2 = ItemStack.of(Material.STONE).withAmount(2).toItemNBT(env.process());
+        var itemNbt1 = ItemStack.of(Material.STONE).toItemNBT(env.process().registries());
+        var itemNbt2 = ItemStack.of(Material.STONE).withAmount(2).toItemNBT(env.process().registries());
         var predicate = new BlockPredicate(CompoundBinaryTag.builder()
                 .putString("LootTable", "minecraft:test")
                 .put("item", itemNbt1)
@@ -44,6 +44,6 @@ public class BlockPredicateIntegrationTest {
                 .putString("LootTable", "minecraft:test")
                 .put("item", itemNbt2)
                 .build());
-        assertFalse(predicate.test(block));
+        assertFalse(predicate.test(env.process().registries(), block));
     }
 }
