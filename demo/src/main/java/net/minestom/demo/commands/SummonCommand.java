@@ -1,6 +1,5 @@
 package net.minestom.demo.commands;
 
-import net.minestom.server.ServerProcess;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
@@ -11,6 +10,7 @@ import net.minestom.server.command.builder.arguments.minecraft.registry.Argument
 import net.minestom.server.command.builder.condition.Conditions;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
+import net.minestom.server.entity.EntityBuilder;
 import net.minestom.server.entity.EntityCreature;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.LivingEntity;
@@ -41,28 +41,24 @@ public class SummonCommand extends Command {
     }
 
     private void execute(CommandSender commandSender, CommandContext commandContext) {
-        final Entity entity = commandContext.get(entityClass).instantiate(((Player) commandSender).process(), commandContext.get(this.entity));
+        final Player player = (Player) commandSender;
         //noinspection ConstantConditions - One couldn't possibly execute a command without being in an instance
-        entity.setInstance(((Player) commandSender).getInstance(), commandContext.get(pos).fromSender(commandSender)).join();
+        commandContext.get(entityClass).builder(commandContext.get(entity))
+                .spawn(player.getInstance(), commandContext.get(pos).fromSender(player)).join();
     }
 
     @SuppressWarnings("unused")
     enum EntityClass {
-        BASE(Entity::new),
-        LIVING(LivingEntity::new),
-        CREATURE(EntityCreature::new);
-        private final EntityFactory factory;
+        BASE,
+        LIVING,
+        CREATURE;
 
-        EntityClass(EntityFactory factory) {
-            this.factory = factory;
+        public EntityBuilder<? extends Entity> builder(EntityType type) {
+            return switch (this) {
+                case BASE -> Entity.builder(type);
+                case LIVING -> Entity.builder(process -> new LivingEntity(process, type));
+                case CREATURE -> Entity.builder(process -> new EntityCreature(process, type));
+            };
         }
-
-        public Entity instantiate(ServerProcess process, EntityType type) {
-            return factory.newInstance(process, type);
-        }
-    }
-
-    interface EntityFactory {
-        Entity newInstance(ServerProcess process, EntityType type);
     }
 }

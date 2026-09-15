@@ -8,6 +8,7 @@ import net.minestom.server.command.builder.arguments.ArgumentEnum;
 import net.minestom.server.command.builder.arguments.ArgumentType;
 import net.minestom.server.command.builder.condition.Conditions;
 import net.minestom.server.command.builder.exception.ArgumentSyntaxException;
+import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityCreature;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.Player;
@@ -60,12 +61,13 @@ public class HorseCommand extends Command {
         boolean baby = context.get("baby");
         HorseMeta.Marking marking = context.get("marking");
         HorseMeta.Variant variant = context.get("variant");
-        var horse = new EntityCreature(player.process(), EntityType.HORSE);
-        var meta = (HorseMeta) horse.getEntityMeta();
-        meta.setBaby(baby);
-        meta.setVariantAndMarking(variant, marking);
         //noinspection ConstantConditions - It should be impossible to execute a command without being in an instance
-        horse.setInstance(player.getInstance(), player.getPosition()).join();
+        Entity.builder(process -> new EntityCreature(process, EntityType.HORSE))
+                .initialize(horse -> horse.editEntityMeta(HorseMeta.class, meta -> {
+                    meta.setBaby(baby);
+                    meta.setVariantAndMarking(variant, marking);
+                }))
+                .spawn(player.getInstance(), player.getPosition()).join();
     }
 
 }

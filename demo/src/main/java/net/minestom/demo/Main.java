@@ -120,7 +120,7 @@ public class Main {
         commandManager.register(new ExecuteCommand());
         commandManager.register(new RedirectTestCommand());
         commandManager.register(new DebugGridCommand());
-        commandManager.register(new DisplayCommand(process));
+        commandManager.register(new DisplayCommand());
         commandManager.register(new NotificationCommand());
         commandManager.register(new TestCommand2());
         commandManager.register(new ConfigCommand());
