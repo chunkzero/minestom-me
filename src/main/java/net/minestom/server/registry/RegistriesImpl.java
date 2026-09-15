@@ -26,6 +26,23 @@ final class RegistriesImpl {
         return new TagsPacket(entries);
     }
 
+    static void freeze(Registries registries) {
+        configurationRegistries(registries).forEach(DynamicRegistry::freeze);
+        registries.enchantmentLevelBasedValues().freeze();
+        registries.enchantmentValueEffects().freeze();
+        registries.enchantmentEntityEffects().freeze();
+        registries.enchantmentLocationEffects().freeze();
+        registries.componentPredicateTypes().freeze();
+    }
+
+    static long tagsRevision(Registries registries) {
+        long revision = 0;
+        for (var registry : tagRegistries(registries)) {
+            revision += registry.tagsRevision();
+        }
+        return revision;
+    }
+
     private static List<DynamicRegistry<?>> configurationRegistries(Registries registries) {
         return List.of(
                 registries.chatType(),

@@ -5,7 +5,6 @@ import com.google.gson.JsonObject;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.nbt.BinaryTag;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.Result;
@@ -33,11 +32,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 
 @ApiStatus.Internal
 final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
-    private static final String UNSAFE_REMOVE_MESSAGE = "Unsafe remove is disabled. Enable by setting the system property 'minestom.registry.unsafe-ops' to 'true'";
+    private static final String UNSAFE_REMOVE_MESSAGE = "Registry is frozen. Enable unsafe changes by setting the system property 'minestom.registry.unsafe-ops' to 'true'";
     // Could also just use `this`, but this is a good candidate for identityless classes.
     // Also, what use case requires you to mutate registries faster than one monitor?
     private static final Object REGISTRY_LOCK = new Object();
@@ -52,7 +50,8 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
     private final Map<T, RegistryKey<T>> valueToKey;
     private final List<DataPack> packById;
 
-    private final Map<TagKey<T>, RegistryTagImpl.Backed<T>> tags;
+    private final RegistryTags<T> tags;
+    private volatile boolean frozen;
 
     private final Key key;
     private final Codec<T> codec;
@@ -68,14 +67,14 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
         this.valueToKey = new HashMap<>();
         this.packById = new ArrayList<>();
         // Tags are always mutable across the lock.
-        this.tags = new ConcurrentHashMap<>();
+        this.tags = new RegistryTags<>();
     }
 
     // Used to create compressed registries
     DynamicRegistryImpl(Key key, @Nullable Codec<T> codec, List<T> idToValue,
                         Map<RegistryKey<T>, Integer> keyToId, List<RegistryKey<T>> idToKey,
                         Map<Key, T> keyToValue, Map<T, RegistryKey<T>> valueToKey,
-                        List<DataPack> packById, Map<TagKey<T>, RegistryTagImpl.Backed<T>> tags) {
+                        List<DataPack> packById, RegistryTags<T> tags) {
         this.key = key;
         this.codec = codec;
         this.idToValue = idToValue;
@@ -134,13 +133,13 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
 
     @Override
     public RegistryKey<T> register(Key key, T object, DataPack pack) {
-        if (isFrozen()) throw new UnsupportedOperationException(UNSAFE_REMOVE_MESSAGE);
         Objects.requireNonNull(key, "Key cannot be null");
         Objects.requireNonNull(object, "Object cannot be null");
         Objects.requireNonNull(pack, "Pack cannot be null");
 
         final RegistryKey<T> registryKey = new RegistryKeyImpl<>(key);
         synchronized (REGISTRY_LOCK) {
+            if (isFrozen()) throw new UnsupportedOperationException(UNSAFE_REMOVE_MESSAGE);
             Integer id = keyToId.get(registryKey); // Array set at home
             keyToValue.put(key, object);
             valueToKey.put(object, registryKey);
@@ -163,11 +162,11 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
 
     @Override
     public boolean remove(Key key) throws UnsupportedOperationException {
-        if (isFrozen()) throw new UnsupportedOperationException(UNSAFE_REMOVE_MESSAGE);
         Objects.requireNonNull(key, "Key cannot be null");
 
         final RegistryKey<T> registryKey = new RegistryKeyImpl<>(key);
         synchronized (REGISTRY_LOCK) {
+            if (isFrozen()) throw new UnsupportedOperationException(UNSAFE_REMOVE_MESSAGE);
             Integer idObject = keyToId.get(registryKey);
             if (idObject == null) return false;
             int id = idObject;
@@ -184,6 +183,7 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
             for (final var tag : tags.values()) {
                 tag.remove(registryKey);
             }
+            tags.invalidate();
 
             vanillaRegistryDataPacket.invalidate();
             return true;
@@ -215,18 +215,23 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
     // Tags
 
     @Override
+    public long tagsRevision() {
+        return tags.revision();
+    }
+
+    @Override
     public @Nullable RegistryTag<T> getTag(TagKey<T> key) {
         return this.tags.get(key);
     }
 
     @Override
     public RegistryTag<T> getOrCreateTag(TagKey<T> key) {
-        return this.tags.computeIfAbsent(key, RegistryTagImpl.Backed::new);
+        return this.tags.getOrCreate(key);
     }
 
     @Override
     public boolean removeTag(TagKey<T> key) {
-        return this.tags.remove(key) != null;
+        return this.tags.remove(key);
     }
 
     @Override
@@ -272,7 +277,7 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
         // Copy to avoid concurrent modification issues while iterating, as we are not synchronized on the registry
         final List<T> idToValue;
         final List<DataPack> packById;
-        if (!canFreeze()) {
+        if (!isFrozen()) {
             synchronized (REGISTRY_LOCK) {
                 idToValue = List.copyOf(this.idToValue);
                 packById = List.copyOf(this.packById);
@@ -323,12 +328,20 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
                 new HashMap<>(keyToValue),
                 new HashMap<>(valueToKey),
                 new ArrayList<>(packById),
-                new ConcurrentHashMap<>(tags)
+                tags
         );
     }
 
-    static boolean isFrozen() {
-        return canFreeze() && MinecraftServer.process() != null && MinecraftServer.isStarted();
+    @Override
+    public void freeze() {
+        synchronized (REGISTRY_LOCK) {
+            frozen = true;
+        }
+    }
+
+    @Override
+    public boolean isFrozen() {
+        return canFreeze() && frozen;
     }
 
     static boolean canFreeze() {
@@ -338,7 +351,7 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
     @SuppressWarnings("removal")
     void loadStaticJsonRegistry(@Nullable Registries registries, @Nullable Comparator<String> idComparator, Codec<T> codec) {
         // Tags must exist before entries are decoded because registry codecs can resolve tags while loading values.
-        tags.putAll(RegistryData.loadTags(key()));
+        tags.load(RegistryData.<T>loadTags(key()).values());
         try (InputStream resourceStream = RegistryData.loadRegistryFile(String.format("%s.json", key().value()))) {
             Check.notNull(resourceStream, "Registry resource {0}.json does not exist!", key().value());
             final JsonElement json = JsonUtil.fromJson(new InputStreamReader(resourceStream, StandardCharsets.UTF_8));

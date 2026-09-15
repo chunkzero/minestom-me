@@ -2,10 +2,10 @@ package net.minestom.server.network.player;
 
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.adventure.MinestomAdventure;
 import net.minestom.server.entity.GameMode;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.ListenerHandle;
 import net.minestom.server.event.player.PlayerPacketOutEvent;
 import net.minestom.server.extras.mojangAuth.MojangCrypt;
@@ -91,8 +91,7 @@ public class PlayerSocketConnection extends PlayerConnection {
     private int serverPort;
     private int protocolVersion;
 
-    private final NetworkBuffer readBuffer = NetworkBuffer.resizableBuffer(
-            ServerFlag.POOLED_BUFFER_SIZE, MinecraftServer.getRegistries());
+    private final NetworkBuffer readBuffer;
     private final MessagePassingQueue<SendablePacket> packetQueue = ConcurrentMessageQueues.mpscUnboundedArrayQueue(1024);
     private final Thread readThread, writeThread;
 
@@ -105,10 +104,17 @@ public class PlayerSocketConnection extends PlayerConnection {
     // Requires ServerFlag.FASTER_SOCKET_WRITES to be enabled
     private final AtomicBoolean writeSignaled = new AtomicBoolean(false);
 
-    private final ListenerHandle<PlayerPacketOutEvent> outgoing = EventDispatcher.getHandle(PlayerPacketOutEvent.class);
+    private final ListenerHandle<PlayerPacketOutEvent> outgoing;
 
     public PlayerSocketConnection(SocketChannel channel, SocketAddress remoteAddress, Thread readThread, Thread writeThread) {
-        super();
+        this(MinecraftServer.process(), channel, remoteAddress, readThread, writeThread);
+    }
+
+    public PlayerSocketConnection(ServerProcess process, SocketChannel channel, SocketAddress remoteAddress,
+                                  Thread readThread, Thread writeThread) {
+        super(process);
+        this.readBuffer = NetworkBuffer.resizableBuffer(ServerFlag.POOLED_BUFFER_SIZE, process.registries());
+        this.outgoing = process.eventHandler().getHandle(PlayerPacketOutEvent.class);
         this.channel = channel;
         this.remoteAddress = remoteAddress;
         this.writeThread = writeThread;

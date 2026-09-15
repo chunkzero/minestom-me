@@ -3,10 +3,22 @@ package net.minestom.server.exception;
 import net.minestom.server.MinecraftServer;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Objects;
+
 /**
  * Manages the handling of exceptions.
  */
 public final class ExceptionManager {
+
+    private final Runnable stopServer;
+
+    public ExceptionManager() {
+        this(MinecraftServer::stopCleanly);
+    }
+
+    public ExceptionManager(Runnable stopServer) {
+        this.stopServer = Objects.requireNonNull(stopServer);
+    }
 
     private @Nullable ExceptionHandler exceptionHandler;
 
@@ -19,7 +31,7 @@ public final class ExceptionManager {
         if (e instanceof OutOfMemoryError) {
             // OOM should be handled manually
             e.printStackTrace();
-            MinecraftServer.stopCleanly();
+            stopServer.run();
             return;
         }
         this.getExceptionHandler().handleException(e);

@@ -20,6 +20,8 @@ import net.minestom.server.monitoring.TickMonitor;
 import net.minestom.server.network.ConnectionManager;
 import net.minestom.server.network.packet.PacketParser;
 import net.minestom.server.network.packet.PacketVanilla;
+import net.minestom.server.network.packet.server.common.PluginMessagePacket;
+import net.minestom.server.network.packet.server.play.ServerDifficultyPacket;
 import net.minestom.server.network.socket.Server;
 import net.minestom.server.recipe.RecipeManager;
 import net.minestom.server.registry.Registries;
@@ -36,6 +38,8 @@ import net.minestom.server.timer.SchedulerManager;
 import net.minestom.server.utils.PacketViewableUtils;
 import net.minestom.server.utils.collection.MappedCollection;
 import net.minestom.server.utils.time.Tick;
+import net.minestom.server.utils.validate.Check;
+import net.minestom.server.world.Difficulty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +47,7 @@ import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -51,6 +56,9 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerProcessImpl.class);
 
     private final Auth auth;
+    private volatile String brandName = "Minestom";
+    private volatile Difficulty difficulty = Difficulty.NORMAL;
+    private volatile int compressionThreshold = 256;
 
     private final ExceptionManager exception;
     private final Registries registries;
@@ -78,11 +86,11 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
     private final AtomicBoolean stopped = new AtomicBoolean();
 
     public ServerProcessImpl(Auth auth) {
-        this.auth = auth;
-        this.exception = new ExceptionManager();
+        this.auth = Objects.requireNonNull(auth);
+        this.exception = new ExceptionManager(this::stop);
         this.registries = Registries.vanilla();
 
-        this.connection = new ConnectionManager();
+        this.connection = new ConnectionManager(this);
         this.packetListener = new PacketListenerManager();
         this.packetParser = PacketVanilla.CLIENT_PACKET_PARSER;
         this.instance = new InstanceManager(this);
@@ -96,7 +104,7 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
         this.bossBar = new BossBarManager();
         this.clickCallbackManager = new ClickCallbackManager();
 
-        this.server = new Server(packetParser);
+        this.server = new Server(this, packetParser);
 
         this.dispatcher = ThreadDispatcher.dispatcher(ThreadProvider.counter(), ServerFlag.DISPATCHER_THREADS);
         this.ticker = new TickerImpl();
@@ -105,6 +113,41 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
     @Override
     public Auth auth() {
         return auth;
+    }
+
+    @Override
+    public String brandName() {
+        return brandName;
+    }
+
+    @Override
+    public void setBrandName(String brandName) {
+        this.brandName = Objects.requireNonNull(brandName);
+        var packet = PluginMessagePacket.brandPacket(brandName);
+        connection.getOnlinePlayers().forEach(player -> player.sendPacket(packet));
+    }
+
+    @Override
+    public Difficulty difficulty() {
+        return difficulty;
+    }
+
+    @Override
+    public void setDifficulty(Difficulty difficulty) {
+        this.difficulty = Objects.requireNonNull(difficulty);
+        var packet = new ServerDifficultyPacket(difficulty, true);
+        connection.getOnlinePlayers().forEach(player -> player.sendPacket(packet));
+    }
+
+    @Override
+    public int compressionThreshold() {
+        return compressionThreshold;
+    }
+
+    @Override
+    public synchronized void setCompressionThreshold(int compressionThreshold) {
+        Check.stateCondition(isAlive(), "The compression threshold cannot be changed after the server has been started.");
+        this.compressionThreshold = compressionThreshold;
     }
 
     @Override
@@ -199,12 +242,12 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
     }
 
     @Override
-    public void start(SocketAddress socketAddress) {
+    public synchronized void start(SocketAddress socketAddress) {
         if (!started.compareAndSet(false, true)) {
             throw new IllegalStateException("Server already started");
         }
 
-        final String brand = MinecraftServer.getBrandName();
+        final String brand = brandName;
         LOGGER.info("Starting {} ({}) server.", brand, Git.version());
         switch (auth) {
             case Auth.Offline _ ->
@@ -228,6 +271,8 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
             throw new RuntimeException(e);
         }
 
+        Registries.freeze(registries);
+
         // Start server
         server.start();
 
@@ -240,7 +285,7 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
     @Override
     public void stop() {
         if (!stopped.compareAndSet(false, true)) return;
-        final String brand = MinecraftServer.getBrandName();
+        final String brand = brandName;
         LOGGER.info("Stopping {} server.", brand);
         scheduler.shutdown();
         connection.shutdown();

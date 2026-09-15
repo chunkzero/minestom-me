@@ -26,6 +26,12 @@ import java.util.function.BiFunction;
  */
 public sealed interface DynamicRegistry<T> extends Registry<T> permits DynamicRegistryImpl {
 
+    /** Prevents further entry changes, unless unsafe registry operations are enabled. Tags remain mutable. */
+    void freeze();
+
+    /** Whether entry changes are currently prohibited. */
+    boolean isFrozen();
+
     @SafeVarargs
     static <T> DynamicRegistry<T> fromMap(Key key, Map.Entry<Key, T>... entries) {
         var registry = new DynamicRegistryImpl<T>(key, null);

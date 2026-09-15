@@ -3,6 +3,7 @@ package net.minestom.server.network.player;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.crypto.PlayerPublicKey;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
@@ -38,16 +39,17 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public abstract class PlayerConnection {
     private Player player;
+    private final @Nullable ServerProcess process;
 
     // Server & client states can differ during configuration.
     // "server" state means the state the server thinks its in.
     // "client" state means the state the client thinks its in.
     // For example, after sending start configuration but before receiving the ack,
     // the server will be in CONFIGURATION while the client is still in PLAY.
-    private volatile ConnectionState serverState, clientState;
+    private volatile ConnectionState serverState = ConnectionState.HANDSHAKE, clientState = ConnectionState.HANDSHAKE;
 
     private @Nullable PlayerPublicKey playerPublicKey;
-    volatile boolean online;
+    volatile boolean online = true;
     private volatile boolean wasTransferred;
     private boolean statusRequestReceived;
 
@@ -59,9 +61,16 @@ public abstract class PlayerConnection {
     private final Map<Key, CompletableFuture<byte @Nullable []>> pendingCookieRequests = new ConcurrentHashMap<>();
 
     public PlayerConnection() {
-        this.online = true;
-        this.serverState = ConnectionState.HANDSHAKE;
-        this.clientState = ConnectionState.HANDSHAKE;
+        this.process = MinecraftServer.process();
+    }
+
+    public PlayerConnection(ServerProcess process) {
+        this.process = Objects.requireNonNull(process);
+    }
+
+    /** The process captured when this connection was constructed. */
+    public ServerProcess process() {
+        return Objects.requireNonNull(process, "Connection has no server process");
     }
 
     /**
@@ -116,7 +125,7 @@ public abstract class PlayerConnection {
      * @return the server address used
      */
     public @Nullable String getServerAddress() {
-        return MinecraftServer.getServer().getAddress();
+        return process().server().getAddress();
     }
 
 
@@ -128,7 +137,7 @@ public abstract class PlayerConnection {
      * @return the server port used
      */
     public int getServerPort() {
-        return MinecraftServer.getServer().getPort();
+        return process().server().getPort();
     }
 
 

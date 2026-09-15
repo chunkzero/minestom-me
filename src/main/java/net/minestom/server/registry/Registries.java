@@ -44,6 +44,7 @@ import net.minestom.server.world.DimensionType;
 import net.minestom.server.world.biome.Biome;
 import net.minestom.server.world.clock.WorldClock;
 import net.minestom.server.world.timeline.Timeline;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.List;
 
@@ -64,6 +65,17 @@ public interface Registries {
 
     static TagsPacket tagsPacket(Registries registries) {
         return RegistriesImpl.tagsPacket(registries);
+    }
+
+    /** Freezes this collection's dynamic registry entries. Tags remain mutable. */
+    static void freeze(Registries registries) {
+        RegistriesImpl.freeze(registries);
+    }
+
+    /** Revision of the tag definitions sent to clients. */
+    @ApiStatus.Internal
+    static long tagsRevision(Registries registries) {
+        return RegistriesImpl.tagsRevision(registries);
     }
 
     // Static registries
@@ -211,6 +223,11 @@ public interface Registries {
         @Override
         default Registry<GameEvent> gameEvent() {
             return registries().gameEvent();
+        }
+
+        @Override
+        default Registry<GameRule<?>> gameRule() {
+            return registries().gameRule();
         }
 
         @Override

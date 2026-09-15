@@ -21,12 +21,50 @@ import net.minestom.server.scoreboard.TeamManager;
 import net.minestom.server.snapshot.Snapshotable;
 import net.minestom.server.thread.ThreadDispatcher;
 import net.minestom.server.timer.SchedulerManager;
+import net.minestom.server.world.Difficulty;
 import org.jetbrains.annotations.ApiStatus;
 
 import java.net.SocketAddress;
 
 @ApiStatus.NonExtendable
-public interface ServerProcess extends Registries, Snapshotable {
+public interface ServerProcess extends Registries, Snapshotable, AutoCloseable {
+    /**
+     * Creates a process with its own managers, configuration, and registries, without changing
+     * {@link MinecraftServer#process()}.
+     * <p>Gameplay and packet routing are not yet independent of the default process.</p>
+     * {@snippet :
+     * try (var first = ServerProcess.create(); var second = ServerProcess.create()) {
+     *     first.setBrandName("First");
+     *     first.setCompressionThreshold(0);
+     *     second.setBrandName("Second");
+     *     second.setCompressionThreshold(128);
+     * }
+     * }
+     */
+    static ServerProcess create(Auth auth) {
+        return new ServerProcessImpl(auth);
+    }
+
+    /** Creates an independent process using offline authentication. */
+    static ServerProcess create() {
+        return create(new Auth.Offline());
+    }
+
+    String brandName();
+
+    /** Updates the brand sent to this process's players. */
+    void setBrandName(String brandName);
+
+    Difficulty difficulty();
+
+    /** Updates the difficulty sent to this process's players. */
+    void setDifficulty(Difficulty difficulty);
+
+    /** Compression threshold, or zero when compression is disabled. */
+    int compressionThreshold();
+
+    /** Sets the compression threshold before the process starts. */
+    void setCompressionThreshold(int compressionThreshold);
     /**
      * Gets the registries owned by this process.
      *
@@ -129,6 +167,11 @@ public interface ServerProcess extends Registries, Snapshotable {
     void start(SocketAddress socketAddress);
 
     void stop();
+
+    @Override
+    default void close() {
+        stop();
+    }
 
     boolean isAlive();
 

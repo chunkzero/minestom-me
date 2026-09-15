@@ -1,6 +1,5 @@
 package net.minestom.server.registry;
 
-import net.minestom.server.MinecraftServer;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
@@ -42,9 +41,16 @@ final class RegistryTagImpl {
     static final class Backed<T> implements RegistryTag<T> {
         private final TagKey<T> key;
         private final Set<RegistryKey<T>> entries = new CopyOnWriteArraySet<>();
+        private final Runnable onChange;
 
         Backed(TagKey<T> key) {
+            this(key, List.of(), () -> {});
+        }
+
+        Backed(TagKey<T> key, Iterable<RegistryKey<T>> entries, Runnable onChange) {
             this.key = key;
+            entries.forEach(this.entries::add);
+            this.onChange = onChange;
         }
 
         @Override
@@ -70,19 +76,13 @@ final class RegistryTagImpl {
         @ApiStatus.Internal
         void add(RegistryKey<T> key) {
             if (entries.add(key))
-                invalidate();
+                onChange.run();
         }
 
         @ApiStatus.Internal
         void remove(RegistryKey<T> key) {
             if (entries.remove(key))
-                invalidate();
-        }
-
-        private static void invalidate() {
-            var process = MinecraftServer.process();
-            if (process == null) return;
-            process.connection().invalidateTags();
+                onChange.run();
         }
     }
 

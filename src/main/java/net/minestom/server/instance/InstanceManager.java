@@ -1,6 +1,7 @@
 package net.minestom.server.instance;
 
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.instance.InstanceRegisterEvent;
@@ -24,10 +25,21 @@ import java.util.concurrent.CopyOnWriteArraySet;
 public final class InstanceManager {
 
     private final Registries registries;
+    private final @Nullable ServerProcess process;
     private final Set<Instance> instances = new CopyOnWriteArraySet<>();
 
     public InstanceManager(Registries registries) {
         this.registries = registries;
+        this.process = registries instanceof ServerProcess owner ? owner : MinecraftServer.process();
+    }
+
+    public InstanceManager(ServerProcess process) {
+        this.process = Objects.requireNonNull(process);
+        this.registries = process.registries();
+    }
+
+    public ServerProcess process() {
+        return Objects.requireNonNull(process, "Instance manager has no server process");
     }
 
     /**
