@@ -47,6 +47,8 @@ gradle-app.setting
 CLAUDE.md
 AGENTS.md
 GEMINI.md
+!/AGENTS.md
+!/CLAUDE.md
 
 # JFR
 /.profileconfig.json
