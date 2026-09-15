@@ -111,11 +111,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
@@ -272,6 +274,22 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
 
     public Entity(ServerProcess process, EntityType entityType) {
         this(process, entityType, UUID.randomUUID());
+    }
+
+    /** Creates an ownerless builder which obtains its process from the destination instance. */
+    @Contract("_ -> new")
+    public static EntityBuilder<Entity> builder(EntityType entityType) {
+        Objects.requireNonNull(entityType);
+        return builder(process -> new Entity(process, entityType));
+    }
+
+    /**
+     * Creates a builder for a custom entity, for example {@code Entity.builder(ZombieCreature::new)}.
+     * The factory must construct a fresh, unplaced entity owned by the supplied process.
+     */
+    @Contract("_ -> new")
+    public static <T extends Entity> EntityBuilder<T> builder(Function<ServerProcess, T> factory) {
+        return new EntityBuilder<>(factory);
     }
 
     /** The process that owns this object's lifetime and services. */
@@ -921,7 +939,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * @param instance      the new instance of the entity
      * @param spawnPosition the spawn position for the entity.
      * @return a {@link CompletableFuture} called once the entity's instance has been set,
-     * this is due to chunks needing to load
+     * this is due to chunks needing to load. Completes exceptionally if placement fails or is cancelled.
      * @throws IllegalStateException if {@code instance} has not been registered in {@link InstanceManager}
      */
     public CompletableFuture<Void> setInstance(Instance instance, Pos spawnPosition) {
@@ -934,7 +952,8 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         }
         AddEntityToInstanceEvent event = new AddEntityToInstanceEvent(instance, this);
         process().eventHandler().call(event);
-        if (event.isCancelled()) return null; // TODO what to return?
+        if (event.isCancelled())
+            return CompletableFuture.failedFuture(new CancellationException("Entity placement was cancelled"));
 
         if (previousInstance != null) removeFromInstance(previousInstance);
         if (this instanceof Player player) instance.bossBars().forEach(player::showBossBar);
@@ -962,6 +981,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
                 process().eventHandler().call(new EntitySpawnEvent(this, instance));
             } catch (Exception e) {
                 process().exception().handleException(e);
+                throw e;
             }
         });
     }

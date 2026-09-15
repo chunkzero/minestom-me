@@ -14,13 +14,12 @@ public class PrimedTNTCommand extends Command {
         setDefaultExecutor((sender, _) -> {
             if (!(sender instanceof Player player)) return;
 
-            Entity entity = new Entity(player.process(), EntityType.TNT);
-            entity.editEntityMeta(PrimedTntMeta.class, meta -> {
-                meta.setFuseTime(60);
-                meta.setBlockState(Block.STONE);
-            });
-
-            entity.setInstance(player.getInstance(), player.getPosition()).join();
+            Entity.builder(EntityType.TNT)
+                    .initialize(entity -> entity.editEntityMeta(PrimedTntMeta.class, meta -> {
+                        meta.setFuseTime(60);
+                        meta.setBlockState(Block.STONE);
+                    }))
+                    .spawn(player.getInstance(), player.getPosition()).join();
         });
 
     }
