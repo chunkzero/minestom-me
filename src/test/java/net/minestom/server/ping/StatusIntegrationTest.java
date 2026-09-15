@@ -4,6 +4,7 @@ import net.minestom.server.ServerFlag;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.MainHand;
+import net.minestom.server.event.server.ServerListPingEvent;
 import net.minestom.server.listener.preplay.StatusListener;
 import net.minestom.server.message.ChatMessageType;
 import net.minestom.server.network.ConnectionState;
@@ -29,6 +30,7 @@ import java.util.zip.DataFormatException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @EnvTest
@@ -65,7 +67,7 @@ public class StatusIntegrationTest {
     @Test
     void testPlayerInfoSamples(Env env) {
         var instance = env.createEmptyInstance();
-        env.createPlayer(instance, Pos.ZERO);
+        var player1 = env.createPlayer(instance, Pos.ZERO);
         env.createPlayer(instance, Pos.ZERO);
         var player3 = env.createPlayer(instance, Pos.ZERO);
         player3.refreshSettings(new ClientSettings(
@@ -76,7 +78,7 @@ public class StatusIntegrationTest {
                 ClientSettings.ParticleSetting.ALL
         ));
 
-        var unlimitedInfo = Status.PlayerInfo.online(20);
+        var unlimitedInfo = Status.PlayerInfo.online(env.process().connection().getOnlinePlayers(), 20);
         assertEquals(4, unlimitedInfo.maxPlayers());
         assertEquals(3, unlimitedInfo.onlinePlayers());
         assertEquals(2, unlimitedInfo.sample().size());
@@ -85,8 +87,21 @@ public class StatusIntegrationTest {
                 .anyMatch(entry -> entry.getUuid().equals(player3.getUuid()));
         assertFalse(containsHiddenPlayer);
 
-        var limitedInfo = Status.PlayerInfo.online(1);
+        var limitedInfo = Status.PlayerInfo.online(env.process().connection().getOnlinePlayers(), 1);
         assertEquals(1, limitedInfo.sample().size());
+
+        var selectedInfo = Status.PlayerInfo.online(List.of(player1), 20);
+        assertEquals(1, selectedInfo.onlinePlayers());
+        assertEquals(List.of(player1), selectedInfo.sample());
+        assertEquals(1, Status.PlayerInfo.onlineCount(List.of(player1)).onlinePlayers());
+        assertNull(Status.builder().build().playerInfo());
+
+        try (var other = ServerProcess.create()) {
+            var connection = new TestConnection(other);
+            var ping = new ServerListPingEvent(connection,
+                    ServerListPingType.fromModernProtocolVersion(connection.getProtocolVersion()));
+            assertEquals(0, ping.getStatus().playerInfo().onlinePlayers());
+        }
     }
 
     private static final class TestConnection extends PlayerConnection {

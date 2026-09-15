@@ -31,6 +31,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * It is based on the target selectors used in commands.
  */
 public class EntityFinder {
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static final ConnectionManager CONNECTION_MANAGER = MinecraftServer.getConnectionManager();
 
     private TargetSelector targetSelector;
@@ -130,6 +131,7 @@ public class EntityFinder {
      * @param self     the source of the query, null if not any
      * @return all entities validating the conditions, can be empty
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public List<Entity> find(@Nullable Instance instance, @Nullable Entity self) {
         if (targetSelector == TargetSelector.MINESTOM_USERNAME) {
             Objects.requireNonNull(constantName, "The player name should not be null when searching for it");
@@ -335,6 +337,7 @@ public class EntityFinder {
     private static class ToggleableMap<T> extends Object2BooleanOpenHashMap<T> {
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static List<Entity> findTarget(@Nullable Instance instance,
                                            TargetSelector targetSelector,
                                            @Nullable Entity self) {

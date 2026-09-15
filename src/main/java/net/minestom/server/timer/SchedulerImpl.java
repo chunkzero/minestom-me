@@ -94,6 +94,7 @@ final class SchedulerImpl implements Scheduler {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void handleTask(TaskImpl task) {
         TaskSchedule schedule;
         try {

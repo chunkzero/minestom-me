@@ -7,6 +7,7 @@ import net.minestom.server.network.packet.client.play.ClientDebugSubscriptionReq
 
 public final class DebugSubscriptionListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void requestListener(ClientDebugSubscriptionRequestPacket packet, Player player) {
         PlayerDebugSubscriptionsRequestEvent event = new PlayerDebugSubscriptionsRequestEvent(player, packet.subscriptions());
         EventDispatcher.call(event);

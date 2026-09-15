@@ -4,7 +4,6 @@ import net.kyori.adventure.key.Key;
 import net.kyori.adventure.nbt.BinaryTag;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
 import net.kyori.adventure.text.Component;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.StructCodec;
 import net.minestom.server.component.DataComponent;
@@ -48,11 +47,9 @@ import java.util.function.Predicate;
  * <p>Pass registries to {@link #test(Registries, DataComponent.Holder)} when evaluating named tags.
  * Tag-dependent {@link Predicate} adapters use the initialized default server.</p>
  */
-public sealed interface DataComponentPredicate extends Predicate<DataComponent.Holder> {
+public sealed interface DataComponentPredicate {
 
-    default boolean test(Registries registries, DataComponent.Holder holder) {
-        return test(holder);
-    }
+    boolean test(Registries registries, DataComponent.Holder holder);
 
     @ApiStatus.Internal
     static DynamicRegistry<Codec<? extends DataComponentPredicate>> createDefaultRegistry() {
@@ -99,7 +96,7 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
         }
 
         @Override
-        public boolean test(DataComponent.Holder holder) {
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             return holder.has(component);
         }
     }
@@ -119,7 +116,7 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
         );
 
         @Override
-        public boolean test(DataComponent.Holder holder) {
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             Integer damageValue = holder.get(DataComponents.DAMAGE);
             if (damageValue == null) {
                 return false;
@@ -149,18 +146,13 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
      * @param levels       The acceptable range of enchantment levels
      */
     record EnchantmentListPredicate(@Nullable RegistryTag<Enchantment> enchantments,
-                                    @Nullable Range.Int levels) implements Predicate<EnchantmentList> {
+                                    @Nullable Range.Int levels) {
 
         public static final Codec<EnchantmentListPredicate> CODEC = StructCodec.struct(
                 "enchantments", RegistryTag.codec(Registries::enchantment).optional(), EnchantmentListPredicate::enchantments,
                 "levels", Range.Int.CODEC.optional(), EnchantmentListPredicate::levels,
                 EnchantmentListPredicate::new
         );
-
-        @Override
-        public boolean test(EnchantmentList enchantmentList) {
-            return test(MinecraftServer.getRegistries(), enchantmentList);
-        }
 
         public boolean test(Registries registries, EnchantmentList enchantmentList) {
             if (enchantments != null) {
@@ -204,11 +196,6 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
         }
 
         @Override
-        public boolean test(DataComponent.Holder holder) {
-            return test(MinecraftServer.getRegistries(), holder);
-        }
-
-        @Override
         public boolean test(Registries registries, DataComponent.Holder holder) {
             EnchantmentList enchantments = holder.get(DataComponents.ENCHANTMENTS);
             if (enchantments == null) return false;
@@ -246,11 +233,6 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
         }
 
         @Override
-        public boolean test(DataComponent.Holder holder) {
-            return test(MinecraftServer.getRegistries(), holder);
-        }
-
-        @Override
         public boolean test(Registries registries, DataComponent.Holder holder) {
             EnchantmentList enchantments = holder.get(DataComponents.STORED_ENCHANTMENTS);
             if (enchantments == null) return false;
@@ -282,11 +264,6 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
         }
 
         @Override
-        public boolean test(DataComponent.Holder holder) {
-            return test(MinecraftServer.getRegistries(), holder);
-        }
-
-        @Override
         public boolean test(Registries registries, DataComponent.Holder holder) {
             var potion = holder.get(DataComponents.POTION_CONTENTS);
             if (potion == null || potion.potion() == null) return false;
@@ -313,7 +290,7 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
         }
 
         @Override
-        public boolean test(DataComponent.Holder holder) {
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             net.minestom.server.item.component.CustomData other = holder.get(DataComponents.CUSTOM_DATA);
             return other != null && nbt.test(other.nbt());
         }
@@ -332,14 +309,9 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
      */
     record Container(@Nullable CollectionPredicate<ItemStack, ItemPredicate> items) implements Registered {
         public static final Codec<Container> CODEC = StructCodec.struct(
-                "items", CollectionPredicate.codec(ItemPredicate.CODEC).optional(), Container::items,
+                "items", CollectionPredicate.<ItemStack, ItemPredicate>codec(ItemPredicate.CODEC).optional(), Container::items,
                 Container::new
         );
-
-        @Override
-        public boolean test(DataComponent.Holder holder) {
-            return test(MinecraftServer.getRegistries(), holder);
-        }
 
         @Override
         public boolean test(Registries registries, DataComponent.Holder holder) {
@@ -365,14 +337,9 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
     record BundleContents(
             @Nullable CollectionPredicate<ItemStack, ItemPredicate> items) implements Registered {
         public static final Codec<BundleContents> CODEC = StructCodec.struct(
-                "items", CollectionPredicate.codec(ItemPredicate.CODEC).optional(), BundleContents::items,
+                "items", CollectionPredicate.<ItemStack, ItemPredicate>codec(ItemPredicate.CODEC).optional(), BundleContents::items,
                 BundleContents::new
         );
-
-        @Override
-        public boolean test(DataComponent.Holder holder) {
-            return test(MinecraftServer.getRegistries(), holder);
-        }
 
         @Override
         public boolean test(Registries registries, DataComponent.Holder holder) {
@@ -419,18 +386,18 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
             @Nullable Range.Int flightDuration) implements Registered {
 
         public static final Codec<Fireworks> CODEC = StructCodec.struct(
-                "explosions", CollectionPredicate.codec(FireworkExplosionPredicate.CODEC).optional(), Fireworks::explosions,
+                "explosions", CollectionPredicate.<net.minestom.server.item.component.FireworkExplosion, FireworkExplosionPredicate>codec(FireworkExplosionPredicate.CODEC).optional(), Fireworks::explosions,
                 "flight_duration", Range.Int.CODEC.optional(), Fireworks::flightDuration,
                 Fireworks::new
         );
 
         @Override
-        public boolean test(DataComponent.Holder holder) {
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             FireworkList fireworks = holder.get(DataComponents.FIREWORKS);
             if (fireworks == null) return false;
             if (flightDuration != null && !flightDuration.inRange(fireworks.flightDuration()))
                 return false;
-            return explosions == null || explosions.test(fireworks.explosions());
+            return explosions == null || explosions.test(fireworks.explosions(), Predicate::test);
         }
 
         @Override
@@ -454,7 +421,7 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
         }
 
         @Override
-        public boolean test(DataComponent.Holder holder) {
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             net.minestom.server.item.component.FireworkExplosion explosion = holder.get(DataComponents.FIREWORK_EXPLOSION);
             return delegate.test(explosion);
         }
@@ -474,15 +441,15 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
     record WritableBook(
             @Nullable CollectionPredicate<FilteredText<String>, WritableBook.PagePredicate> pages) implements Registered {
         public static final Codec<WritableBook> CODEC = StructCodec.struct(
-                "pages", CollectionPredicate.codec(WritableBook.PagePredicate.CODEC).optional(), WritableBook::pages,
+                "pages", CollectionPredicate.<FilteredText<String>, WritableBook.PagePredicate>codec(WritableBook.PagePredicate.CODEC).optional(), WritableBook::pages,
                 WritableBook::new
         );
 
         @Override
-        public boolean test(DataComponent.Holder holder) {
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             WritableBookContent content = holder.get(DataComponents.WRITABLE_BOOK_CONTENT);
             if (content == null) return false;
-            return pages == null || pages.test(content.pages());
+            return pages == null || pages.test(content.pages(), Predicate::test);
         }
 
         public record PagePredicate(String contents) implements Predicate<FilteredText<String>> {
@@ -517,7 +484,7 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
                        @Nullable Range.Int generation, @Nullable Boolean resolved) implements Registered {
 
         public static final Codec<WrittenBook> CODEC = StructCodec.struct(
-                "pages", CollectionPredicate.codec(WrittenBook.PagePredicate.CODEC).optional(), WrittenBook::pages,
+                "pages", CollectionPredicate.<FilteredText<Component>, WrittenBook.PagePredicate>codec(WrittenBook.PagePredicate.CODEC).optional(), WrittenBook::pages,
                 "author", Codec.STRING.optional(), WrittenBook::author,
                 "title", Codec.STRING.optional(), WrittenBook::title,
                 "generation", Range.Int.CODEC.optional(), WrittenBook::generation,
@@ -526,7 +493,7 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
         );
 
         @Override
-        public boolean test(DataComponent.Holder holder) {
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             WrittenBookContent content = holder.get(DataComponents.WRITTEN_BOOK_CONTENT);
             if (content == null) return false;
 
@@ -539,7 +506,7 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
             if (resolved != null && resolved != content.resolved())
                 return false;
 
-            return pages == null || pages.test(content.pages());
+            return pages == null || pages.test(content.pages(), Predicate::test);
         }
 
         public record PagePredicate(Component contents) implements Predicate<FilteredText<Component>> {
@@ -604,15 +571,15 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
             @Nullable CollectionPredicate<AttributeList.Modifier, AttributeModifierPredicate> modifiers) implements Registered {
 
         public static final Codec<AttributeModifiers> CODEC = StructCodec.struct(
-                "modifiers", CollectionPredicate.codec(AttributeModifierPredicate.CODEC).optional(), AttributeModifiers::modifiers,
+                "modifiers", CollectionPredicate.<AttributeList.Modifier, AttributeModifierPredicate>codec(AttributeModifierPredicate.CODEC).optional(), AttributeModifiers::modifiers,
                 AttributeModifiers::new
         );
 
         @Override
-        public boolean test(DataComponent.Holder holder) {
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             AttributeList attributes = holder.get(DataComponents.ATTRIBUTE_MODIFIERS);
             if (attributes == null) return false;
-            return modifiers == null || modifiers.test(attributes.modifiers());
+            return modifiers == null || modifiers.test(attributes.modifiers(), Predicate::test);
         }
 
         @Override
@@ -635,11 +602,6 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
                 "pattern", RegistryTag.codec(Registries::trimPattern).optional(), ArmorTrim::pattern,
                 ArmorTrim::new
         );
-
-        @Override
-        public boolean test(DataComponent.Holder holder) {
-            return test(MinecraftServer.getRegistries(), holder);
-        }
 
         @Override
         public boolean test(Registries registries, DataComponent.Holder holder) {
@@ -669,11 +631,6 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
         );
 
         @Override
-        public boolean test(DataComponent.Holder holder) {
-            return test(MinecraftServer.getRegistries(), holder);
-        }
-
-        @Override
         public boolean test(Registries registries, DataComponent.Holder holder) {
             var song = holder.get(DataComponents.JUKEBOX_PLAYABLE);
             if (song == null) return false;
@@ -699,7 +656,7 @@ public sealed interface DataComponentPredicate extends Predicate<DataComponent.H
         }
 
         @Override
-        public boolean test(DataComponent.Holder holder) {
+        public boolean test(Registries registries, DataComponent.Holder holder) {
             var variant = holder.get(DataComponents.VILLAGER_VARIANT);
             return variant != null && villagerTypes.contains(variant);
         }

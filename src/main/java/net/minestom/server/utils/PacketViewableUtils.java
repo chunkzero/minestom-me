@@ -74,6 +74,7 @@ public final class PacketViewableUtils {
     }
 
     private static final class ViewableStorage {
+        @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
         private static final ObjectPool<NetworkBuffer> POOL = ObjectPool.pool(
                 () -> NetworkBuffer.resizableBuffer(
                         ServerFlag.POOLED_BUFFER_SIZE, MinecraftServer.getRegistries()),
@@ -82,6 +83,7 @@ public final class PacketViewableUtils {
         private final Int2ObjectMap<LongArrayList> entityIdMap = new Int2ObjectOpenHashMap<>();
         private final NetworkBuffer buffer = POOL.getAndRegister(this);
 
+        @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
         private synchronized void append(ServerPacket serverPacket, @Nullable Player exception) {
             final long start = buffer.writeIndex();
             // Viewable storage is only used for play packets, so fine to assume this.

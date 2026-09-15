@@ -1,6 +1,5 @@
 package net.minestom.server.instance.block.predicate;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.Result;
 import net.minestom.server.codec.Transcoder;
@@ -18,7 +17,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Predicate;
 
 /**
  * A list of {@link DataComponentPredicate}s.
@@ -26,7 +24,7 @@ import java.util.function.Predicate;
  * Note: instances of this class are immutable. Calling {@link #add} or {@link #remove}
  * will return a new instance of this class with the element added or removed.
  */
-public record ComponentPredicateSet(List<DataComponentPredicate> predicates) implements Predicate<DataComponent.Holder> {
+public record ComponentPredicateSet(List<DataComponentPredicate> predicates) {
 
     private static final int MAX_NETWORK_SIZE = 64;
     private static final Codec<Either<RegistryKey<Codec<? extends DataComponentPredicate>>, DataComponent<?>>> PREDICATE_TYPE_CODEC =
@@ -212,11 +210,6 @@ public record ComponentPredicateSet(List<DataComponentPredicate> predicates) imp
                 "Component predicate count ({0}) is higher than the maximum allowed size ({1})",
                 value.predicates.size(), MAX_NETWORK_SIZE);
         return value.predicates;
-    }
-
-    @Override
-    public boolean test(DataComponent.Holder holder) {
-        return test(MinecraftServer.getRegistries(), holder);
     }
 
     public boolean test(Registries registries, DataComponent.Holder holder) {

@@ -82,6 +82,12 @@ public final class PacketSendingUtils {
         players.forEach(player -> player.sendPacket(sendablePacket));
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link #sendGroupedPacket(Collection, ServerPacket)}
+     * with the owning process's players.
+     */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
+    @Deprecated(forRemoval = true)
     public static void broadcastPlayPacket(ServerPacket packet) {
         sendGroupedPacket(MinecraftServer.getConnectionManager().getOnlinePlayers(), packet);
     }

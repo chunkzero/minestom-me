@@ -330,6 +330,7 @@ final class ServerProcessImpl implements ServerProcess, Registries.Delegating {
     }
 
     private final class TickerImpl implements Ticker {
+        @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
         @Override
         public void tick(long nanoTime) {
             var serverTickEvent = EventsJFR.newServerTick();

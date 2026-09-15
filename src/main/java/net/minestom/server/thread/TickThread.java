@@ -38,6 +38,7 @@ public class TickThread extends MinestomThread {
         super(name);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void run() {
         LockSupport.park(this); // Wait for first tick
@@ -64,6 +65,7 @@ public class TickThread extends MinestomThread {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     protected void tick() {
         final ReentrantLock lock = this.lock;
         final long tickTime = TimeUnit.NANOSECONDS.toMillis(this.tickTimeNanos);

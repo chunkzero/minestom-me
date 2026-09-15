@@ -58,13 +58,12 @@ import java.net.SocketAddress;
 import java.util.Objects;
 
 /**
- * The main server class used to start the server and retrieve all the managers.
- * <p>
- * The server needs to be initialized with {@link #init()} and started with {@link #start(String, int)}.
- * You should register all of your dimensions, biomes, commands, events, etc... in-between.
- * <p>Static settings and manager access target the default process and require initialization first.
- * Each call to {@link #init()} installs a fresh process with default settings. Use
- * {@link ServerProcess#create()} to construct a process without replacing the default.</p>
+ * Temporary facade for the default server process, scheduled for deletion.
+ * <p>New code must retain an explicit {@link ServerProcess} and use its managers and registries.
+ * Do not add default-process accessors or context-free compatibility overloads.</p>
+ * <p>The default-process bootstrap remains necessary until gameplay ownership and ticking are migrated.
+ * {@link ServerProcess#create()} currently supports independent construction and configuration only.
+ * Static settings require initialization first; each {@link #init()} installs fresh defaults.</p>
  */
 public final class MinecraftServer implements MinecraftConstants {
 
@@ -85,23 +84,39 @@ public final class MinecraftServer implements MinecraftConstants {
     // In-Game Manager
     private static volatile @UnknownNullability ServerProcess serverProcess;
 
+    /**
+     * @deprecated Temporary default-process bootstrap; scheduled for deletion with the remaining engine ownership migration.
+     */
+    @Deprecated(forRemoval = true)
     public static MinecraftServer init(Auth auth) {
         updateProcess(auth);
         return new MinecraftServer();
     }
 
+    /**
+     * @deprecated Temporary default-process bootstrap; scheduled for deletion with the remaining engine ownership migration.
+     */
+    @Deprecated(forRemoval = true)
     public static MinecraftServer init() {
         return init(new Auth.Offline());
     }
 
+    /**
+     * @deprecated Temporary default-process bootstrap; scheduled for deletion with the remaining engine ownership migration.
+     */
     @ApiStatus.Internal
+    @Deprecated(forRemoval = true)
     public static ServerProcess updateProcess(Auth auth) {
         ServerProcess process = ServerProcess.create(auth);
         serverProcess = process;
         return process;
     }
 
+    /**
+     * @deprecated Temporary default-process bootstrap; scheduled for deletion with the remaining engine ownership migration.
+     */
     @ApiStatus.Internal
+    @Deprecated(forRemoval = true)
     public static ServerProcess updateProcess() {
         return updateProcess(new Auth.Offline());
     }
@@ -110,7 +125,9 @@ public final class MinecraftServer implements MinecraftConstants {
      * Gets the current server brand name.
      *
      * @return the server brand name
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#brandName()} on the owning process.
      */
+    @Deprecated(forRemoval = true)
     public static String getBrandName() {
         return process().brandName();
     }
@@ -120,7 +137,9 @@ public final class MinecraftServer implements MinecraftConstants {
      *
      * @param brandName the server brand name
      * @throws NullPointerException if {@code brandName} is null
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#setBrandName(String)} on the owning process.
      */
+    @Deprecated(forRemoval = true)
     public static void setBrandName(String brandName) {
         Objects.requireNonNull(brandName);
         process().setBrandName(brandName);
@@ -130,7 +149,9 @@ public final class MinecraftServer implements MinecraftConstants {
      * Gets the server difficulty showed in game option.
      *
      * @return the server difficulty
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#difficulty()} on the owning process.
      */
+    @Deprecated(forRemoval = true)
     public static Difficulty getDifficulty() {
         return process().difficulty();
     }
@@ -139,12 +160,18 @@ public final class MinecraftServer implements MinecraftConstants {
      * Changes the server difficulty and send the appropriate packet to all connected clients.
      *
      * @param difficulty the new server difficulty
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#setDifficulty(Difficulty)} on the owning process.
      */
+    @Deprecated(forRemoval = true)
     public static void setDifficulty(Difficulty difficulty) {
         Objects.requireNonNull(difficulty);
         process().setDifficulty(difficulty);
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Retain and pass the owning {@link ServerProcess} explicitly.
+     */
+    @Deprecated(forRemoval = true)
     public static @UnknownNullability ServerProcess process() {
         return serverProcess;
     }
@@ -154,63 +181,121 @@ public final class MinecraftServer implements MinecraftConstants {
      *
      * @return the current server registries
      * @throws NullPointerException if the server has not been initialized
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#registries()} on the owning process.
      */
+    @Deprecated(forRemoval = true)
     public static Registries getRegistries() {
         return Objects.requireNonNull(serverProcess, "serverProcess").registries();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#eventHandler()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static GlobalEventHandler getGlobalEventHandler() {
         return serverProcess.eventHandler();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#packetListener()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static PacketListenerManager getPacketListenerManager() {
         return serverProcess.packetListener();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#instance()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static InstanceManager getInstanceManager() {
         return serverProcess.instance();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#block()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static BlockManager getBlockManager() {
         return serverProcess.block();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#command()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static CommandManager getCommandManager() {
         return serverProcess.command();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#recipe()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static RecipeManager getRecipeManager() {
         return serverProcess.recipe();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#team()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static TeamManager getTeamManager() {
         return serverProcess.team();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#scheduler()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static SchedulerManager getSchedulerManager() {
         return serverProcess.scheduler();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#exception()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static ExceptionManager getExceptionManager() {
         return serverProcess.exception();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#connection()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static ConnectionManager getConnectionManager() {
         return serverProcess.connection();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#bossBar()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static BossBarManager getBossBarManager() {
         return serverProcess.bossBar();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#packetParser()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static PacketParser.Client getPacketParser() {
         return serverProcess.packetParser();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#isAlive()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static boolean isStarted() {
         return serverProcess.isAlive();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use the owning process lifecycle; this method returns {@code !process.isAlive()}.
+     */
+    @Deprecated(forRemoval = true)
     public static boolean isStopping() {
         return !isStarted();
     }
@@ -243,7 +328,9 @@ public final class MinecraftServer implements MinecraftConstants {
      * Gets the compression threshold of the server.
      *
      * @return the compression threshold, 0 means that compression is disabled
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#compressionThreshold()} on the owning process.
      */
+    @Deprecated(forRemoval = true)
     public static int getCompressionThreshold() {
         return process().compressionThreshold();
     }
@@ -255,131 +342,257 @@ public final class MinecraftServer implements MinecraftConstants {
      *
      * @param compressionThreshold the new compression threshold, 0 to disable compression
      * @throws IllegalStateException if this is called after the server started
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#setCompressionThreshold(int)} on the owning process.
      */
+    @Deprecated(forRemoval = true)
     public static void setCompressionThreshold(int compressionThreshold) {
         process().setCompressionThreshold(compressionThreshold);
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#advancement()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static AdvancementManager getAdvancementManager() {
         return serverProcess.advancement();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#clickCallbackManager()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static ClickCallbackManager getClickCallbackManager() {
         return serverProcess.clickCallbackManager();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#chatType()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<ChatType> getChatTypeRegistry() {
         return serverProcess.chatType();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#dialog()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<Dialog> getDialogRegistry() {
         return serverProcess.dialog();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#dimensionType()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<DimensionType> getDimensionTypeRegistry() {
         return serverProcess.dimensionType();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#biome()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<Biome> getBiomeRegistry() {
         return serverProcess.biome();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#damageType()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<DamageType> getDamageTypeRegistry() {
         return serverProcess.damageType();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#trimMaterial()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<TrimMaterial> getTrimMaterialRegistry() {
         return serverProcess.trimMaterial();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#trimPattern()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<TrimPattern> getTrimPatternRegistry() {
         return serverProcess.trimPattern();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#bannerPattern()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<BannerPattern> getBannerPatternRegistry() {
         return serverProcess.bannerPattern();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#wolfVariant()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<WolfVariant> getWolfVariantRegistry() {
         return serverProcess.wolfVariant();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#wolfSoundVariant()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<WolfSoundVariant> getWolfSoundVariantRegistry() {
         return serverProcess.wolfSoundVariant();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#catVariant()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<CatVariant> getCatVariantRegistry() {
         return serverProcess.catVariant();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#chickenVariant()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<ChickenVariant> getChickenVariantRegistry() {
         return serverProcess.chickenVariant();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#cowVariant()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<CowVariant> getCowVariantRegistry() {
         return serverProcess.cowVariant();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#frogVariant()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<FrogVariant> getFrogVariantRegistry() {
         return serverProcess.frogVariant();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#pigVariant()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<PigVariant> getPigVariantRegistry() {
         return serverProcess.pigVariant();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#zombieNautilusVariant()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<ZombieNautilusVariant> getZombieNautilusVariantRegistry() {
         return serverProcess.zombieNautilusVariant();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#enchantment()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<Enchantment> getEnchantmentRegistry() {
         return serverProcess.enchantment();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#paintingVariant()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<PaintingVariant> getPaintingVariantRegistry() {
         return serverProcess.paintingVariant();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#jukeboxSong()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<JukeboxSong> getJukeboxSongRegistry() {
         return serverProcess.jukeboxSong();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#instrument()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<Instrument> getInstrumentRegistry() {
         return serverProcess.instrument();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#timeline()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<Timeline> getTimelineRegistry() {
         return serverProcess.timeline();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#worldClock()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<WorldClock> getWorldClockRegistry() {
         return serverProcess.worldClock();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#sulfurCubeArchetype()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<SulfurCubeArchetype> getSulfurCubeArchetypeRegistry() {
         return serverProcess.sulfurCubeArchetype();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#enchantmentLevelBasedValues()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<StructCodec<? extends LevelBasedValue>> enchantmentLevelBasedValues() {
         return serverProcess.enchantmentLevelBasedValues();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#enchantmentValueEffects()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<StructCodec<? extends ValueEffect>> enchantmentValueEffects() {
         return serverProcess.enchantmentValueEffects();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#enchantmentEntityEffects()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<StructCodec<? extends EntityEffect>> enchantmentEntityEffects() {
         return serverProcess.enchantmentEntityEffects();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#enchantmentLocationEffects()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<StructCodec<? extends LocationEffect>> enchantmentLocationEffects() {
         return serverProcess.enchantmentLocationEffects();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#componentPredicateTypes()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static DynamicRegistry<Codec<? extends DataComponentPredicate>> componentPredicateTypes() {
         return serverProcess.componentPredicateTypes();
     }
 
+    /**
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#server()} on the owning process.
+     */
+    @Deprecated(forRemoval = true)
     public static Server getServer() {
         return serverProcess.server();
     }
@@ -391,20 +604,28 @@ public final class MinecraftServer implements MinecraftConstants {
      *
      * @param address the server address
      * @throws IllegalStateException if called before {@link #init()} or if the server is already running
+     * @deprecated Temporary default-process bootstrap; scheduled for deletion with the remaining engine ownership migration.
      */
+    @Deprecated(forRemoval = true)
     public void start(SocketAddress address) {
         serverProcess.start(address);
         serverProcess.dispatcher().start();
         new TickSchedulerThread(serverProcess).start();
     }
 
+    /**
+     * @deprecated Temporary default-process bootstrap; scheduled for deletion with the remaining engine ownership migration.
+     */
+    @Deprecated(forRemoval = true)
     public void start(String address, int port) {
         start(new InetSocketAddress(address, port));
     }
 
     /**
      * Stops this server properly (saves if needed, kicking players, etc.)
+     * @deprecated Scheduled for deletion. Use {@link ServerProcess#stop()} on the owning process.
      */
+    @Deprecated(forRemoval = true)
     public static void stopCleanly() {
         serverProcess.stop();
     }

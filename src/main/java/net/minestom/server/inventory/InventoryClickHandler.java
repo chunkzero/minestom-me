@@ -115,6 +115,7 @@ public sealed interface InventoryClickHandler permits AbstractInventory {
      */
     boolean doubleClick(Player player, int slot);
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     default void callClickEvent(Player player, AbstractInventory inventory, int slot,
                                 ClickType clickType, ItemStack clicked, ItemStack cursor) {
         EventDispatcher.call(new InventoryClickEvent(inventory, player, slot, clickType, clicked, cursor));

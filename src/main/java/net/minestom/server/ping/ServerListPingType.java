@@ -69,6 +69,7 @@ public enum ServerListPingType {
      * @return the ping
      * @see OpenToLAN
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static String getOpenToLANPing(Status status) {
         return String.format("[MOTD]%s[/MOTD][AD]%s[/AD]", SECTION.serialize(status.description()), MinecraftServer.getServer().getPort());
     }

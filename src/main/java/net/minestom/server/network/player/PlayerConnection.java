@@ -157,6 +157,7 @@ public abstract class PlayerConnection {
     /**
      * Forcing the player to disconnect.
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void disconnect() {
         this.online = false;
         final Player player = process().connection().getPlayer(this);
@@ -311,6 +312,7 @@ public abstract class PlayerConnection {
      * @param host the host, usually an IP or domain name.
      * @param port the port, usually 25565.
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void transfer(String host, int port) {
         OutgoingTransferEvent event = new OutgoingTransferEvent(this.player, host, port);
         EventDispatcher.callCancellable(event, () -> this.sendPacket(new TransferPacket(event.getHost(), event.getPort())));

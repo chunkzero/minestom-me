@@ -33,6 +33,11 @@ import java.util.concurrent.TimeUnit;
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 public class NetworkCachedPacketBenchmark {
     static {
+        initializeDefaultProcess();
+    }
+
+    @SuppressWarnings("removal") // Cached packet framing still requires the default process.
+    private static void initializeDefaultProcess() {
         MinecraftServer.init();
     }
 

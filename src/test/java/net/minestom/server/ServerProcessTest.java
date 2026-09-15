@@ -13,12 +13,14 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 public class ServerProcessTest {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void registries() {
         var process = MinecraftServer.updateProcess();
         assertSame(process.registries(), MinecraftServer.getRegistries());
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void init() {
         // These like to fail on github actions
@@ -32,6 +34,7 @@ public class ServerProcessTest {
         assertDoesNotThrow(() -> process.get().stop());
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void tick() {
         // These like to fail on github actions

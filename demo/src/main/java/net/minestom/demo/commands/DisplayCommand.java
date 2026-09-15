@@ -1,7 +1,7 @@
 package net.minestom.demo.commands;
 
 import net.kyori.adventure.text.Component;
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
@@ -20,8 +20,11 @@ import net.minestom.server.utils.time.TimeUnit;
 
 public class DisplayCommand extends Command {
 
-    public DisplayCommand() {
+    private final ServerProcess process;
+
+    public DisplayCommand(ServerProcess process) {
         super("display");
+        this.process = process;
 
         var follow = ArgumentType.Literal("follow");
 
@@ -80,10 +83,10 @@ public class DisplayCommand extends Command {
         }
     }
 
-    private static void startSmoothFollow(Entity entity, Player player) {
+    private void startSmoothFollow(Entity entity, Player player) {
 //        entity.setCustomName(Component.text("MY CUSTOM NAME"));
 //        entity.setCustomNameVisible(true);
-        MinecraftServer.getSchedulerManager().buildTask(() -> {
+        process.scheduler().buildTask(() -> {
             var meta = (AbstractDisplayMeta) entity.getEntityMeta();
             meta.setNotifyAboutChanges(false);
             meta.setTransformationInterpolationStartDelta(1);

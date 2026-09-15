@@ -115,7 +115,7 @@ public class InstanceContainer extends Instance {
         this(uuid, dimensionType, loader, dimensionType.key());
     }
 
-    @SuppressWarnings("this-escape") // deliberate self registration during construction
+    @SuppressWarnings({"removal", "this-escape"}) // deliberate self registration during construction
     public InstanceContainer(UUID uuid, RegistryKey<DimensionType> dimensionType, @Nullable ChunkLoader loader, Key dimensionName) {
         this(MinecraftServer.getRegistries(), uuid, dimensionType, loader, dimensionName);
     }
@@ -158,6 +158,7 @@ public class InstanceContainer extends Instance {
      * @param z     the block Z
      * @param block the block to place
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private synchronized void UNSAFE_setBlock(Chunk chunk, int x, int y, int z, Block block,
                                               @Nullable BlockHandler.Placement placement, @Nullable BlockHandler.Destroy destroy,
                                               boolean doBlockUpdates, int updateDistance) {
@@ -237,6 +238,7 @@ public class InstanceContainer extends Instance {
         return true;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public boolean breakBlock(Player player, Point blockPosition, BlockFace blockFace, boolean doBlockUpdates) {
         final Chunk chunk = getChunkAt(blockPosition);
@@ -290,6 +292,7 @@ public class InstanceContainer extends Instance {
         return hasEnabledAutoChunkLoad() ? retrieveChunk(chunkX, chunkZ) : AsyncUtils.empty();
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public synchronized void unloadChunk(Chunk chunk) {
         if (!isLoaded(chunk)) return;
@@ -330,6 +333,7 @@ public class InstanceContainer extends Instance {
         return optionalAsync(chunkLoader.supportsParallelSaving(), () -> chunkLoader.saveChunks(getChunks()));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static CompletableFuture<Void> optionalAsync(boolean async, Runnable runnable) {
         if (!async) {
             runnable.run();
@@ -343,6 +347,7 @@ public class InstanceContainer extends Instance {
     // Loaders must not force other chunks to load from within loadChunk: loaders
     // without parallel support run inside the loadingChunks computation, where a
     // reentrant load on this instance would violate the map's recursive update rules
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     protected CompletableFuture<Chunk> retrieveChunk(int chunkX, int chunkZ) {
         final long index = CoordConversion.chunkIndex(chunkX, chunkZ);
         final CompletableFuture<Chunk> future = loadingChunks.computeIfAbsent(index, _ -> {
@@ -409,6 +414,7 @@ public class InstanceContainer extends Instance {
         return chunk;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     protected void generateChunk(Chunk chunk, Generator generator) {
         final int chunkX = chunk.getChunkX(), chunkZ = chunk.getChunkZ();
         GeneratorImpl.GenSection[] genSections = new GeneratorImpl.GenSection[chunk.getSections().size()];
@@ -673,6 +679,7 @@ public class InstanceContainer extends Instance {
         this.generator = generator;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Experimental
     @Override
     public CompletableFuture<Void> generateChunk(int chunkX, int chunkZ, Generator generator) {
@@ -750,6 +757,7 @@ public class InstanceContainer extends Instance {
      *
      * @param blockPosition the position of the modified block
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void executeNeighboursBlockPlacementRule(Point blockPosition, int updateDistance) {
         ChunkCache cache = new ChunkCache(this, null, null);
         for (var updateFace : BLOCK_UPDATE_FACES) {
@@ -782,6 +790,7 @@ public class InstanceContainer extends Instance {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void cacheChunk(Chunk chunk) {
         this.chunks.put(CoordConversion.chunkIndex(chunk.getChunkX(), chunk.getChunkZ()), chunk);
         var dispatcher = MinecraftServer.process().dispatcher();

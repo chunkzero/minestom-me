@@ -17,6 +17,7 @@ import java.util.stream.StreamSupport;
  * A provider of iterable audiences.
  */
 class IterableAudienceProvider implements AudienceProvider<Iterable<? extends Audience>> {
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private final List<ConsoleSender> console = List.of(MinecraftServer.getCommandManager().getConsoleSender());
     private final AudienceRegistry registry = new AudienceRegistry(new ConcurrentHashMap<>(), CopyOnWriteArrayList::new);
 
@@ -32,11 +33,13 @@ class IterableAudienceProvider implements AudienceProvider<Iterable<? extends Au
         return all;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public Iterable<? extends Audience> players() {
         return MinecraftServer.getConnectionManager().getOnlinePlayers();
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public Iterable<? extends Audience> players(Predicate<? super Player> filter) {
         return MinecraftServer.getConnectionManager().getOnlinePlayers().stream().filter(filter).toList();

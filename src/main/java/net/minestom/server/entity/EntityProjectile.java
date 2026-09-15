@@ -52,6 +52,7 @@ public class EntityProjectile extends Entity {
         return this.shooter;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void shoot(Point to, double power, double spread) {
         final EntityShootEvent shootEvent = new EntityShootEvent(this.shooter, this, to, power, spread);
         EventDispatcher.call(shootEvent);
@@ -90,6 +91,7 @@ public class EntityProjectile extends Entity {
         );
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void tick(long time) {
         final Pos posBefore = getPosition();
@@ -124,7 +126,7 @@ public class EntityProjectile extends Entity {
      * @param posNow position after current tick.
      * @return if an arrow is stuck in block / hit an entity.
      */
-    @SuppressWarnings("ConstantConditions")
+    @SuppressWarnings({"removal", "ConstantConditions"})
     private boolean isStuck(Pos pos, Pos posNow) {
         final Instance instance = getInstance();
         if (pos.samePoint(posNow)) {

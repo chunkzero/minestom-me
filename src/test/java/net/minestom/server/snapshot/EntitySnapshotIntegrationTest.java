@@ -17,7 +17,7 @@ public class EntitySnapshotIntegrationTest {
         var instance = env.createFlatInstance();
         var ent = new Entity(EntityType.ZOMBIE);
         ent.setInstance(instance).join();
-        var snapshot = ServerSnapshot.update();
+        var snapshot = ServerSnapshot.update(env.process());
 
         var inst = snapshot.instances().iterator().next();
         var entities = inst.entities();

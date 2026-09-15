@@ -159,6 +159,7 @@ public final class CachedPacket implements SendablePacket {
      * @param state the connection state used when framing the packet
      * @return the existing or newly computed framed packet
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private synchronized FramedPacket computeCache(ConnectionState state) {
         final FramedPacket cache = cachedPacket();
         if (cache != null) return cache;

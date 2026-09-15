@@ -215,6 +215,7 @@ public final class ConnectionManager {
         return cachedTagsPacket;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public GameProfile transitionLoginToConfig(PlayerConnection connection, GameProfile gameProfile) {
         assert ServerFlag.INSIDE_TEST || Thread.currentThread().isVirtual();
         // Compression
@@ -253,6 +254,7 @@ public final class ConnectionManager {
     /**
      * Return value exposed for testing
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Internal
     public void doConfiguration(Player player, boolean isFirstConfig) {
         assert ServerFlag.INSIDE_TEST || Thread.currentThread().isVirtual();

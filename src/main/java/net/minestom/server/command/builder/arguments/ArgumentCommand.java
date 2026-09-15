@@ -20,6 +20,7 @@ public class ArgumentCommand extends Argument<CommandResult> {
         super(id, true, true);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public CommandResult parse(CommandSender sender, String input) throws ArgumentSyntaxException {
         final String commandString = !shortcut.isEmpty() ?

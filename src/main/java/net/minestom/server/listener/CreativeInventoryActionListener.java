@@ -12,6 +12,7 @@ import net.minestom.server.utils.inventory.PlayerInventoryUtils;
 import java.util.Objects;
 
 public final class CreativeInventoryActionListener {
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientCreativeInventoryActionPacket packet, Player player) {
         if (player.getGameMode() != GameMode.CREATIVE) return;
         short slot = packet.slot();

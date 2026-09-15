@@ -9,6 +9,7 @@ import net.minestom.server.network.packet.client.play.ClientNameItemPacket;
 
 public final class AnvilListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void nameItemListener(ClientNameItemPacket packet, Player player) {
         if (!(player.getOpenInventory() instanceof Inventory openInventory))
             return;

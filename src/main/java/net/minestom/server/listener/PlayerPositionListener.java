@@ -50,6 +50,7 @@ public class PlayerPositionListener {
         player.refreshReceivedTeleportId(packet.teleportId());
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void processMovement(Player player, Pos packetPosition, boolean onGround) {
         // Prevent the player from moving too far
         // Doubles close to max size can cause overflow, or simply have precision issues

@@ -15,6 +15,7 @@ import java.util.UUID;
 
 public class PlayerSpectatorListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientSpectatorActionPacket packet, Player player) {
         // Ignore if the player is not in spectator mode
         if (player.getGameMode() != GameMode.SPECTATOR) {
@@ -33,6 +34,7 @@ public class PlayerSpectatorListener {
         EventDispatcher.call(new PlayerSpectateEntityEvent(player, target));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientTeleportToEntityPacket packet, Player player) {
         // Ignore if the player is not in spectator mode
         if (player.getGameMode() != GameMode.SPECTATOR) {

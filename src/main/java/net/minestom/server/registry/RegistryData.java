@@ -132,6 +132,7 @@ public final class RegistryData {
         return resourceStream;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Internal
     public static Properties load(String resourcePath, boolean required) {
         try (InputStream resourceStream = loadRegistryFile(resourcePath)) {

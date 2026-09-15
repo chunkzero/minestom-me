@@ -9,10 +9,12 @@ import net.minestom.server.network.packet.client.play.ClientStatusPacket;
 
 public final class PlayerSettingsMenuListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void requestGameRules(ClientStatusPacket ignored, Player player) {
         EventDispatcher.call(new PlayerGameRulesRequestEvent(player));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void setGameRules(ClientSetGameRulesPacket packet, Player player) {
         EventDispatcher.call(new PlayerSetGameRulesEvent(player, packet.entries()));
     }

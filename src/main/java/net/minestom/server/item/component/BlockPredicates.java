@@ -1,6 +1,5 @@
 package net.minestom.server.item.component;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.predicate.BlockPredicate;
@@ -8,9 +7,8 @@ import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.registry.Registries;
 
 import java.util.List;
-import java.util.function.Predicate;
 
-public record BlockPredicates(List<BlockPredicate> predicates) implements Predicate<Block> {
+public record BlockPredicates(List<BlockPredicate> predicates) {
     /**
      * Will never match any block.
      */
@@ -27,11 +25,6 @@ public record BlockPredicates(List<BlockPredicate> predicates) implements Predic
 
     public BlockPredicates(BlockPredicate predicate) {
         this(List.of(predicate));
-    }
-
-    @Override
-    public boolean test(Block block) {
-        return test(MinecraftServer.getRegistries(), block);
     }
 
     public boolean test(Registries registries, Block block) {

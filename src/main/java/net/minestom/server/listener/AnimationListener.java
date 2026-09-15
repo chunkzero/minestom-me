@@ -8,6 +8,7 @@ import net.minestom.server.network.packet.client.play.ClientAnimationPacket;
 
 public class AnimationListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void animationListener(ClientAnimationPacket packet, Player player) {
         final PlayerHand hand = packet.hand();
         PlayerHandAnimationEvent handAnimationEvent = new PlayerHandAnimationEvent(player, hand);

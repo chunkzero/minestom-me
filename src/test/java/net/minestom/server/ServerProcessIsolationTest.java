@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ServerProcessIsolationTest {
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     void constructionDoesNotReplaceDefaultProcess() throws IOException {
         final var defaultProcess = MinecraftServer.process();
@@ -45,6 +46,7 @@ class ServerProcessIsolationTest {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     void settingsBelongToTheirProcessAndStaticAccessUsesTheDefault() {
         try (var first = MinecraftServer.updateProcess();

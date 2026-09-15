@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 @EnvTest
 public class TagItemIntegrationTest {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void get() {
         var item = ItemStack.of(Material.DIAMOND);
@@ -26,6 +27,7 @@ public class TagItemIntegrationTest {
         assertEquals(item, handler.getTag(tag));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void getDifferentObject() {
         var item = ItemStack.of(Material.DIAMOND);
@@ -35,6 +37,7 @@ public class TagItemIntegrationTest {
         assertEquals(item, handler.getTag(Tag.ItemStack("item")));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void remove() {
         var item = ItemStack.of(Material.DIAMOND);
@@ -47,6 +50,7 @@ public class TagItemIntegrationTest {
         assertNull(handler.getTag(tag));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void gc() {
         var item = ItemStack.of(Material.DIAMOND);
@@ -62,6 +66,7 @@ public class TagItemIntegrationTest {
         waitUntilCleared(ref);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void invalidation() {
         var item = ItemStack.of(Material.DIAMOND);
@@ -75,8 +80,8 @@ public class TagItemIntegrationTest {
         assertEquals(item2, handler.getTag(tag));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
-    @SuppressWarnings("deprecation") // deliberately keeps coverage of the deprecated API until its removal
     public void differentTagInvalidation(Env env) {
         var item = ItemStack.of(Material.DIAMOND);
         var item2 = ItemStack.of(Material.DIAMOND, 2);
@@ -88,16 +93,17 @@ public class TagItemIntegrationTest {
         {
             handler.setTag(itemTag, item);
             assertEquals(item, handler.getTag(itemTag));
-            assertEquals(item.toItemNBT(), handler.getTag(nbtTag));
+            assertEquals(item.toItemNBT(env.process()), handler.getTag(nbtTag));
         }
         // Override it with an NBT tag
         {
-            handler.setTag(nbtTag, item2.toItemNBT());
+            handler.setTag(nbtTag, item2.toItemNBT(env.process()));
             assertEquals(item2, handler.getTag(itemTag));
-            assertEquals(item2.toItemNBT(), handler.getTag(nbtTag));
+            assertEquals(item2.toItemNBT(env.process()), handler.getTag(nbtTag));
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void snbt(Env env) {
         var handler = TagHandler.newHandler();

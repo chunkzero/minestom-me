@@ -118,6 +118,7 @@ public final class CommandManager {
      * @param command the raw command string (without the command prefix)
      * @return the execution result
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public CommandResult execute(CommandSender sender, String command) {
         command = command.trim();
         // Command event

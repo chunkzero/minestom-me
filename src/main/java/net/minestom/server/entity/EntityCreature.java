@@ -130,6 +130,7 @@ public class EntityCreature extends LivingEntity implements NavigableEntity, Ent
      * @param target    the entity target
      * @param swingHand true to swing the entity main hand, false otherwise
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void attack(Entity target, boolean swingHand) {
         if (swingHand)
             swingMainHand();

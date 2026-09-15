@@ -2,7 +2,6 @@ package net.minestom.server.instance.block.predicate;
 
 import net.kyori.adventure.nbt.BinaryTag;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.Result;
 import net.minestom.server.codec.StructCodec;
@@ -22,12 +21,10 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Predicate;
 
 /**
  * <p>A predicate to filter blocks based on their name, properties, and/or nbt.</p>
- * <p>Use {@link #test(Registries, Block)} to resolve tags and components in a specific server.
- * The {@link Predicate} adapter uses the initialized default server.</p>
+ * <p>Use {@link #test(Registries, Block)} to resolve tags and components in a specific server.</p>
  *
  * <p>Note: Inline with vanilla, providing none of the filters will match any block.</p>
  *
@@ -46,7 +43,7 @@ public record BlockPredicate(
         @Nullable PropertiesPredicate state,
         @Nullable NbtPredicate nbt,
         DataComponentPredicates components
-) implements Predicate<Block> {
+) {
     /**
      * Matches all blocks.
      */
@@ -112,11 +109,6 @@ public record BlockPredicate(
 
     public BlockPredicate {
         Objects.requireNonNull(components, "Component predicates cannot be null");
-    }
-
-    @Override
-    public boolean test(Block block) {
-        return test(MinecraftServer.getRegistries(), block);
     }
 
     public boolean test(Registries registries, Block block) {

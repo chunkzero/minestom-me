@@ -254,6 +254,7 @@ public final class PacketVanilla {
      * <p>
      * Size starts with {@link ServerFlag#POOLED_BUFFER_SIZE} and doubles until {@link ServerFlag#MAX_PACKET_SIZE}.
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static final ObjectPool<NetworkBuffer> PACKET_POOL = ObjectPool.pool(
             () -> NetworkBuffer.staticBuffer(ServerFlag.POOLED_BUFFER_SIZE, MinecraftServer.getRegistries()),
             NetworkBuffer::clear);

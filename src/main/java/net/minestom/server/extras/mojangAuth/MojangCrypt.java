@@ -26,6 +26,7 @@ import java.security.PublicKey;
 public final class MojangCrypt {
     private static final Logger LOGGER = LoggerFactory.getLogger(MojangCrypt.class);
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static @Nullable KeyPair generateKeyPair() {
         try {
             KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
@@ -42,6 +43,7 @@ public final class MojangCrypt {
         return digestData("SHA-1", data.getBytes(StandardCharsets.ISO_8859_1), secretKey.getEncoded(), publicKey.getEncoded());
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static byte @Nullable [] digestData(String algorithm, byte[]... data) {
         try {
             MessageDigest digest = MessageDigest.getInstance(algorithm);
@@ -63,6 +65,7 @@ public final class MojangCrypt {
         return cipherData(2, key, bytes);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static byte[] cipherData(int mode, Key key, byte[] data) {
         try {
             return setupCipher(mode, key.getAlgorithm(), key).doFinal(data);
@@ -73,6 +76,7 @@ public final class MojangCrypt {
         return null;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static Cipher setupCipher(int mode, String transformation, Key key) {
         try {
             Cipher cipher4 = Cipher.getInstance(transformation);

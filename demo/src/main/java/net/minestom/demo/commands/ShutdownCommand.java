@@ -1,6 +1,6 @@
 package net.minestom.demo.commands;
 
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
@@ -10,12 +10,15 @@ import net.minestom.server.command.builder.CommandContext;
  */
 public class ShutdownCommand extends Command {
 
-    public ShutdownCommand() {
+    private final ServerProcess process;
+
+    public ShutdownCommand(ServerProcess process) {
         super("shutdown");
-        addSyntax(ShutdownCommand::execute);
+        this.process = process;
+        addSyntax(this::execute);
     }
 
-    private static void execute(CommandSender commandSender, CommandContext commandContext) {
-        MinecraftServer.stopCleanly();
+    private void execute(CommandSender commandSender, CommandContext commandContext) {
+        process.stop();
     }
 }

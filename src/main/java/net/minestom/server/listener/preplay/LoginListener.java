@@ -52,6 +52,7 @@ public final class LoginListener {
 
     public static final Component INVALID_PROXY_RESPONSE = Component.text("Invalid proxy response!", NamedTextColor.RED);
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void loginStartListener(ClientLoginStartPacket packet, PlayerConnection connection) {
         if (!StringUtils.isValidUsername(packet.username())) {
             connection.kick(ERROR_MALFORMED_USERNAME);
@@ -103,6 +104,7 @@ public final class LoginListener {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void loginEncryptionResponseListener(ClientEncryptionResponsePacket packet, PlayerConnection connection) {
         if (!(MinecraftServer.process().auth() instanceof Auth.Online(KeyPair keyPair))) {
             connection.kick(Component.text("Encryption is not supported in offline mode", NamedTextColor.RED));
@@ -164,6 +166,7 @@ public final class LoginListener {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void handleVelocityProxyResponse(PlayerSocketConnection socketConnection, LoginPlugin.Response response) {
         if (!(MinecraftServer.process().auth() instanceof Auth.Velocity velocity)) {
             socketConnection.kick(Component.text("Login plugin response is not supported in this auth mode", NamedTextColor.RED));
@@ -200,6 +203,7 @@ public final class LoginListener {
         enterConfig(socketConnection, gameProfile);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void loginPluginResponseListener(ClientLoginPluginResponsePacket packet, PlayerConnection connection) {
         try {
             LoginPluginMessageProcessor messageProcessor = connection.loginPluginMessageProcessor();
@@ -211,6 +215,7 @@ public final class LoginListener {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void loginAckListener(ClientLoginAcknowledgedPacket ignored, PlayerConnection connection) {
         if (!(connection instanceof PlayerSocketConnection socketConnection))
             throw new UnsupportedOperationException("Only socket");
@@ -233,10 +238,12 @@ public final class LoginListener {
         player.getPlayerConnection().receiveKnownPacksResponse(packet.entries());
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void finishConfigListener(ClientFinishConfigurationPacket packet, Player player) {
         MinecraftServer.getConnectionManager().transitionConfigToPlay(player);
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void enterConfig(PlayerConnection connection, GameProfile gameProfile) {
         Thread.startVirtualThread(() -> {
             try {
@@ -247,6 +254,7 @@ public final class LoginListener {
         });
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void executeConfig(Player player, boolean isFirstConfig) {
         // We have to create another thread (even though we should already be in a virtual thread)
         // because configuration handling involves waiting for the client to send a known packs packet.

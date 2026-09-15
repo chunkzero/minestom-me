@@ -14,7 +14,9 @@ import java.util.function.Predicate;
 class SingleAudienceProvider implements AudienceProvider<Audience> {
 
     protected final IterableAudienceProvider collection = new IterableAudienceProvider();
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     protected final Audience players = PacketGroupingAudience.of(MinecraftServer.getConnectionManager().getOnlinePlayers());
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     protected final Audience server = Audience.audience(this.players, MinecraftServer.getCommandManager().getConsoleSender());
 
     protected SingleAudienceProvider() {
@@ -39,11 +41,13 @@ class SingleAudienceProvider implements AudienceProvider<Audience> {
         return this.players;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public Audience players(Predicate<? super Player> filter) {
         return PacketGroupingAudience.of(MinecraftServer.getConnectionManager().getOnlinePlayers().stream().filter(filter).toList());
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public Audience console() {
         return MinecraftServer.getCommandManager().getConsoleSender();

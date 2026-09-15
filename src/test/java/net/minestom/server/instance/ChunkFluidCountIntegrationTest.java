@@ -48,6 +48,7 @@ public class ChunkFluidCountIntegrationTest {
         assertEquals(0, sectionFluidCount(chunk, 40));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static int sectionFluidCount(Chunk chunk, int blockY) {
         var packet = (ChunkDataPacket) SendablePacket.extractServerPacket(ConnectionState.PLAY, chunk.getFullDataPacket());
         Assertions.assertNotNull(packet);

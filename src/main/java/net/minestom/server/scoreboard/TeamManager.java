@@ -35,6 +35,7 @@ public final class TeamManager {
      *
      * @param team The team to be registered
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     void registerNewTeam(Team team) {
         this.teams.add(team);
         PacketSendingUtils.broadcastPlayPacket(team.createTeamsCreationPacket());
@@ -58,6 +59,7 @@ public final class TeamManager {
      * @param team The team to be deleted
      * @return {@code true} if the team was deleted, otherwise {@code false}
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public boolean deleteTeam(Team team) {
         // Sends to all online players a team destroy packet
         PacketSendingUtils.broadcastPlayPacket(team.createTeamDestructionPacket());

@@ -11,6 +11,7 @@ import net.minestom.server.network.packet.client.common.ClientCustomClickActionP
 
 public final class CustomClickListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientCustomClickActionPacket listener, Player player) {
         MinecraftServer.getClickCallbackManager().consumeCustomClick(player, listener);
         var event = player.getPlayerConnection().getClientState() == ConnectionState.PLAY

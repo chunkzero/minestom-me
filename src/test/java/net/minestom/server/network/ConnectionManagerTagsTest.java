@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConnectionManagerTagsTest {
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     void onlyTheChangedRegistriesInvalidateTheirCachedTags() {
         try (var first = MinecraftServer.updateProcess()) {

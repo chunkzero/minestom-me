@@ -326,6 +326,7 @@ public final class InventoryClickProcessor {
         return clickResult;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void callClickEvent(Player player, AbstractInventory inventory, int slot,
                                 ClickType clickType, ItemStack clicked, ItemStack cursor) {
         EventDispatcher.call(new InventoryClickEvent(inventory, player, slot, clickType, clicked, cursor));

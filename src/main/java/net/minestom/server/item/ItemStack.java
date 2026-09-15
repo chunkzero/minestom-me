@@ -8,7 +8,6 @@ import net.kyori.adventure.text.event.DataComponentValue;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.event.HoverEventSource;
 import net.kyori.adventure.util.RGBLike;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.adventure.MinestomDataComponentValue;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.Result;
@@ -114,17 +113,6 @@ public sealed interface ItemStack extends TagReadable, DataComponent.Holder, Hov
     @Contract(value = "_ ,_, _ -> new", pure = true)
     static ItemStack of(Material material, int amount, DataComponentMap components) {
         return ItemStackImpl.create(material, amount, components);
-    }
-
-    /**
-     * Converts this item to an NBT tag containing the id (material), count (amount), and components.
-     *
-     * @param nbtCompound The nbt representation of the item
-     * @deprecated Use {@link #fromItemNBT(CompoundBinaryTag, Registries)} instead.
-     */
-    @Deprecated
-    static ItemStack fromItemNBT(CompoundBinaryTag nbtCompound) {
-        return fromItemNBT(nbtCompound, MinecraftServer.getRegistries());
     }
 
     /**
@@ -313,17 +301,6 @@ public sealed interface ItemStack extends TagReadable, DataComponent.Holder, Hov
     /**
      * Converts this item to an NBT tag containing the id (material), count (amount), and components (diff)
      *
-     * @return The nbt representation of the item
-     * @deprecated Use {@link #toItemNBT(Registries)} instead.
-     */
-    @Deprecated
-    default CompoundBinaryTag toItemNBT() {
-        return toItemNBT(MinecraftServer.getRegistries());
-    }
-
-    /**
-     * Converts this item to an NBT tag containing the id (material), count (amount), and components (diff)
-     *
      * @param registries The registries to use.
      * @return The nbt representation of the item
      */
@@ -367,18 +344,6 @@ public sealed interface ItemStack extends TagReadable, DataComponent.Holder, Hov
 
     sealed interface Hash permits ItemStackHashImpl.Air, ItemStackHashImpl.Item {
         Hash AIR = new ItemStackHashImpl.Air();
-
-        /**
-         * Creates a hash of an {@link ItemStack} using the server registries. Used in packets to identify the item.
-         *
-         * @param itemStack The item stack to hash
-         * @return the {@link Hash}
-         * @deprecated Use {@link #of(ItemStack, Registries)} instead.
-         */
-        @Deprecated
-        static Hash of(ItemStack itemStack) {
-            return of(itemStack, MinecraftServer.getRegistries());
-        }
 
         /**
          * Creates a hash of an {@link ItemStack} using the passed registries. Used in packets to identify the item.

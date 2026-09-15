@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 public class SendablePacketTest {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void cached() {
         var packet = new SystemChatPacket(Component.text("Hello World!"), false);

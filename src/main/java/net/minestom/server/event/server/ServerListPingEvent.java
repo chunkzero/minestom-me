@@ -1,5 +1,6 @@
 package net.minestom.server.event.server;
 
+import net.minestom.server.MinecraftServer;
 import net.minestom.server.event.trait.AsyncEvent;
 import net.minestom.server.event.trait.CancellableEvent;
 import net.minestom.server.network.player.PlayerConnection;
@@ -35,8 +36,10 @@ public class ServerListPingEvent implements CancellableEvent, AsyncEvent {
      * @param connection the player connection, if the ping type is modern
      * @param type       the ping type to respond with
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public ServerListPingEvent(@Nullable PlayerConnection connection, ServerListPingType type) {
-        this.status = Status.builder().build();
+        var process = connection != null ? connection.process() : MinecraftServer.process();
+        this.status = Status.builder().playerInfo(Status.PlayerInfo.onlineCount(process.connection().getOnlinePlayers())).build();
         this.connection = connection;
         this.type = type;
     }

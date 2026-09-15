@@ -121,6 +121,7 @@ public final class InstanceManager {
      *
      * @param instance the {@link Instance} to unregister
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void unregisterInstance(Instance instance) {
         long onlinePlayers = instance.getPlayers().stream().filter(Player::isOnline).count();
         Check.stateCondition(onlinePlayers > 0, "You cannot unregister an instance with players inside.");
@@ -173,6 +174,7 @@ public final class InstanceManager {
      *
      * @param instance the {@link Instance} to register
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void UNSAFE_registerInstance(Instance instance) {
         instance.setRegistered(true);
         this.instances.add(instance);

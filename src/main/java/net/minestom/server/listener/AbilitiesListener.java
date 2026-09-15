@@ -9,6 +9,7 @@ import net.minestom.server.network.packet.client.play.ClientPlayerAbilitiesPacke
 
 public class AbilitiesListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientPlayerAbilitiesPacket packet, Player player) {
         final boolean canFly = player.isAllowFlying() || player.getGameMode() == GameMode.CREATIVE;
 

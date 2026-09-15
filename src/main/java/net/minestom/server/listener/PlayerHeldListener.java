@@ -9,6 +9,7 @@ import net.minestom.server.utils.MathUtils;
 
 public class PlayerHeldListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void heldListener(ClientHeldItemChangePacket packet, Player player) {
         if (!MathUtils.isBetween(packet.slot(), 0, 8)) {
             // Incorrect packet, ignore

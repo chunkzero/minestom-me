@@ -1,6 +1,6 @@
 package net.minestom.demo.commands;
 
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
@@ -13,18 +13,21 @@ import java.util.concurrent.ExecutionException;
  */
 public class SaveCommand extends Command {
 
-    public SaveCommand() {
+    private final ServerProcess process;
+
+    public SaveCommand(ServerProcess process) {
         super("save");
-        addSyntax(SaveCommand::execute);
+        this.process = process;
+        addSyntax(this::execute);
     }
 
-    private static void execute(CommandSender commandSender, CommandContext commandContext) {
-        for(var instance : MinecraftServer.getInstanceManager().getInstances()) {
+    private void execute(CommandSender commandSender, CommandContext commandContext) {
+        for(var instance : process.instance().getInstances()) {
             CompletableFuture<Void> instanceSave = instance.saveInstance().thenCompose(_ -> instance.saveChunksToStorage());
             try {
                 instanceSave.get();
             } catch (InterruptedException | ExecutionException e) {
-                MinecraftServer.getExceptionManager().handleException(e);
+                process.exception().handleException(e);
             }
         }
         commandSender.sendMessage("Saving done!");

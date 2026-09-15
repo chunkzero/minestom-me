@@ -7,6 +7,7 @@ import net.minestom.server.network.packet.client.play.ClientTickEndPacket;
 
 public final class PlayerTickListener {
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientTickEndPacket packet, Player player) {
         EventDispatcher.call(new PlayerTickEndEvent(player));
     }

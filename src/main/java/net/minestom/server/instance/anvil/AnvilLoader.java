@@ -104,6 +104,7 @@ public class AnvilLoader implements ChunkLoader {
         this(Path.of(path));
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void loadInstance(Instance instance) {
         if (!Files.exists(levelPath)) {
@@ -118,6 +119,7 @@ public class AnvilLoader implements ChunkLoader {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public @Nullable Chunk loadChunk(Instance instance, int chunkX, int chunkZ) {
         if (!Files.exists(path)) {
@@ -179,6 +181,7 @@ public class AnvilLoader implements ChunkLoader {
         return chunk;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private @Nullable RegionFile getMCAFile(int chunkX, int chunkZ) {
         final int regionX = chunkToRegion(chunkX), regionZ = chunkToRegion(chunkZ);
         final String fileName = RegionFile.getFileName(regionX, regionZ);
@@ -310,6 +313,7 @@ public class AnvilLoader implements ChunkLoader {
         return convertedPalette;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void loadBlockEntities(Chunk loadedChunk, CompoundBinaryTag chunkData) {
         for (BinaryTag blockEntityTag : chunkData.getList("block_entities", BinaryTagTypes.COMPOUND)) {
             if (!(blockEntityTag instanceof CompoundBinaryTag blockEntity)) {
@@ -340,6 +344,7 @@ public class AnvilLoader implements ChunkLoader {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void saveInstance(Instance instance) {
         final CompoundBinaryTag nbt = instance.tagHandler().asCompound();
@@ -354,6 +359,7 @@ public class AnvilLoader implements ChunkLoader {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void saveChunk(Chunk chunk) {
         final int chunkX = chunk.getChunkX(), chunkZ = chunk.getChunkZ();
@@ -567,6 +573,7 @@ public class AnvilLoader implements ChunkLoader {
      *
      * @param chunk the chunk to unload
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void unloadChunk(Chunk chunk) {
         final int regionX = chunkToRegion(chunk.getChunkX()), regionZ = chunkToRegion(chunk.getChunkZ());

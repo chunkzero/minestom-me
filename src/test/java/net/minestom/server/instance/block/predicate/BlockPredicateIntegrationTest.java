@@ -27,7 +27,7 @@ public class BlockPredicateIntegrationTest {
                 .putString("LootTable", "minecraft:test")
                 .put("item", itemNbt)
                 .build());
-        assertTrue(predicate.test(block));
+        assertTrue(predicate.test(env.process(), block));
     }
 
     @Test
@@ -44,6 +44,6 @@ public class BlockPredicateIntegrationTest {
                 .putString("LootTable", "minecraft:test")
                 .put("item", itemNbt2)
                 .build());
-        assertFalse(predicate.test(block));
+        assertFalse(predicate.test(env.process(), block));
     }
 }

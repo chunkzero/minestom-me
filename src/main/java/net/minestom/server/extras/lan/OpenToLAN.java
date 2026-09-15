@@ -25,9 +25,12 @@ import static net.minestom.server.ping.ServerListPingType.OPEN_TO_LAN;
  * that this is a single-player world that has been opened to LAN for it to be displayed on
  * the bottom of the server list.
  *
+ * @deprecated Scheduled for deletion. LAN advertisement must own its process, task, and socket.
  * @see <a href="https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Server_List_Ping#Ping_via_LAN_(Open_to_LAN_in_Singleplayer)">the Minecraft wiki</a>
  */
+@Deprecated(forRemoval = true)
 public final class OpenToLAN {
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static final Logger LOGGER = LoggerFactory.getLogger(OpenToLAN.class);
     private static volatile @Nullable State state = null;
 
@@ -49,6 +52,7 @@ public final class OpenToLAN {
      * @param config the configuration
      * @return {@code true} if it was opened successfully, {@code false} otherwise
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static synchronized boolean open(OpenToLANConfig config) {
         Objects.requireNonNull(config, "config");
         if (state != null) return false;
@@ -96,6 +100,7 @@ public final class OpenToLAN {
         return state != null;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void ping() {
         final State current = state;
         if (current == null) return;
@@ -126,6 +131,7 @@ public final class OpenToLAN {
             super();
         }
 
+        @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
         private synchronized DatagramPacket resolvePacket() {
             final long now = System.nanoTime();
             if (snapshot != null && now - snapshot.timestampNanos < eventDelayNanos) {

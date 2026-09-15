@@ -55,6 +55,7 @@ public sealed abstract class AbstractInventory implements InventoryClickHandler,
     // the local event node filtered to this inventory
     private final @Nullable EventNode<InventoryEvent> eventNode;
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     protected AbstractInventory(int size) {
         this.size = size;
         this.itemStacks = new ItemStack[getSize()];
@@ -129,6 +130,7 @@ public sealed abstract class AbstractInventory implements InventoryClickHandler,
      * @param itemStack  the item to set
      * @param sendPacket whether to send packets
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void setItemStack(int slot, ItemStack itemStack, boolean sendPacket) {
         Check.argCondition(!MathUtils.isBetween(slot, 0, getSize() - 1), // Subtract 1 because MathUtils is <= max, instead of strictly less than
                 "Inventory does not have the slot " + slot);

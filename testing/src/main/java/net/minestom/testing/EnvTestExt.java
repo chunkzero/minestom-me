@@ -19,6 +19,7 @@ final class EnvTestExt implements
         System.setProperty("minestom.viewable-packet", "false");
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public Env resolveParameter(ParameterContext parameterContext,
                                 ExtensionContext extensionContext) {

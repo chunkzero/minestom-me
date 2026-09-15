@@ -17,6 +17,7 @@ import java.util.function.Function;
 import static java.util.Map.entry;
 
 final class TagRecord {
+    @SuppressWarnings("removal") // Default-process serializers await explicit registry context.
     static final Map<Class<?>, Function<String, Tag<?>>> SUPPORTED_TYPES = Map.ofEntries(
             entry(Byte.class, Tag::Byte), entry(byte.class, Tag::Byte),
             entry(Boolean.class, Tag::Boolean), entry(boolean.class, Tag::Boolean),

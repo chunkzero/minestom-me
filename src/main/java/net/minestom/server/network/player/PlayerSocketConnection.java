@@ -226,6 +226,7 @@ public class PlayerSocketConnection extends PlayerConnection {
      *
      * @throws IllegalStateException if encryption is already enabled for this connection
      */
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void startCompression() {
         Check.stateCondition(compression(), "Compression is already enabled!");
         this.compressionStart = sentPacketCounter.get();
@@ -371,6 +372,7 @@ public class PlayerSocketConnection extends PlayerConnection {
         return true;
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private boolean writePacketSync(NetworkBuffer buffer, SendablePacket packet, boolean compressed) {
         final Player player = getPlayer();
         final ConnectionState state = getServerState();

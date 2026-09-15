@@ -1,6 +1,5 @@
 package net.minestom.server.instance.block.predicate;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.StructCodec;
 import net.minestom.server.component.DataComponent;
@@ -10,10 +9,9 @@ import net.minestom.server.network.NetworkBufferTemplate;
 import net.minestom.server.registry.Registries;
 
 import java.util.Objects;
-import java.util.function.Predicate;
 
 public record DataComponentPredicates(DataComponentMap exact,
-                                      ComponentPredicateSet predicates) implements Predicate<DataComponent.Holder> {
+                                      ComponentPredicateSet predicates) {
 
     public DataComponentPredicates {
         Objects.requireNonNull(exact, "Exact cannot be null. Use DataComponentMap.EMPTY to skip exact data component checks.");
@@ -33,11 +31,6 @@ public record DataComponentPredicates(DataComponentMap exact,
             ComponentPredicateSet.NETWORK_TYPE, DataComponentPredicates::predicates,
             DataComponentPredicates::new
     );
-
-    @Override
-    public boolean test(DataComponent.Holder holder) {
-        return test(MinecraftServer.getRegistries(), holder);
-    }
 
     public boolean test(Registries registries, DataComponent.Holder holder) {
         for (DataComponent.Value entry : exact.entrySet()) {

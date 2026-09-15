@@ -32,8 +32,10 @@ import net.minestom.server.utils.inventory.PlayerInventoryUtils;
 import net.minestom.server.world.DimensionType;
 
 public class BlockPlacementListener {
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static final BlockManager BLOCK_MANAGER = MinecraftServer.getBlockManager();
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientPlayerBlockPlacementPacket packet, Player player) {
         final PlayerHand hand = packet.hand();
         final BlockFace blockFace = packet.blockFace();

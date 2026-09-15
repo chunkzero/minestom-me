@@ -79,6 +79,7 @@ public class EventNodeMapTest {
         assertFalse(result.get());
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void entityLocal() {
         var process = MinecraftServer.updateProcess();

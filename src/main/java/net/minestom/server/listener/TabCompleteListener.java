@@ -25,6 +25,7 @@ public class TabCompleteListener {
         }
     }
 
+    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static @Nullable Suggestion getSuggestion(CommandSender commandSender, String text) {
         if (text.startsWith("/")) {
             text = text.substring(1);
