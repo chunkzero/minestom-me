@@ -14,6 +14,7 @@ import net.minestom.server.event.player.PlayerPacketEvent;
 import net.minestom.server.event.player.PlayerSettingsChangeEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
 import net.minestom.server.instance.Instance;
+import net.minestom.server.network.packet.PacketWriting;
 import net.minestom.server.network.packet.client.common.ClientPingRequestPacket;
 import net.minestom.server.network.packet.client.common.ClientSettingsPacket;
 import net.minestom.server.network.packet.client.play.ClientConfigurationAckPacket;
@@ -32,6 +33,8 @@ import net.minestom.server.network.packet.server.play.PlayerInfoUpdatePacket;
 import net.minestom.server.network.packet.server.play.ServerDifficultyPacket;
 import net.minestom.server.network.packet.server.play.StartConfigurationPacket;
 import net.minestom.server.network.player.ClientSettings;
+import net.minestom.server.network.player.GameProfile;
+import net.minestom.server.network.player.PlayerSocketConnection;
 import net.minestom.server.world.Difficulty;
 import net.minestom.server.world.DimensionType;
 import net.minestom.testing.ServerProcessPair;
@@ -39,6 +42,8 @@ import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -58,6 +63,42 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProcessConnectionIntegrationTest {
+    @Test
+    void reconfigurationAcknowledgementChangesStateBeforeTheNextSocketRead() throws Exception {
+        try (var pair = new ServerProcessPair();
+             var server = ServerSocketChannel.open().bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+             var client = SocketChannel.open(server.getLocalAddress());
+             var channel = server.accept()) {
+            var process = pair.second();
+            var connection = new PlayerSocketConnection(process, channel, channel.getRemoteAddress(),
+                    Thread.currentThread(), Thread.currentThread());
+            var player = new Player(connection, new GameProfile(UUID.randomUUID(), "Reconfigure"));
+            connection.setClientState(ConnectionState.PLAY);
+            connection.setServerState(ConnectionState.CONFIGURATION);
+            // Isolate the incoming state transition from the asynchronous configuration response.
+            process.packetListener().setPlayListener(ClientConfigurationAckPacket.class, (_, _) -> {});
+            var settings = settings(Locale.GERMAN);
+            var buffer = NetworkBuffer.resizableBuffer(process.registries());
+            try {
+                PacketWriting.writeFramedPacket(buffer, ConnectionState.PLAY, new ClientConfigurationAckPacket(), 0);
+                assertTrue(buffer.writeChannel(client));
+                connection.read(process.packetParser());
+
+                // Force a separate socket read before any tick can interpret queued packets.
+                buffer.clear();
+                PacketWriting.writeFramedPacket(buffer, ConnectionState.CONFIGURATION, new ClientSettingsPacket(settings), 0);
+                assertTrue(buffer.writeChannel(client));
+                connection.read(process.packetParser());
+                player.interpretPacketQueue();
+
+                assertEquals(ConnectionState.CONFIGURATION, connection.getClientState());
+                assertEquals(settings, player.getSettings());
+            } finally {
+                connection.cleanup();
+            }
+        }
+    }
+
     @Test
     void clientsJoinReconfigureAndKeepRunningWhenTheOtherProcessCloses() throws Exception {
         try (var pair = new ServerProcessPair()) {
