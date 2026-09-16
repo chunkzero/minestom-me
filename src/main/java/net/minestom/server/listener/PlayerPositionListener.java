@@ -6,7 +6,6 @@ import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.entity.RelativeFlags;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.PlayerMoveEvent;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.network.packet.client.play.ClientPlayerPositionAndRotationPacket;
@@ -50,7 +49,6 @@ public class PlayerPositionListener {
         player.refreshReceivedTeleportId(packet.teleportId());
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void processMovement(Player player, Pos packetPosition, boolean onGround) {
         // Prevent the player from moving too far
         // Doubles close to max size can cause overflow, or simply have precision issues
@@ -83,7 +81,7 @@ public class PlayerPositionListener {
         }
 
         PlayerMoveEvent playerMoveEvent = new PlayerMoveEvent(player, packetPosition, onGround);
-        EventDispatcher.call(playerMoveEvent);
+        player.process().eventHandler().call(playerMoveEvent);
         if (!currentPosition.equals(player.getPosition())) {
             // Player has been teleported in the event
             return;

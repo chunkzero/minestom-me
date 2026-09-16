@@ -2,7 +2,6 @@ package net.minestom.server.listener;
 
 import net.minestom.server.entity.GameMode;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.inventory.InventoryBundleItemSelectEvent;
 import net.minestom.server.event.inventory.InventoryButtonClickEvent;
 import net.minestom.server.event.inventory.InventoryPreClickEvent;
@@ -49,7 +48,7 @@ public class WindowListener {
             Click.Window window = Click.toWindow(click, size);
             // Call InventoryPreClickEvent
             InventoryPreClickEvent inventoryPreClickEvent = new InventoryPreClickEvent(window.inOpened() ? inventory : player.getInventory(), player, window.click());
-            EventDispatcher.call(inventoryPreClickEvent);
+            player.process().eventHandler().call(inventoryPreClickEvent);
 
             click = Click.fromWindow(new Click.Window(window.inOpened(), inventoryPreClickEvent.getClick()), size);
 
@@ -87,7 +86,6 @@ public class WindowListener {
         player.closeInventory(true, (byte) packet.windowId());
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void inventoryButtonClickListener(ClientClickWindowButtonPacket packet, Player player) {
         AbstractInventory inventory = player.getOpenInventory();
 
@@ -97,10 +95,9 @@ public class WindowListener {
         // Can't press a button if the inventory is different from the packet's window id
         if (packet.windowId() != (int) inventory.getWindowId()) return;
 
-        EventDispatcher.call(new InventoryButtonClickEvent(player, inventory, packet.buttonId()));
+        player.process().eventHandler().call(new InventoryButtonClickEvent(player, inventory, packet.buttonId()));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void selectBundleItemListener(ClientSelectBundleItemPacket packet, Player player) {
         final int selectedItemIndex = packet.selectedIndex();
         if (selectedItemIndex < -1) {
@@ -142,6 +139,6 @@ public class WindowListener {
                 translatedSlot,
                 selectedItemIndex
         );
-        EventDispatcher.call(event);
+        player.process().eventHandler().call(event);
     }
 }

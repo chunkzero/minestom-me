@@ -2,19 +2,17 @@ package net.minestom.server.listener;
 
 import net.minestom.server.coordinate.BlockVec;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.PlayerEditSignEvent;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.network.packet.client.play.ClientUpdateSignPacket;
 
 public class EditSignListener {
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientUpdateSignPacket packet, Player player) {
         Instance instance = player.getInstance();
         BlockVec position = packet.blockPosition().asBlockVec();
         Block block = instance.getBlock(position);
-        EventDispatcher.call(new PlayerEditSignEvent(
+        player.process().eventHandler().call(new PlayerEditSignEvent(
                 player,
                 instance,
                 block,

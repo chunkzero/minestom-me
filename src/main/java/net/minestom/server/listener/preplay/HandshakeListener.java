@@ -41,16 +41,15 @@ public final class HandshakeListener {
      */
     private static final Component TRANSFERS_DISABLED_TEXT = Component.translatable("multiplayer.disconnect.transfers_disabled");
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    private static int maxHandshakeLength() {
+    private static int maxHandshakeLength(Auth auth) {
         // BungeeGuard limits handshake length to 2500 characters, while vanilla limits it to 255
-        return MinecraftServer.process().auth() instanceof Auth.Bungee bungee ? (bungee.guard() ? 2500 : Short.MAX_VALUE) : 255;
+        return auth instanceof Auth.Bungee bungee ? (bungee.guard() ? 2500 : Short.MAX_VALUE) : 255;
     }
 
-    @SuppressWarnings({"removal", "fallthrough"}) // transfers deliberately continue with the regular login flow
+    @SuppressWarnings("fallthrough") // transfers deliberately continue with the regular login flow
     public static void listener(ClientHandshakePacket packet, PlayerConnection connection) {
         String address = packet.serverAddress();
-        if (address.length() > maxHandshakeLength()) {
+        if (address.length() > maxHandshakeLength(connection.process().auth())) {
             throw new IllegalArgumentException("Server address too long: " + address.length());
         }
 
@@ -69,7 +68,7 @@ public final class HandshakeListener {
                     break;
                 }
 
-                final Auth auth = MinecraftServer.process().auth();
+                final Auth auth = connection.process().auth();
 
                 // Bungee support (IP forwarding)
                 if (auth instanceof Auth.Bungee bungee && connection instanceof PlayerSocketConnection socketConnection) {

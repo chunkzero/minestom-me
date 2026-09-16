@@ -7,7 +7,6 @@ import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
 import net.minestom.server.entity.PlayerHand;
 import net.minestom.server.entity.metadata.LivingEntityMeta;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.item.PlayerCancelItemUseEvent;
 import net.minestom.server.event.player.PlayerCancelDiggingEvent;
 import net.minestom.server.event.player.PlayerFinishDiggingEvent;
@@ -69,7 +68,6 @@ public final class PlayerActionListener {
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static DiggingResult startDigging(Player player, Instance instance, Point blockPosition, BlockFace blockFace) {
         final Block block = instance.getBlock(blockPosition);
 
@@ -82,23 +80,21 @@ public final class PlayerActionListener {
         final boolean instantBreak = breakTicks == 0;
         if (!instantBreak) {
             PlayerStartDiggingEvent playerStartDiggingEvent = new PlayerStartDiggingEvent(player, instance, block, blockPosition.asBlockVec(), blockFace);
-            EventDispatcher.call(playerStartDiggingEvent);
+            player.process().eventHandler().call(playerStartDiggingEvent);
             return new DiggingResult(block, !playerStartDiggingEvent.isCancelled());
         }
         // Client only sends a single STARTED_DIGGING when insta-break is enabled
         return breakBlock(instance, player, blockPosition, block, blockFace);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static DiggingResult cancelDigging(Player player, Instance instance, Point blockPosition) {
         final Block block = instance.getBlock(blockPosition);
 
         PlayerCancelDiggingEvent playerCancelDiggingEvent = new PlayerCancelDiggingEvent(player, instance, block, blockPosition.asBlockVec());
-        EventDispatcher.call(playerCancelDiggingEvent);
+        player.process().eventHandler().call(playerCancelDiggingEvent);
         return new DiggingResult(block, true);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static DiggingResult finishDigging(Player player, Instance instance, Point blockPosition, BlockFace blockFace) {
         final Block block = instance.getBlock(blockPosition);
 
@@ -111,14 +107,14 @@ public final class PlayerActionListener {
         // If the block is unbreakable, prevent a hacked client from breaking it!
         if (breakTicks == BlockBreakCalculation.UNBREAKABLE) {
             PlayerCancelDiggingEvent playerCancelDiggingEvent = new PlayerCancelDiggingEvent(player, instance, block, blockPosition.asBlockVec());
-            EventDispatcher.call(playerCancelDiggingEvent);
+            player.process().eventHandler().call(playerCancelDiggingEvent);
             return new DiggingResult(block, false);
         }
         // TODO maybe add a check if the player has spent enough time mining the block.
         //   a hacked client could send START_DIGGING and FINISH_DIGGING to instamine any block
 
         PlayerFinishDiggingEvent playerFinishDiggingEvent = new PlayerFinishDiggingEvent(player, instance, block, blockPosition.asBlockVec());
-        EventDispatcher.call(playerFinishDiggingEvent);
+        player.process().eventHandler().call(playerFinishDiggingEvent);
 
         return breakBlock(instance, player, blockPosition, playerFinishDiggingEvent.getBlock(), blockFace);
     }
@@ -161,14 +157,13 @@ public final class PlayerActionListener {
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void updateItemState(Player player) {
         LivingEntityMeta meta = player.getLivingEntityMeta();
         if (meta == null || !meta.isHandActive()) return;
         final PlayerHand hand = meta.getActiveHand();
 
         PlayerCancelItemUseEvent cancelUseEvent = new PlayerCancelItemUseEvent(player, hand, player.getItemInHand(hand), player.getCurrentItemUseTime());
-        EventDispatcher.call(cancelUseEvent);
+        player.process().eventHandler().call(cancelUseEvent);
 
         // Reset server state
         final boolean isOffHand = hand == PlayerHand.OFF;
@@ -176,12 +171,11 @@ public final class PlayerActionListener {
         player.clearItemUse();
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void swapItemHand(Player player) {
         final ItemStack mainHand = player.getItemInMainHand();
         final ItemStack offHand = player.getItemInOffHand();
         PlayerSwapItemEvent swapItemEvent = new PlayerSwapItemEvent(player, offHand, mainHand);
-        EventDispatcher.callCancellable(swapItemEvent, () -> {
+        player.process().eventHandler().callCancellable(swapItemEvent, () -> {
             player.setItemInMainHand(swapItemEvent.getMainHandItem());
             player.setItemInOffHand(swapItemEvent.getOffHandItem());
         });
@@ -214,12 +208,11 @@ public final class PlayerActionListener {
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void stab(Player player) {
         final ItemStack itemInMainHand = player.getItemInMainHand();
         if (!itemInMainHand.has(DataComponents.PIERCING_WEAPON))
             return;
-        EventDispatcher.call(new PlayerStabEvent(player));
+        player.process().eventHandler().call(new PlayerStabEvent(player));
     }
 
     private record DiggingResult(Block block, boolean success) {

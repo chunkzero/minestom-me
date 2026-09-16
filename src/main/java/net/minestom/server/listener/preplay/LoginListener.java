@@ -5,7 +5,6 @@ import com.google.gson.JsonObject;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minestom.server.Auth;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Player;
 import net.minestom.server.extras.mojangAuth.MojangCrypt;
 import net.minestom.server.network.NetworkBuffer;
@@ -24,6 +23,8 @@ import net.minestom.server.network.plugin.LoginPlugin;
 import net.minestom.server.network.plugin.LoginPluginMessageProcessor;
 import net.minestom.server.utils.StringUtils;
 import net.minestom.server.utils.mojang.MojangUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.SecretKey;
 import java.io.IOException;
@@ -42,6 +43,7 @@ import java.util.UUID;
 import static net.minestom.server.network.NetworkBuffer.STRING;
 
 public final class LoginListener {
+    private static final Logger LOGGER = LoggerFactory.getLogger(LoginListener.class);
     private static final SecureRandom NONCE_RANDOM = new SecureRandom();
 
     private static final Component ALREADY_CONNECTED = Component.text("You are already on this server", NamedTextColor.RED);
@@ -52,14 +54,13 @@ public final class LoginListener {
 
     public static final Component INVALID_PROXY_RESPONSE = Component.text("Invalid proxy response!", NamedTextColor.RED);
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void loginStartListener(ClientLoginStartPacket packet, PlayerConnection connection) {
         if (!StringUtils.isValidUsername(packet.username())) {
             connection.kick(ERROR_MALFORMED_USERNAME);
             return;
         }
 
-        final Auth auth = MinecraftServer.process().auth();
+        final Auth auth = connection.process().auth();
         final boolean isSocketConnection = connection instanceof PlayerSocketConnection;
         // Proxy support (only for socket clients) and cache the login username
         if (isSocketConnection) {
@@ -69,14 +70,19 @@ public final class LoginListener {
             if (auth instanceof Auth.Velocity) {
                 // Dont block the connection so we can still read more packets
                 var _ = connection.loginPluginMessageProcessor().request(Auth.Velocity.PLAYER_INFO_CHANNEL, new byte[0])
-                        .thenAccept(response -> handleVelocityProxyResponse(socketConnection, response));
+                        .thenAccept(response -> handleVelocityProxyResponse(socketConnection, response))
+                        .exceptionally(error -> {
+                            connection.kick(INVALID_PROXY_RESPONSE);
+                            connection.process().exception().handleException(error);
+                            return null;
+                        });
                 return;
             }
         }
 
         if (auth instanceof Auth.Online(KeyPair keyPair) && isSocketConnection) {
             // Mojang auth
-            if (MinecraftServer.getConnectionManager().getOnlinePlayerByUsername(packet.username()) != null) {
+            if (connection.process().connection().getOnlinePlayerByUsername(packet.username()) != null) {
                 connection.kick(ALREADY_CONNECTED);
                 return;
             }
@@ -104,9 +110,8 @@ public final class LoginListener {
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void loginEncryptionResponseListener(ClientEncryptionResponsePacket packet, PlayerConnection connection) {
-        if (!(MinecraftServer.process().auth() instanceof Auth.Online(KeyPair keyPair))) {
+        if (!(connection.process().auth() instanceof Auth.Online(KeyPair keyPair))) {
             connection.kick(Component.text("Encryption is not supported in offline mode", NamedTextColor.RED));
             return;
         }
@@ -120,28 +125,22 @@ public final class LoginListener {
             return;
         }
 
-        final boolean hasPublicKey = connection.playerPublicKey() != null;
-        final boolean verificationFailed = hasPublicKey || !Arrays.equals(socketConnection.getNonce(),
-                MojangCrypt.decryptUsingKey(keyPair.getPrivate(), packet.encryptedVerifyToken()));
-
-        if (verificationFailed) {
-            MinecraftServer.LOGGER.error("Encryption failed for {}", loginUsername);
-            connection.kick(ENCRYPTION_FAILED);
-            return;
-        }
-
-        final SecretKey secretKey = MojangCrypt.decryptByteToSecretKey(keyPair.getPrivate(), packet.sharedSecret());
-        final byte[] digestedData = MojangCrypt.digestData("", keyPair.getPublic(), secretKey);
-        if (digestedData == null) {
-            // Incorrect key, probably because of the client
-            MinecraftServer.LOGGER.error("Connection {} failed initializing encryption.", socketConnection.getRemoteAddress());
-            connection.kick(ENCRYPTION_FAILED);
-            return;
-        }
-        // Query Mojang's session server.
-        final String serverId = new BigInteger(digestedData).toString(16);
-
         try {
+            final boolean hasPublicKey = connection.playerPublicKey() != null;
+            final boolean verificationFailed = hasPublicKey || !Arrays.equals(socketConnection.getNonce(),
+                    MojangCrypt.decryptUsingKey(keyPair.getPrivate(), packet.encryptedVerifyToken()));
+
+            if (verificationFailed) {
+                LOGGER.error("Encryption failed for {}", loginUsername);
+                connection.kick(ENCRYPTION_FAILED);
+                return;
+            }
+
+            final SecretKey secretKey = MojangCrypt.decryptByteToSecretKey(keyPair.getPrivate(), packet.sharedSecret());
+            final byte[] digestedData = MojangCrypt.digestData("", keyPair.getPublic(), secretKey);
+            // Query Mojang's session server.
+            final String serverId = new BigInteger(digestedData).toString(16);
+
             final JsonObject gameProfileJson = MojangUtils.authenticateSession(loginUsername, serverId, socketConnection.getRemoteAddress());
 
             // We have verified the session, parse response.
@@ -150,7 +149,7 @@ public final class LoginListener {
                     .replaceFirst("(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})", "$1-$2-$3-$4-$5"));
             final String profileName = gameProfileJson.get("name").getAsString();
 
-            MinecraftServer.LOGGER.info("UUID of player {} is {}", profileName, profileUUID);
+            LOGGER.info("UUID of player {} is {}", profileName, profileUUID);
             List<GameProfile.Property> propertyList = new ArrayList<>();
             for (JsonElement element : gameProfileJson.get("properties").getAsJsonArray()) {
                 JsonObject object = element.getAsJsonObject();
@@ -159,16 +158,15 @@ public final class LoginListener {
             enterConfig(connection, new GameProfile(profileUUID, profileName, propertyList));
         } catch (IOException e) {
             socketConnection.kick(ERROR_MOJANG_RESPONSE);
-            MinecraftServer.getExceptionManager().handleException(e);
+            connection.process().exception().handleException(e);
         } catch (Exception e) {
             socketConnection.kick(ERROR_DURING_LOGIN);
-            MinecraftServer.getExceptionManager().handleException(e);
+            connection.process().exception().handleException(e);
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void handleVelocityProxyResponse(PlayerSocketConnection socketConnection, LoginPlugin.Response response) {
-        if (!(MinecraftServer.process().auth() instanceof Auth.Velocity velocity)) {
+        if (!(socketConnection.process().auth() instanceof Auth.Velocity velocity)) {
             socketConnection.kick(Component.text("Login plugin response is not supported in this auth mode", NamedTextColor.RED));
             return;
         }
@@ -187,7 +185,7 @@ public final class LoginListener {
                     address = InetAddress.getByName(buffer.read(STRING));
                 } catch (UnknownHostException e) {
                     socketConnection.kick(INVALID_PROXY_RESPONSE);
-                    MinecraftServer.getExceptionManager().handleException(e);
+                    socketConnection.process().exception().handleException(e);
                     return;
                 }
                 final int port = ((InetSocketAddress) socketConnection.getRemoteAddress()).getPort();
@@ -203,29 +201,27 @@ public final class LoginListener {
         enterConfig(socketConnection, gameProfile);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void loginPluginResponseListener(ClientLoginPluginResponsePacket packet, PlayerConnection connection) {
         try {
             LoginPluginMessageProcessor messageProcessor = connection.loginPluginMessageProcessor();
             messageProcessor.handleResponse(packet.messageId(), packet.data());
         } catch (Throwable t) {
             connection.kick(ERROR_DURING_LOGIN);
-            MinecraftServer.LOGGER.error("Error handling Login Plugin Response", t);
-            MinecraftServer.getExceptionManager().handleException(t);
+            LOGGER.error("Error handling Login Plugin Response", t);
+            connection.process().exception().handleException(t);
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void loginAckListener(ClientLoginAcknowledgedPacket ignored, PlayerConnection connection) {
         if (!(connection instanceof PlayerSocketConnection socketConnection))
             throw new UnsupportedOperationException("Only socket");
         final GameProfile gameProfile = socketConnection.gameProfile();
         assert gameProfile != null;
         try {
-            final Player player = MinecraftServer.getConnectionManager().createPlayer(connection, gameProfile);
+            final Player player = connection.process().connection().createPlayer(connection, gameProfile);
             executeConfig(player, true);
         } catch (Throwable t) {
-            MinecraftServer.getExceptionManager().handleException(t);
+            connection.process().exception().handleException(t);
             connection.kick(ERROR_DURING_LOGIN);
         }
     }
@@ -238,32 +234,30 @@ public final class LoginListener {
         player.getPlayerConnection().receiveKnownPacksResponse(packet.entries());
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void finishConfigListener(ClientFinishConfigurationPacket packet, Player player) {
-        MinecraftServer.getConnectionManager().transitionConfigToPlay(player);
+        player.process().connection().transitionConfigToPlay(player);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void enterConfig(PlayerConnection connection, GameProfile gameProfile) {
         Thread.startVirtualThread(() -> {
             try {
-                MinecraftServer.getConnectionManager().transitionLoginToConfig(connection, gameProfile);
+                connection.process().connection().transitionLoginToConfig(connection, gameProfile);
             } catch (Throwable t) {
-                MinecraftServer.getExceptionManager().handleException(t);
+                connection.process().exception().handleException(t);
+                connection.kick(ERROR_DURING_LOGIN);
             }
         });
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void executeConfig(Player player, boolean isFirstConfig) {
         // We have to create another thread (even though we should already be in a virtual thread)
         // because configuration handling involves waiting for the client to send a known packs packet.
         // Which mean that we have to free up the current thread to continue reading the socket.
         Thread.startVirtualThread(() -> {
             try {
-                MinecraftServer.getConnectionManager().doConfiguration(player, isFirstConfig);
+                player.process().connection().doConfiguration(player, isFirstConfig);
             } catch (Throwable t) {
-                MinecraftServer.getExceptionManager().handleException(t);
+                player.process().exception().handleException(t);
                 player.kick(ERROR_DURING_LOGIN);
             }
         });

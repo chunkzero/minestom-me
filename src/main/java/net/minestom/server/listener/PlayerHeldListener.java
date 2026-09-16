@@ -2,14 +2,12 @@ package net.minestom.server.listener;
 
 import net.minestom.server.entity.Player;
 import net.minestom.server.entity.PlayerHand;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.PlayerChangeHeldSlotEvent;
 import net.minestom.server.network.packet.client.play.ClientHeldItemChangePacket;
 import net.minestom.server.utils.MathUtils;
 
 public class PlayerHeldListener {
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void heldListener(ClientHeldItemChangePacket packet, Player player) {
         if (!MathUtils.isBetween(packet.slot(), 0, 8)) {
             // Incorrect packet, ignore
@@ -20,7 +18,7 @@ public class PlayerHeldListener {
         final byte oldSlot = player.getHeldSlot();
 
         PlayerChangeHeldSlotEvent changeHeldSlotEvent = new PlayerChangeHeldSlotEvent(player, oldSlot, newSlot);
-        EventDispatcher.call(changeHeldSlotEvent);
+        player.process().eventHandler().call(changeHeldSlotEvent);
 
         if (!changeHeldSlotEvent.isCancelled()) {
             // Event hasn't been canceled, process it

@@ -7,7 +7,6 @@ import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.LivingEntity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.entity.attribute.Attribute;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.entity.EntityAttackEvent;
 import net.minestom.server.event.player.PlayerEntityInteractEvent;
 import net.minestom.server.network.packet.client.play.ClientAttackPacket;
@@ -15,22 +14,20 @@ import net.minestom.server.network.packet.client.play.ClientInteractEntityPacket
 
 public class UseEntityListener {
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void useEntityListener(ClientInteractEntityPacket packet, Player player) {
         final Entity entity = player.getInstance().getEntityById(packet.targetId());
         if (entity == null || invalidUse(player, entity))
             return;
-        EventDispatcher.call(new PlayerEntityInteractEvent(player, entity, packet.hand(), packet.location()));
+        player.process().eventHandler().call(new PlayerEntityInteractEvent(player, entity, packet.hand(), packet.location()));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void attackEntityListener(ClientAttackPacket packet, Player player) {
         final Entity entity = player.getInstance().getEntityById(packet.targetId());
         if (entity == null || invalidUse(player, entity))
             return;
         if (entity instanceof LivingEntity livingEntity && livingEntity.isDead()) // Can't attack dead entities
             return;
-        EventDispatcher.call(new EntityAttackEvent(player, entity));
+        player.process().eventHandler().call(new EntityAttackEvent(player, entity));
     }
 
     static boolean invalidUse(Player player, Entity entity) {

@@ -1,5 +1,6 @@
 package net.minestom.server.listener.manager;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.event.player.PlayerPacketEvent;
 import net.minestom.server.listener.AbilitiesListener;
 import net.minestom.server.listener.AdvancementTabListener;
@@ -105,10 +106,12 @@ import net.minestom.server.network.packet.client.play.ClientUseItemPacket;
 import net.minestom.server.network.packet.client.play.ClientVehicleMovePacket;
 import net.minestom.server.network.packet.client.status.StatusRequestPacket;
 import net.minestom.server.network.player.PlayerConnection;
+import net.minestom.server.utils.validate.Check;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -116,11 +119,14 @@ public final class PacketListenerManager {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(PacketListenerManager.class);
 
+    private final ServerProcess process;
+
     @SuppressWarnings({"unchecked", "rawtypes"}) // generic array creation
     private final Map<Class<? extends ClientPacket>, PacketPrePlayListenerConsumer>[] listeners = new Map[ConnectionState.values().length];
     private final Set<MissingListener> missingListenerWarnings = ConcurrentHashMap.newKeySet();
 
-    public PacketListenerManager() {
+    public PacketListenerManager(ServerProcess process) {
+        this.process = Objects.requireNonNull(process);
         for (int i = 0; i < listeners.length; i++) {
             listeners[i] = new ConcurrentHashMap<>();
         }
@@ -211,6 +217,7 @@ public final class PacketListenerManager {
      * @param <T>        the packet type
      */
     public <T extends ClientPacket> void processClientPacket(T packet, PlayerConnection connection) {
+        Check.argCondition(connection.process() != process, "Connection belongs to another process");
         // Update connection state 'as we receive' the packet, aka before we send any responses
         // from processing. This is important for sending packets in response which are state-dependent.
         final ConnectionState currState = connection.getClientState();

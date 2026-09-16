@@ -1,10 +1,8 @@
 package net.minestom.server.listener;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.GameMode;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.PlayerSpectateEntityEvent;
 import net.minestom.server.event.player.PlayerTeleportToEntityEvent;
 import net.minestom.server.instance.Instance;
@@ -15,7 +13,6 @@ import java.util.UUID;
 
 public class PlayerSpectatorListener {
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientSpectatorActionPacket packet, Player player) {
         // Ignore if the player is not in spectator mode
         if (player.getGameMode() != GameMode.SPECTATOR) {
@@ -31,10 +28,9 @@ public class PlayerSpectatorListener {
             return;
         }
 
-        EventDispatcher.call(new PlayerSpectateEntityEvent(player, target));
+        player.process().eventHandler().call(new PlayerSpectateEntityEvent(player, target));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientTeleportToEntityPacket packet, Player player) {
         // Ignore if the player is not in spectator mode
         if (player.getGameMode() != GameMode.SPECTATOR) {
@@ -47,7 +43,7 @@ public class PlayerSpectatorListener {
 
         // If the target is not found, try to find it in other instances
         if (target == null) {
-            for (Instance instance : MinecraftServer.getInstanceManager().getInstances()) {
+            for (Instance instance : player.process().instance().getInstances()) {
                 if (instance == playerInstance) continue;
                 target = instance.getEntityByUuid(targetUuid);
                 if (target != null) break;
@@ -59,6 +55,6 @@ public class PlayerSpectatorListener {
             return;
         }
 
-        EventDispatcher.call(new PlayerTeleportToEntityEvent(player, target));
+        player.process().eventHandler().call(new PlayerTeleportToEntityEvent(player, target));
     }
 }
