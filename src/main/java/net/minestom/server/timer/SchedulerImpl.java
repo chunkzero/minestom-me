@@ -48,20 +48,20 @@ final class SchedulerImpl implements Scheduler {
     }
 
     private void processTickTasks(Int2ObjectAVLTreeMap<List<TaskImpl>> tickQueue, ArrayDeque<TaskImpl> readyQueue, int tickDelta) {
+        TaskImpl task;
         synchronized (this) {
             if (isClosed()) return;
             tickState += tickDelta;
             while (!tickQueue.isEmpty() && tickQueue.firstIntKey() <= tickState) {
                 readyQueue.addAll(tickQueue.remove(tickQueue.firstIntKey()));
             }
+            task = readyQueue.poll();
         }
-        while (true) {
-            TaskImpl task;
+        while (task != null) {
+            handleTask(task);
             synchronized (this) {
                 task = readyQueue.poll();
             }
-            if (task == null) return;
-            handleTask(task);
         }
     }
 
@@ -115,8 +115,13 @@ final class SchedulerImpl implements Scheduler {
                         };
                         queue.computeIfAbsent(tickState + tick.tick(), _ -> new ArrayList<>()).add(task);
                     }
-                    case TaskScheduleImpl.FutureSchedule future ->
-                            task.pending = future.future().thenRun(() -> enqueue(task));
+                    case TaskScheduleImpl.FutureSchedule future -> {
+                        var stage = future.future().whenComplete((_, failure) -> {
+                            if (failure == null) enqueue(task);
+                            else cancelTask(task);
+                        });
+                        if (!stage.isDone()) task.pending = stage;
+                    }
                     case TaskScheduleImpl.Park _ -> task.parked = true;
                     case TaskScheduleImpl.Stop _ -> cancelTask(task);
                     case TaskScheduleImpl.Immediate _ -> enqueue(task);

@@ -16,6 +16,7 @@ import static net.minestom.server.timer.TestScheduler.awaitTimer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -64,9 +65,10 @@ class SchedulerLifecycleTest {
             var calls = new AtomicInteger();
             var parked = scheduler.buildTask(calls::incrementAndGet)
                     .delay(TaskSchedule.park()).executionType(ExecutionType.TICK_END).schedule();
-            scheduler.buildTask(calls::incrementAndGet)
+            var completed = (TaskImpl) scheduler.buildTask(calls::incrementAndGet)
                     .delay(TaskSchedule.future(CompletableFuture.completedFuture(null)))
                     .executionType(ExecutionType.TICK_END).schedule();
+            assertNull(completed.pending);
             parked.unpark();
             parked.unpark();
             scheduler.processTick();
@@ -162,6 +164,56 @@ class SchedulerLifecycleTest {
             closeScope(scope);
             assertTrue(scope.timer().awaitTermination(5, TimeUnit.SECONDS));
             assertTrue(scheduler.isClosed());
+        }
+    }
+
+    @Test
+    void failedAndCancelledFuturesReleaseTheirWaitingTasks() {
+        try (var scheduler = Scheduler.newScheduler()) {
+            for (boolean cancelled : List.of(false, true)) {
+                for (boolean alreadyDone : List.of(false, true)) {
+                    var future = new CompletableFuture<Void>();
+                    Runnable complete = () -> {
+                        if (cancelled) future.cancel(false);
+                        else future.completeExceptionally(new IllegalStateException("dependency failed"));
+                    };
+                    if (alreadyDone) complete.run();
+                    var calls = new AtomicInteger();
+                    var task = (TaskImpl) scheduler.buildTask(calls::incrementAndGet)
+                            .delay(TaskSchedule.future(future)).schedule();
+                    if (!alreadyDone) complete.run();
+                    assertFalse(task.isAlive());
+                    assertNull(task.pending);
+                    assertNull(task.task, "Terminal dependencies must release the callback and its captured state");
+                    task.unpark();
+                    scheduler.processTick();
+                    assertEquals(0, calls.get());
+                    assertTrue(future.isCompletedExceptionally());
+                    assertEquals(cancelled, future.isCancelled());
+                }
+            }
+        }
+    }
+
+    @Test
+    void idleTimerThreadRetiresAndRestartsForNewWork() throws Exception {
+        try (var scope = new SchedulerScope(_ -> fail("Unexpected task failure"), "test-idle-scheduler")) {
+            var scheduler = scope.newScheduler(false);
+            assertTrue(scope.timer().allowsCoreThreadTimeOut());
+            scope.timer().setKeepAliveTime(10, TimeUnit.MILLISECONDS);
+            var worker = scope.timer().submit(Thread::currentThread).get(5, TimeUnit.SECONDS);
+            var calls = new AtomicInteger();
+            var task = scheduler.buildTask(calls::incrementAndGet).delay(TaskSchedule.millis(50)).schedule();
+            awaitTimer(task);
+            scheduler.process();
+            assertEquals(1, calls.get());
+            worker.join(5000);
+            assertFalse(worker.isAlive());
+            assertFalse(scope.timer().isShutdown());
+            var next = scheduler.buildTask(calls::incrementAndGet).delay(TaskSchedule.millis(1)).schedule();
+            awaitTimer(next);
+            scheduler.process();
+            assertEquals(2, calls.get());
         }
     }
 

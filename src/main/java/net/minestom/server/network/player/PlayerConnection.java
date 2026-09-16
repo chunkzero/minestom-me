@@ -5,7 +5,6 @@ import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.crypto.PlayerPublicKey;
-import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.OutgoingTransferEvent;
@@ -160,17 +159,17 @@ public abstract class PlayerConnection {
     /**
      * Forcing the player to disconnect.
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void disconnect() {
         this.online = false;
         final Player player = process().connection().getPlayer(this);
         if (player != null) {
             process().connection().removePlayer(this);
             if (serverState == ConnectionState.PLAY && !player.isRemoved())
-                player.scheduleNextTick(Entity::remove);
+                process().connection().schedulePlayerRemoval(player);
             else {
-                EventDispatcher.call(new PlayerDisconnectEvent(player));
+                process().eventHandler().call(new PlayerDisconnectEvent(player));
                 EventsJFR.newPlayerLeave(player.getUuid()).commit();
+                player.scheduler().close();
             }
         }
     }

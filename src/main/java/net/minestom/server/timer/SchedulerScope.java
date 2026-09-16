@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /** Owns timer resources and tracks schedulers independently of entity placement or instance registration. */
 final class SchedulerScope implements AutoCloseable {
@@ -21,6 +22,8 @@ final class SchedulerScope implements AutoCloseable {
     SchedulerScope(ExceptionHandler exceptionHandler, String threadName) {
         this.exceptionHandler = Objects.requireNonNull(exceptionHandler);
         this.timer = new ScheduledThreadPoolExecutor(1, Thread.ofPlatform().daemon().name(threadName).factory());
+        timer.setKeepAliveTime(10, TimeUnit.SECONDS);
+        timer.allowCoreThreadTimeOut(true);
         timer.setRemoveOnCancelPolicy(true);
         timer.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
     }

@@ -126,7 +126,6 @@ public final class InstanceManager {
         long onlinePlayers = instance.getPlayers().stream().filter(Player::isOnline).count();
         Check.stateCondition(onlinePlayers > 0, "You cannot unregister an instance with players inside.");
         synchronized (instance) {
-            instance.scheduler().close();
             InstanceUnregisterEvent event = new InstanceUnregisterEvent(instance);
             process().eventHandler().call(event);
 
@@ -142,6 +141,7 @@ public final class InstanceManager {
             // Unregister
             instance.setRegistered(false);
             this.instances.remove(instance);
+            instance.scheduler().close();
         }
     }
 

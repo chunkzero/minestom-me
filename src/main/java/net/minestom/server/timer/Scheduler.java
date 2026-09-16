@@ -16,7 +16,8 @@ import java.util.function.Supplier;
 public sealed interface Scheduler extends Executor, AutoCloseable permits SchedulerImpl, SchedulerManager {
     /**
      * Creates a standalone scheduler with its own timer executor and stack-trace exception logging.
-     * The caller must close it when no longer needed. No default server process is used.
+     * Its timer thread retires when idle. The caller must still close it to cancel outstanding work.
+     * No default server process is used.
      */
     static Scheduler newScheduler() {
         return newScheduler(Throwable::printStackTrace);

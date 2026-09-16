@@ -621,10 +621,16 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         return onGround;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void remove(boolean permanent) {
-        if (permanent) scheduler().close();
+        try {
+            removePlayer(permanent);
+        } finally {
+            if (permanent) scheduler().close();
+        }
+    }
+
+    private void removePlayer(boolean permanent) {
         if (isRemoved()) return;
 
         if (permanent) {
@@ -636,7 +642,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         final AbstractInventory currentInventory = getOpenInventory();
         if (currentInventory != null) currentInventory.removeViewer(this);
 
-        MinecraftServer.getBossBarManager().removeAllBossBars(this);
+        process().bossBar().removeAllBossBars(this);
         // Advancement tabs cache
         {
             Set<AdvancementTab> advancementTabs = AdvancementTab.getTabs(this);
@@ -654,9 +660,9 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         resetChunkQueue();
 
         // Remove from the tab-list
-        PacketSendingUtils.broadcastPlayPacket(getRemovePlayerToList());
+        PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), getRemovePlayerToList());
 
-        super.remove(permanent);
+        removeInternal(permanent);
         // Prevent the player from being stuck in loading screen, or just unable to interact with the server
         // This should be considered as a bug, since the player will ultimately time out anyway.
         if (permanent && playerConnection.isOnline()) kick(REMOVE_MESSAGE);

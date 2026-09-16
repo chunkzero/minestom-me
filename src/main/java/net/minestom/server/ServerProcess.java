@@ -180,6 +180,10 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     /** Starts this process's socket server, dispatcher, and tick scheduler. A closed process cannot be started. */
     void start(SocketAddress socketAddress);
 
+    /**
+     * Stops this process, closing its schedulers before shutdown callbacks and player disconnection.
+     * Teardown during process shutdown cannot submit scheduled work; perform required cleanup directly.
+     */
     void stop();
 
     @Override

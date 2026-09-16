@@ -1670,7 +1670,15 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     }
 
     protected void remove(boolean permanent) {
-        if (permanent) scheduler.close();
+        try {
+            removeInternal(permanent);
+        } finally {
+            if (permanent) scheduler.close();
+        }
+    }
+
+    // Player completes its disconnect callbacks before closing the same scheduler.
+    final void removeInternal(boolean permanent) {
         if (isRemoved()) return;
         process().eventHandler().call(new EntityDespawnEvent(this));
         try {
