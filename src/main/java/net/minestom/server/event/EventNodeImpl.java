@@ -1,7 +1,6 @@
 package net.minestom.server.event;
 
-import net.minestom.server.MinecraftServer;
-import net.minestom.server.ServerFlag;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.event.trait.AsyncEvent;
 import net.minestom.server.event.trait.RecursiveEvent;
 import net.minestom.server.utils.validate.Check;
@@ -23,7 +22,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.BiConsumer;
-import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 
 non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
@@ -45,14 +43,14 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
 
     final String name;
     final EventFilter<T, ?> filter;
-    final @Nullable BiPredicate<T, Object> predicate;
+    final @Nullable EventNode.ContextualPredicate<T, Object> predicate;
     final Class<T> eventType;
     volatile int priority;
     volatile @Nullable EventNodeImpl<? super T> parent;
 
     EventNodeImpl(String name,
                   EventFilter<T, ?> filter,
-                  @Nullable BiPredicate<T, Object> predicate) {
+                  @Nullable EventNode.ContextualPredicate<T, Object> predicate) {
         this.name = name;
         this.filter = filter;
         this.predicate = predicate;
@@ -125,8 +123,13 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
     public EventNode<T> addChild(EventNode<? extends T> child) {
         synchronized (GLOBAL_CHILD_LOCK) {
             final var childImpl = (EventNodeImpl<? extends T>) child;
-            Check.stateCondition(!ServerFlag.EVENT_NODE_ALLOW_MULTIPLE_PARENTS && childImpl.parent != null, "Node already has a parent");
-            Check.stateCondition(Objects.equals(parent, child), "Cannot have a child as parent");
+            Check.stateCondition(childImpl.parent != null && childImpl.parent != this, "Node already has a parent");
+            Check.argCondition(child instanceof ProcessEventHandler, "An owned root cannot be attached as a child");
+            for (EventNodeImpl<?> ancestor = this; ancestor != null; ancestor = ancestor.parent) {
+                Check.argCondition(ancestor == childImpl, "Event graph cannot contain a cycle");
+            }
+            final var process = process();
+            if (process != null) childImpl.checkMappedOwners(process);
             if (!children.add((EventNodeImpl<T>) childImpl)) return this; // Couldn't add the child (already present?)
             childImpl.parent = this;
             childImpl.invalidateEventsFor(this);
@@ -152,7 +155,7 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
         synchronized (GLOBAL_CHILD_LOCK) {
             final var eventType = listener.eventType();
             ListenerEntry<T> entry = getEntry(eventType);
-            entry.listeners.add((EventListener<T>) listener);
+            entry.listeners.add(new RegisteredListener<>((EventListener<T>) listener, (EventListener<T>) listener.newRegistration()));
             invalidateEvent(eventType);
         }
         return this;
@@ -164,7 +167,12 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
             final var eventType = listener.eventType();
             ListenerEntry<T> entry = listenerMap.get(eventType);
             if (entry == null) return this; // There is no listener with such type
-            if (entry.listeners.remove(listener)) invalidateEvent(eventType);
+            for (var registration : entry.listeners) {
+                if (registration.listener().equals(listener)) {
+                    removeRegistration(registration);
+                    break;
+                }
+            }
         }
         return this;
     }
@@ -174,6 +182,8 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
     public <E extends T, H> EventNode<E> map(H value, EventFilter<E, H> filter) {
         EventNodeImpl<E> node;
         synchronized (GLOBAL_CHILD_LOCK) {
+            final var process = process();
+            if (process != null) EventOwnership.checkTarget(process, value);
             node = new EventNodeLazyImpl<>(this, value, filter);
             Check.stateCondition(node.parent != null, "Node already has a parent");
             Check.stateCondition(Objects.equals(parent, node), "Cannot map to self");
@@ -206,7 +216,7 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
             for (var eventType : binding.eventTypes()) {
                 @SuppressWarnings("unchecked")
                 ListenerEntry<T> entry = getEntry((Class<? extends T>) eventType);
-                @SuppressWarnings("unchecked") final boolean added = entry.bindingConsumers.add((Consumer<T>) binding.consumer(eventType));
+                @SuppressWarnings("unchecked") final boolean added = entry.bindings.add((EventBinding<T>) binding);
                 if (added) invalidateEvent((Class<? extends T>) eventType);
             }
         }
@@ -219,7 +229,7 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
             for (var eventType : binding.eventTypes()) {
                 ListenerEntry<T> entry = listenerMap.get(eventType);
                 if (entry == null) return;
-                final boolean removed = entry.bindingConsumers.remove(binding.consumer(eventType));
+                final boolean removed = entry.bindings.remove(binding);
                 if (removed) invalidateEvent((Class<? extends T>) eventType);
             }
         }
@@ -247,8 +257,13 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
     }
 
     @Override
+    public @Nullable ServerProcess process() {
+        final var parent = this.parent;
+        return parent != null ? parent.process() : null;
+    }
+
+    @Override
     public @Nullable EventNode<? super T> getParent() {
-        Check.stateCondition(ServerFlag.EVENT_NODE_ALLOW_MULTIPLE_PARENTS, "Cannot use getParent when multiple parents are allowed");
         return parent;
     }
 
@@ -297,7 +312,10 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
         for (Class<? extends T> eventType : listenerMap.keySet()) {
             node.invalidateEvent(eventType);
         }
-        // TODO bindings?
+        for (var reference : registeredMappedNode.values()) {
+            var mapped = reference.get();
+            if (mapped != null) mapped.invalidateEventsFor(node);
+        }
         for (EventNodeImpl<T> child : children) {
             child.invalidateEventsFor(node);
         }
@@ -325,6 +343,15 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
         }
     }
 
+    private void checkMappedOwners(ServerProcess process) {
+        for (var value : mappedNodeCache.keySet()) EventOwnership.checkTarget(process, value);
+        for (var reference : mappedNodeCache.values()) {
+            var node = reference.get();
+            if (node != null) ((EventNodeImpl<?>) node).checkMappedOwners(process);
+        }
+        for (var child : children) child.checkMappedOwners(process);
+    }
+
     private ListenerEntry<T> getEntry(Class<? extends T> type) {
         return listenerMap.computeIfAbsent(type, _ -> new ListenerEntry<>());
     }
@@ -344,32 +371,58 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
         }
     }
 
+    private void removeRegistration(RegisteredListener<T> registration) {
+        synchronized (GLOBAL_CHILD_LOCK) {
+            final var eventType = registration.listener().eventType();
+            final var entry = listenerMap.get(eventType);
+            if (entry != null && entry.listeners.remove(registration)) invalidateEvent(eventType);
+        }
+    }
+
+    private record RegisteredListener<T extends Event>(EventListener<T> listener, EventListener<T> state) {
+    }
+
     private static class ListenerEntry<T extends Event> {
-        final List<EventListener<T>> listeners = new CopyOnWriteArrayList<>();
-        final Set<Consumer<T>> bindingConsumers = new CopyOnWriteArraySet<>();
+        final List<RegisteredListener<T>> listeners = new CopyOnWriteArrayList<>();
+        final Set<EventBinding<T>> bindings = new CopyOnWriteArraySet<>();
     }
 
     @SuppressWarnings("unchecked")
     final class Handle<E extends Event> implements ListenerHandle<E> {
         private final Class<E> eventType;
-        private @Nullable Consumer<E> listener = null;
+        private @Nullable BiConsumer<ServerProcess, E> listener = null;
         private volatile boolean updated;
 
         Handle(Class<E> eventType) {
             this.eventType = eventType;
         }
 
-        @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
         @Override
         public void call(E event) {
+            final var process = EventNodeImpl.this.process();
+            Check.stateCondition(process == null, "Standalone event dispatch requires a process");
+            call(process, event);
+        }
+
+        @Override
+        public void call(ServerProcess process, E event) {
+            Objects.requireNonNull(process);
+            EventOwnership.checkEvent(process, event);
             assert !(event instanceof AsyncEvent) || Thread.currentThread().isVirtual() :
                     "AsyncEvent must be called within a Virtual Thread, got " + Thread.currentThread();
-            final Consumer<E> listener = updatedListener();
+            dispatch(process, event);
+        }
+
+        void dispatch(ServerProcess process, E event) {
+            final var owner = EventNodeImpl.this.process();
+            Check.argCondition(owner != null && owner != process, "Event node belongs to another process");
+            if (EventNodeImpl.this instanceof EventNodeLazyImpl<?> mapped) mapped.checkOwner(process);
+            final BiConsumer<ServerProcess, E> listener = updatedListener();
             if (listener == null) return;
             try {
-                listener.accept(event);
+                listener.accept(process, event);
             } catch (Throwable e) {
-                MinecraftServer.getExceptionManager().handleException(e);
+                process.exception().handleException(e);
             }
         }
 
@@ -383,40 +436,40 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
             this.listener = null;
         }
 
-        @Nullable Consumer<E> updatedListener() {
+        @Nullable BiConsumer<ServerProcess, E> updatedListener() {
             if (updated) return listener;
             synchronized (GLOBAL_CHILD_LOCK) {
                 if (updated) return listener;
-                final Consumer<E> listener = createConsumer();
+                final BiConsumer<ServerProcess, E> listener = createConsumer();
                 this.listener = listener;
                 this.updated = true;
                 return listener;
             }
         }
 
-        private @Nullable Consumer<E> createConsumer() {
+        private @Nullable BiConsumer<ServerProcess, E> createConsumer() {
             var node = (EventNodeImpl<E>) EventNodeImpl.this;
             // Standalone listeners
-            List<Consumer<E>> listeners = new ArrayList<>();
+            List<BiConsumer<ServerProcess, E>> listeners = new ArrayList<>();
             forTargetEvents(eventType, type -> {
                 final ListenerEntry<E> entry = node.listenerMap.get(type);
                 if (entry != null) {
-                    final Consumer<E> result = listenersConsumer(entry);
+                    final BiConsumer<ServerProcess, E> result = listenersConsumer(entry, type);
                     if (result != null) listeners.add(result);
                 }
             });
-            final Consumer<E>[] listenersArray = listeners.toArray(Consumer[]::new);
+            final BiConsumer<ServerProcess, E>[] listenersArray = listeners.toArray(BiConsumer[]::new);
             // Mapped
-            final Consumer<E> mappedListener = mappedConsumer();
+            final BiConsumer<ServerProcess, E> mappedListener = mappedConsumer();
             // Children
-            final Consumer<E>[] childrenListeners = node.children.stream()
+            final BiConsumer<ServerProcess, E>[] childrenListeners = node.children.stream()
                     .filter(child -> child.eventType.isAssignableFrom(eventType)) // Invalid event type
                     .sorted(Comparator.comparingInt(EventNode::getPriority))
                     .map(child -> ((Handle<E>) child.getHandle(eventType)).updatedListener())
                     .filter(Objects::nonNull)
-                    .toArray(Consumer[]::new);
+                    .toArray(BiConsumer[]::new);
             // Empty check
-            final BiPredicate<E, Object> predicate = node.predicate;
+            final EventNode.ContextualPredicate<E, Object> predicate = node.predicate;
             final EventFilter<E, ?> filter = node.filter;
             final boolean hasPredicate = predicate != null;
             final boolean hasListeners = listenersArray.length > 0;
@@ -426,24 +479,24 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
                 // No listener
                 return null;
             }
-            return e -> {
+            return (process, e) -> {
                 // Filtering
                 if (hasPredicate) {
-                    final Object value = filter.getHandler(e);
-                    if (!predicate.test(e, value)) return;
+                    final Object value = filter.getHandler(process, e);
+                    if (!predicate.test(process, e, value)) return;
                 }
                 // Normal listeners
                 if (hasListeners) {
-                    for (Consumer<E> listener : listenersArray) {
-                        listener.accept(e);
+                    for (BiConsumer<ServerProcess, E> listener : listenersArray) {
+                        listener.accept(process, e);
                     }
                 }
                 // Mapped nodes
-                if (hasMap) mappedListener.accept(e);
+                if (hasMap) mappedListener.accept(process, e);
                 // Children
                 if (hasChildren) {
-                    for (Consumer<E> childHandle : childrenListeners) {
-                        childHandle.accept(e);
+                    for (BiConsumer<ServerProcess, E> childHandle : childrenListeners) {
+                        childHandle.accept(process, e);
                     }
                 }
             };
@@ -455,27 +508,27 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
          * <p>
          * Most computation should ideally be done outside the consumers as a one-time cost.
          */
-        private @Nullable Consumer<E> listenersConsumer(ListenerEntry<E> entry) {
-            final EventListener<E>[] listenersCopy = entry.listeners.toArray(EventListener[]::new);
-            final Consumer<E>[] bindingsCopy = entry.bindingConsumers.toArray(Consumer[]::new);
+        private @Nullable BiConsumer<ServerProcess, E> listenersConsumer(ListenerEntry<E> entry, Class<?> type) {
+            final RegisteredListener<E>[] listenersCopy = entry.listeners.toArray(RegisteredListener[]::new);
+            final BiConsumer<ServerProcess, E>[] bindingsCopy = entry.bindings.stream().map(binding -> binding.consumer(type.asSubclass(Event.class))).toArray(BiConsumer[]::new);
             final boolean listenersEmpty = listenersCopy.length == 0;
             final boolean bindingsEmpty = bindingsCopy.length == 0;
             if (listenersEmpty && bindingsEmpty) return null;
             if (bindingsEmpty && listenersCopy.length == 1) {
                 // Only one normal listener
-                final EventListener<E> listener = listenersCopy[0];
-                return e -> callListener(listener, e);
+                final RegisteredListener<E> listener = listenersCopy[0];
+                return (process, e) -> callListener(process, listener, e);
             }
             // Worse case scenario, try to run everything
-            return e -> {
+            return (process, e) -> {
                 if (!listenersEmpty) {
-                    for (EventListener<E> listener : listenersCopy) {
-                        callListener(listener, e);
+                    for (RegisteredListener<E> listener : listenersCopy) {
+                        callListener(process, listener, e);
                     }
                 }
                 if (!bindingsEmpty) {
-                    for (Consumer<E> eConsumer : bindingsCopy) {
-                        eConsumer.accept(e);
+                    for (BiConsumer<ServerProcess, E> eConsumer : bindingsCopy) {
+                        eConsumer.accept(process, e);
                     }
                 }
             };
@@ -485,7 +538,7 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
          * Create a consumer handling {@link EventNode#map(Object, EventFilter)}.
          * The goal is to limit the amount of map lookup.
          */
-        private @Nullable Consumer<E> mappedConsumer() {
+        private @Nullable BiConsumer<ServerProcess, E> mappedConsumer() {
             var node = (EventNodeImpl<E>) EventNodeImpl.this;
             final var mappedNodeCache = node.registeredMappedNode;
             if (mappedNodeCache.isEmpty()) return null;
@@ -506,37 +559,21 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
             // loop through them and forward to mapped node if there is a match
             if (filters.isEmpty()) return null;
             final EventFilter<E, ?>[] filterList = filters.toArray(EventFilter[]::new);
-            final BiConsumer<EventFilter<E, ?>, E> mapper = (filter, event) -> {
-                final Object handler = filter.castHandler(event);
-                final WeakReference<Handle<E>> handleRef = handlers.get(handler);
-                final Handle<E> handle = handleRef != null ? handleRef.get() : null;
-                if (handle != null) handle.call(event);
-            };
-            // Specialize the consumer depending on the number of filters to avoid looping
-            return switch (filterList.length) {
-                case 1 -> event -> mapper.accept(filterList[0], event);
-                case 2 -> event -> {
-                    mapper.accept(filterList[0], event);
-                    mapper.accept(filterList[1], event);
-                };
-                case 3 -> event -> {
-                    mapper.accept(filterList[0], event);
-                    mapper.accept(filterList[1], event);
-                    mapper.accept(filterList[2], event);
-                };
-                default -> event -> {
-                    for (var filter : filterList) {
-                        mapper.accept(filter, event);
-                    }
-                };
+            return (process, event) -> {
+                for (var filter : filterList) {
+                    final Object handler = filter.castHandler(process, event);
+                    final WeakReference<Handle<E>> handleRef = handlers.get(handler);
+                    final Handle<E> handle = handleRef != null ? handleRef.get() : null;
+                    if (handle != null) handle.dispatch(process, event);
+                }
             };
         }
 
-        void callListener(EventListener<E> listener, E event) {
+        void callListener(ServerProcess process, RegisteredListener<E> listener, E event) {
             var node = (EventNodeImpl<E>) EventNodeImpl.this;
-            EventListener.Result result = listener.run(event);
+            EventListener.Result result = listener.state().run(process, event);
             if (result == EventListener.Result.EXPIRED) {
-                node.removeListener(listener);
+                node.removeRegistration(listener);
                 invalidate();
             }
         }

@@ -1,5 +1,6 @@
 package net.minestom.server.event;
 
+import net.minestom.server.ServerProcess;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -10,6 +11,7 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 
 import java.util.concurrent.TimeUnit;
@@ -26,6 +28,7 @@ public class MultiNodeBenchmark {
     public int children;
 
     private EventNode<Event> node;
+    private ServerProcess process;
 
     record TestEvent() implements Event {
     }
@@ -35,6 +38,7 @@ public class MultiNodeBenchmark {
 
     @Setup
     public void setup() {
+        process = ServerProcess.create();
         node = EventNode.all("node");
         for (int i = 0; i < children; i++) {
             var child = EventNode.all("child-" + i);
@@ -48,12 +52,17 @@ public class MultiNodeBenchmark {
             // This ensures that the handle map is properly lazily initialized to prevent fast exits.
             child.addListener(TestEvent2.class, _ -> {
                 // Empty
-            }).call(new TestEvent2());
+            }).call(process, new TestEvent2());
         }
+    }
+
+    @TearDown
+    public void close() {
+        process.close();
     }
 
     @Benchmark
     public void call() {
-        node.call(new TestEvent());
+        node.call(process, new TestEvent());
     }
 }

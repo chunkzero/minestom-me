@@ -32,7 +32,6 @@ import net.minestom.server.entity.metadata.EntityMeta;
 import net.minestom.server.entity.metadata.LivingEntityMeta;
 import net.minestom.server.entity.metadata.ObjectDataProvider;
 import net.minestom.server.entity.metadata.other.ArmorStandMeta;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.EventFilter;
 import net.minestom.server.event.EventHandler;
 import net.minestom.server.event.EventNode;
@@ -112,11 +111,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
@@ -131,8 +132,6 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     // overflow while working with a position at the max int (for example, looping over a bounding box)
     @ApiStatus.Internal
     public static final int MAX_COORDINATE = 2_000_000_000;
-
-    private static final AtomicInteger LAST_ENTITY_ID = new AtomicInteger();
 
     // Protected due to PointersSupplier.Builder#parent
     protected static final PointersSupplier<Entity> ENTITY_POINTERS_SUPPLIER = PointersSupplier.<Entity>builder()
@@ -207,7 +206,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     protected final Set<Player> viewers = viewEngine.set;
     private final TagHandler tagHandler = TagHandler.newHandler();
     private final Scheduler scheduler = Scheduler.newScheduler();
-    private final @Nullable EventNode<EntityEvent> eventNode;
+    private final EventNode<EntityEvent> eventNode;
 
     private final UUID uuid;
     private boolean isActive; // False if entity has only been instanced without being added somewhere
@@ -230,15 +229,24 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
 
     private final List<TimedPotion> effects = new CopyOnWriteArrayList<>();
 
+    private final ServerProcess process;
+
     // Tick related
     private long ticks;
 
     @SuppressWarnings("this-escape") // deliberate self registration, entities are not usable until spawned
     private final Acquirable<Entity> acquirable = Acquirable.unassigned(this);
 
-    @SuppressWarnings({"removal", "this-escape"}) // deliberate self registration, entities are not usable until spawned
+    @SuppressWarnings("removal") // Temporary default-process constructor.
     public Entity(EntityType entityType, UUID uuid) {
-        this.id = generateId();
+        this(MinecraftServer.process(), entityType, uuid);
+    }
+
+    @SuppressWarnings("this-escape") // entities are not usable until spawned
+    public Entity(ServerProcess process, EntityType entityType, UUID uuid) {
+        this.process = Objects.requireNonNull(process,
+                "A ServerProcess is required; use an Entity constructor accepting ServerProcess or Entity.builder(type).spawn(instance)");
+        this.id = process.generateEntityId();
         this.entityType = entityType;
         this.uuid = uuid;
         this.position = Pos.ZERO;
@@ -255,18 +263,49 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
                 entityType.horizontalAirResistance(),
                 entityType.verticalAirResistance());
 
-        final ServerProcess process = MinecraftServer.process();
-        if (process != null) {
-            this.eventNode = process.eventHandler().map(this, EventFilter.ENTITY);
-        } else {
-            // Local nodes require a server process
-            this.eventNode = null;
-        }
+        this.eventNode = process.eventHandler().map(this, EventFilter.ENTITY);
         updateCollisions();
     }
 
     public Entity(EntityType entityType) {
         this(entityType, UUID.randomUUID());
+    }
+
+    public Entity(ServerProcess process, EntityType entityType) {
+        this(process, entityType, UUID.randomUUID());
+    }
+
+    /** Creates an ownerless builder which obtains its process from the destination instance. */
+    @Contract("_ -> new")
+    public static EntityBuilder<? extends Entity, ?> builder(EntityType entityType) {
+        return builder(entityType, Entity::new);
+    }
+
+    /**
+     * Creates a typed builder using an entity constructor, for example
+     * {@code Entity.builder(EntityType.ZOMBIE, EntityCreature::new)}.
+     * The constructor receives the destination instance's process when spawning.
+     */
+    @Contract("_, _ -> new")
+    public static <T extends Entity> EntityBuilder<T, ?> builder(EntityType entityType,
+                                                            BiFunction<ServerProcess, EntityType, T> factory) {
+        Objects.requireNonNull(entityType);
+        Objects.requireNonNull(factory);
+        return builder(process -> factory.apply(process, entityType));
+    }
+
+    /**
+     * Creates a builder for a custom entity, for example {@code Entity.builder(ZombieCreature::new)}.
+     * The factory must construct a fresh, unplaced entity owned by the supplied process.
+     */
+    @Contract("_ -> new")
+    public static <T extends Entity> EntityBuilder<T, ?> builder(Function<ServerProcess, T> factory) {
+        return EntityBuilder.create(factory);
+    }
+
+    /** The process that owns this object's lifetime and services. */
+    public final ServerProcess process() {
+        return process;
     }
 
     /// Clamps position to {@link Entity#MAX_COORDINATE}
@@ -308,10 +347,14 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * <p>
      * Useful if you want to spawn entities using packet but don't risk to have duplicated id.
      *
-     * @return a newly generated entity id
+     * @return a newly generated entity id in the default process
+     * @deprecated use {@link ServerProcess#generateEntityId()}
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal") // Temporary default-process bridge.
     public static int generateId() {
-        return LAST_ENTITY_ID.incrementAndGet();
+        return Objects.requireNonNull(MinecraftServer.process(),
+                "No default process; use ServerProcess.generateEntityId()").generateEntityId();
     }
 
     /**
@@ -418,14 +461,13 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * @param shouldConfirm if false, the teleportation will be done without confirmation
      * @throws IllegalStateException if you try to teleport an entity before settings its instance
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public CompletableFuture<Void> teleport(Pos position, Vec velocity, long @Nullable [] chunks,
                                             @MagicConstant(flagsFromClass = RelativeFlags.class) int flags,
                                             boolean shouldConfirm) {
         Check.stateCondition(instance == null, "You need to use Entity#setInstance before teleporting an entity!");
 
         EntityTeleportEvent event = new EntityTeleportEvent(this, position, flags);
-        EventDispatcher.call(event);
+        process().eventHandler().call(event);
 
         final Pos globalPosition = clampPosition(PositionUtils.getPositionWithRelativeFlags(this.position, position, flags));
         final Vec globalVelocity = PositionUtils.getVelocityWithRelativeFlags(this.velocity, velocity, flags);
@@ -568,6 +610,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
 
     @Override
     public final boolean addViewer(Player player) {
+        Check.argCondition(player.process() != process, "Viewer belongs to another process");
         Check.stateCondition(!isActive(), "Entities must be in an instance before adding viewers");
         if (!viewEngine.manualAdd(player)) return false;
         updateNewViewer(player);
@@ -664,7 +707,6 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      *
      * @param time the update time in milliseconds. This may only be used as a delta and has no meaning in the real world.
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void tick(long time) {
         if (instance == null || isRemoved() || !ChunkUtils.isLoaded(currentChunk))
@@ -686,7 +728,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
             update(time);
 
             ticks++;
-            EventDispatcher.call(new EntityTickEvent(this));
+            process().eventHandler().call(new EntityTickEvent(this));
 
             // remove expired effects
             effectTick();
@@ -762,7 +804,6 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void effectTick() {
         final List<TimedPotion> effects = this.effects;
         if (effects.isEmpty()) return;
@@ -773,7 +814,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
             if (getAliveTicks() >= timedPotion.startingTicks() + duration) {
                 // Send the packet that the potion should no longer be applied
                 timedPotion.potion().sendRemovePacket(this);
-                EventDispatcher.call(new EntityPotionRemoveEvent(this, timedPotion.potion()));
+                process().eventHandler().call(new EntityPotionRemoveEvent(this, timedPotion.potion()));
                 return true;
             }
             return false;
@@ -790,9 +831,9 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     }
 
     /**
-     * Each entity has an unique id (server-wide) which will change after a restart.
+     * Each entity has an ID unique within its owning process. IDs may overlap across processes.
      *
-     * @return the unique entity id
+     * @return the entity ID within this process
      * @see Instance#getEntityById(int) to retrieve an entity based on its id
      */
     public int getEntityId() {
@@ -891,11 +932,11 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         return currentChunk;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Internal
     protected void refreshCurrentChunk(Chunk currentChunk) {
+        Check.argCondition(currentChunk.getInstance().process() != process, "Chunk belongs to another process");
         this.currentChunk = currentChunk;
-        MinecraftServer.process().dispatcher().updateElement(this, currentChunk);
+        process().dispatcher().updateElement(this, currentChunk);
     }
 
     /**
@@ -913,11 +954,11 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * @param instance      the new instance of the entity
      * @param spawnPosition the spawn position for the entity.
      * @return a {@link CompletableFuture} called once the entity's instance has been set,
-     * this is due to chunks needing to load
+     * this is due to chunks needing to load. Completes exceptionally if placement fails or is cancelled.
      * @throws IllegalStateException if {@code instance} has not been registered in {@link InstanceManager}
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public CompletableFuture<Void> setInstance(Instance instance, Pos spawnPosition) {
+        Check.argCondition(instance.process() != process, "Instance belongs to another process");
         Check.stateCondition(!instance.isRegistered(),
                 "Instances need to be registered, please use InstanceManager#registerInstance or InstanceManager#registerSharedInstance");
         final Instance previousInstance = this.instance;
@@ -925,8 +966,9 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
             return teleport(spawnPosition); // Already in the instance, teleport to spawn point
         }
         AddEntityToInstanceEvent event = new AddEntityToInstanceEvent(instance, this);
-        EventDispatcher.call(event);
-        if (event.isCancelled()) return null; // TODO what to return?
+        process().eventHandler().call(event);
+        if (event.isCancelled())
+            return CompletableFuture.failedFuture(new CancellationException("Entity placement was cancelled"));
 
         if (previousInstance != null) removeFromInstance(previousInstance);
         if (this instanceof Player player) instance.bossBars().forEach(player::showBossBar);
@@ -951,9 +993,10 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
                 }
                 instance.getEntityTracker().register(this, position, trackingTarget, trackingUpdate);
                 spawn();
-                EventDispatcher.call(new EntitySpawnEvent(this, instance));
+                process().eventHandler().call(new EntitySpawnEvent(this, instance));
             } catch (Exception e) {
-                MinecraftServer.getExceptionManager().handleException(e);
+                process().exception().handleException(e);
+                throw e;
             }
         });
     }
@@ -975,9 +1018,8 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         return setInstance(instance, this.position);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void removeFromInstance(Instance instance) {
-        EventDispatcher.call(new RemoveEntityFromInstanceEvent(instance, this));
+        process().eventHandler().call(new RemoveEntityFromInstanceEvent(instance, this));
         if (this instanceof Player player) instance.bossBars().forEach(player::hideBossBar);
         instance.getEntityTracker().unregister(this, trackingTarget, trackingUpdate);
         this.viewEngine.forManuals(this::removeViewer);
@@ -1000,10 +1042,9 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      *
      * @param velocity the new entity velocity
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void setVelocity(Vec velocity) {
         EntityVelocityEvent entityVelocityEvent = new EntityVelocityEvent(this, velocity);
-        EventDispatcher.callCancellable(entityVelocityEvent, () -> {
+        process().eventHandler().callCancellable(entityVelocityEvent, () -> {
             this.velocity = entityVelocityEvent.getVelocity();
             sendPacketToViewersAndSelf(getVelocityPacket());
         });
@@ -1096,6 +1137,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * @throws IllegalStateException if {@link #getInstance()} returns null or the passenger cannot be added
      */
     public void addPassenger(Entity entity) {
+        Check.argCondition(entity.process() != process, "Passenger belongs to another process");
         final Instance currentInstance = this.instance;
         Check.stateCondition(currentInstance == null, "You need to set an instance using Entity#setInstance");
         Check.stateCondition(entity == getVehicle(), "Cannot add the entity vehicle as a passenger");
@@ -1173,6 +1215,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * @param entity the new leash holder
      */
     public void setLeashHolder(@Nullable Entity entity) {
+        Check.argCondition(entity != null && entity.process() != process, "Leash holder belongs to another process");
         if (leashHolder != null) leashHolder.leashedEntities.remove(this);
         if (entity != null) entity.leashedEntities.add(this);
         this.leashHolder = entity;
@@ -1551,9 +1594,8 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      *
      * @param potion The potion to add
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void addEffect(Potion potion) {
-        EventDispatcher.callCancellable(new EntityPotionAddEvent(this, potion), () -> {
+        process().eventHandler().callCancellable(new EntityPotionAddEvent(this, potion), () -> {
             removeEffect(potion.effect());
             this.effects.add(new TimedPotion(potion, getAliveTicks()));
             potion.sendAddPacket(this);
@@ -1565,12 +1607,11 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      *
      * @param effect The effect to remove
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void removeEffect(PotionEffect effect) {
         this.effects.removeIf(timedPotion -> {
             if (timedPotion.potion().effect() == effect) {
                 timedPotion.potion().sendRemovePacket(this);
-                EventDispatcher.call(new EntityPotionRemoveEvent(this, timedPotion.potion()));
+                process().eventHandler().call(new EntityPotionRemoveEvent(this, timedPotion.potion()));
                 return true;
             }
             return false;
@@ -1610,11 +1651,10 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     /**
      * Removes all the effects currently applied to the entity.
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void clearEffects() {
         for (TimedPotion timedPotion : effects) {
             timedPotion.potion().sendRemovePacket(this);
-            EventDispatcher.call(new EntityPotionRemoveEvent(this, timedPotion.potion()));
+            process().eventHandler().call(new EntityPotionRemoveEvent(this, timedPotion.potion()));
         }
         this.effects.clear();
     }
@@ -1628,14 +1668,13 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         remove(true);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     protected void remove(boolean permanent) {
         if (isRemoved()) return;
-        EventDispatcher.call(new EntityDespawnEvent(this));
+        process().eventHandler().call(new EntityDespawnEvent(this));
         try {
             despawn();
         } catch (Throwable t) {
-            MinecraftServer.getExceptionManager().handleException(t);
+            process().exception().handleException(t);
         }
 
         // Remove passengers if any (also done with LivingEntity#kill)
@@ -1647,7 +1686,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         Set<Entity> leashedEntities = getLeashedEntities();
         leashedEntities.forEach(entity -> entity.setLeashHolder(null));
 
-        MinecraftServer.process().dispatcher().removeElement(this);
+        process().dispatcher().removeElement(this);
         this.removed = true;
         if (!permanent) {
             // Reset some state to be ready for re-use

@@ -1,5 +1,6 @@
 package net.minestom.server.collision;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
@@ -15,6 +16,7 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 
 import java.util.Collection;
@@ -51,17 +53,24 @@ public class EntityCollisionBenchmark {
     private int entityCount;
 
     private EntityTracker tracker;
+    private ServerProcess process;
 
     @Setup
     public void setup() {
         final Random rnd = new Random(1234567);
-        tracker = EntityTracker.newTracker();
+        process = ServerProcess.create();
+        tracker = EntityTracker.newTracker(process);
         for (int i = 0; i < entityCount; i++) {
             final double angle = rnd.nextDouble() * 2 * Math.PI;
             final double dist = rnd.nextDouble() * PACK_RADIUS;
             final Pos pos = new Pos(MOVER_POS.x() + Math.cos(angle) * dist, 64.0, MOVER_POS.z() + Math.sin(angle) * dist);
-            tracker.register(new PositionedEntity(pos), pos, EntityTracker.Target.ENTITIES, null);
+            tracker.register(new PositionedEntity(process, pos), pos, EntityTracker.Target.ENTITIES, null);
         }
+    }
+
+    @TearDown
+    public void close() {
+        process.close();
     }
 
     @Benchmark
@@ -71,8 +80,8 @@ public class EntityCollisionBenchmark {
     }
 
     private static final class PositionedEntity extends Entity {
-        PositionedEntity(Pos pos) {
-            super(EntityType.ZOMBIE);
+        PositionedEntity(ServerProcess process, Pos pos) {
+            super(process, EntityType.ZOMBIE);
             this.boundingBox = MOVER_BB;
             this.position = pos;
         }

@@ -6,8 +6,7 @@ import net.minestom.server.adventure.ClickCallbackManager;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.entity.Entity;
-import net.minestom.server.event.EventDispatcher;
-import net.minestom.server.event.GlobalEventHandler;
+import net.minestom.server.event.ProcessEventHandler;
 import net.minestom.server.event.server.ServerTickMonitorEvent;
 import net.minestom.server.exception.ExceptionManager;
 import net.minestom.server.instance.Chunk;
@@ -34,6 +33,8 @@ import net.minestom.server.snapshot.SnapshotUpdater;
 import net.minestom.server.thread.Acquirable;
 import net.minestom.server.thread.ThreadDispatcher;
 import net.minestom.server.thread.ThreadProvider;
+import net.minestom.server.thread.TickSchedulerThread;
+import net.minestom.server.thread.TickThread;
 import net.minestom.server.timer.SchedulerManager;
 import net.minestom.server.utils.PacketViewableUtils;
 import net.minestom.server.utils.collection.MappedCollection;
@@ -51,11 +52,15 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 final class ServerProcessImpl implements ServerProcess {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerProcessImpl.class);
+    private static final AtomicInteger PROCESS_IDS = new AtomicInteger();
 
+    private final int id = PROCESS_IDS.incrementAndGet();
+    private final AtomicInteger lastEntityId = new AtomicInteger();
     private final Auth auth;
     private volatile String brandName = "Minestom";
     private volatile Difficulty difficulty = Difficulty.NORMAL;
@@ -72,7 +77,7 @@ final class ServerProcessImpl implements ServerProcess {
     private final CommandManager command;
     private final RecipeManager recipe;
     private final TeamManager team;
-    private final GlobalEventHandler eventHandler;
+    private final ProcessEventHandler eventHandler;
     private final SchedulerManager scheduler;
     private final AdvancementManager advancement;
     private final BossBarManager bossBar;
@@ -82,6 +87,8 @@ final class ServerProcessImpl implements ServerProcess {
 
     private final ThreadDispatcher<Chunk, Entity> dispatcher;
     private final Ticker ticker;
+    private @Nullable TickSchedulerThread tickScheduler;
+    private volatile boolean dispatcherStarted;
 
     private final AtomicBoolean started = new AtomicBoolean();
     private final AtomicBoolean stopped = new AtomicBoolean();
@@ -100,7 +107,7 @@ final class ServerProcessImpl implements ServerProcess {
         this.command = new CommandManager();
         this.recipe = new RecipeManager(registries);
         this.team = new TeamManager();
-        this.eventHandler = new GlobalEventHandler();
+        this.eventHandler = new ProcessEventHandler(this);
         this.scheduler = new SchedulerManager();
         this.advancement = new AdvancementManager();
         this.bossBar = new BossBarManager();
@@ -108,8 +115,13 @@ final class ServerProcessImpl implements ServerProcess {
 
         this.server = new Server(this, packetParser);
 
-        this.dispatcher = ThreadDispatcher.dispatcher(ThreadProvider.counter(), ServerFlag.DISPATCHER_THREADS);
+        this.dispatcher = ThreadDispatcher.dispatcher(this, ThreadProvider.counter(), ServerFlag.DISPATCHER_THREADS);
         this.ticker = new TickerImpl();
+    }
+
+    @Override
+    public int id() {
+        return id;
     }
 
     @Override
@@ -174,6 +186,11 @@ final class ServerProcessImpl implements ServerProcess {
     }
 
     @Override
+    public int generateEntityId() {
+        return lastEntityId.incrementAndGet();
+    }
+
+    @Override
     public BlockManager block() {
         return block;
     }
@@ -194,7 +211,7 @@ final class ServerProcessImpl implements ServerProcess {
     }
 
     @Override
-    public GlobalEventHandler eventHandler() {
+    public ProcessEventHandler eventHandler() {
         return eventHandler;
     }
 
@@ -278,6 +295,9 @@ final class ServerProcessImpl implements ServerProcess {
 
         // Start server
         server.start();
+        startDispatcher();
+        tickScheduler = new TickSchedulerThread(this);
+        tickScheduler.start();
 
         LOGGER.info("{} server started successfully.", brand);
 
@@ -286,6 +306,19 @@ final class ServerProcessImpl implements ServerProcess {
             shutdownHook = new Thread(this::stop, "Minestom shutdown");
             Runtime.getRuntime().addShutdownHook(shutdownHook);
         }
+    }
+
+    private boolean startDispatcher() {
+        if (stopped.get()) return false;
+        if (dispatcherStarted) return true;
+        synchronized (this) {
+            if (stopped.get()) return false;
+            if (!dispatcherStarted) {
+                if (!dispatcher.isAlive()) dispatcher.start();
+                dispatcherStarted = true;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -308,6 +341,15 @@ final class ServerProcessImpl implements ServerProcess {
         server.stop();
         LOGGER.info("Shutting down all thread pools.");
         dispatcher.shutdown();
+        // A tick worker can request shutdown while the scheduler is awaiting its tick.
+        if (!(Thread.currentThread() instanceof TickThread) && Thread.currentThread() != tickScheduler) {
+            try {
+                if (tickScheduler != null) tickScheduler.join();
+                for (var thread : dispatcher.threads()) thread.join();
+            } catch (InterruptedException _) {
+                Thread.currentThread().interrupt();
+            }
+        }
         LOGGER.info("{} server stopped successfully.", brand);
     }
 
@@ -330,9 +372,12 @@ final class ServerProcessImpl implements ServerProcess {
     }
 
     private final class TickerImpl implements Ticker {
-        @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
         @Override
-        public void tick(long nanoTime) {
+        public synchronized void tick(long nanoTime) {
+            if (!startDispatcher()) {
+                Check.stateCondition(Thread.currentThread() != tickScheduler, "Server is closed");
+                return;
+            }
             var serverTickEvent = EventsJFR.newServerTick();
             serverTickEvent.begin();
             scheduler().processTick();
@@ -356,7 +401,7 @@ final class ServerProcessImpl implements ServerProcess {
                 final double acquisitionTimeMs = Acquirable.resetAcquiringTime() / 1e6D;
                 final double tickTimeMs = (System.nanoTime() - nanoTime) / 1e6D;
                 final TickMonitor tickMonitor = new TickMonitor(tickTimeMs, acquisitionTimeMs);
-                EventDispatcher.call(new ServerTickMonitorEvent(tickMonitor));
+                eventHandler.call(new ServerTickMonitorEvent(tickMonitor));
             }
             serverTickEvent.commit();
         }

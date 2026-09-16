@@ -1,5 +1,6 @@
 package net.minestom.demo.entity;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.EntityCreature;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.ai.goal.RandomStrollGoal;
@@ -9,8 +10,8 @@ import java.util.List;
 
 public class ChickenCreature extends EntityCreature {
 
-    public ChickenCreature() {
-        super(EntityType.CHICKEN);
+    public ChickenCreature(ServerProcess process) {
+        super(process, EntityType.CHICKEN);
 
         addAIGroup(
                 List.of(

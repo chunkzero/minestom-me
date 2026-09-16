@@ -17,7 +17,7 @@ public final class TickSchedulerThread extends MinestomThread {
     private final ServerProcess serverProcess;
 
     public TickSchedulerThread(ServerProcess serverProcess) {
-        super(MinecraftServer.THREAD_NAME_TICK_SCHEDULER);
+        super(MinecraftServer.THREAD_NAME_TICK_SCHEDULER + "-" + serverProcess.id());
         this.serverProcess = serverProcess;
     }
 

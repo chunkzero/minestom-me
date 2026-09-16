@@ -1,6 +1,5 @@
 package net.minestom.server.instance;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.instance.anvil.AnvilLoader;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
@@ -67,7 +66,6 @@ public interface ChunkLoader {
      *
      * @param chunks the chunks to save
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     default void saveChunks(Collection<Chunk> chunks) {
         if (supportsParallelSaving()) {
             Phaser phaser = new Phaser(1);
@@ -76,9 +74,10 @@ public interface ChunkLoader {
                 Thread.startVirtualThread(() -> {
                     try {
                         saveChunk(chunk);
-                        phaser.arriveAndDeregister();
                     } catch (Throwable e) {
-                        MinecraftServer.getExceptionManager().handleException(e);
+                        chunk.getInstance().process().exception().handleException(e);
+                    } finally {
+                        phaser.arriveAndDeregister();
                     }
                 });
             }

@@ -5,14 +5,17 @@ import net.minestom.server.Tickable;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.instance.Chunk;
 import org.jetbrains.annotations.ApiStatus;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 
 /**
  * Thread responsible for ticking {@link Chunk chunks} and {@link Entity entities}.
@@ -23,6 +26,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class TickThread extends MinestomThread {
     private final ReentrantLock lock = new ReentrantLock();
     private volatile boolean stop;
+    private final Consumer<Throwable> exceptionHandler;
 
     private final AtomicReference<CountDownLatch> latchRef = new AtomicReference<>();
     private volatile long tickTimeNanos;
@@ -31,18 +35,22 @@ public class TickThread extends MinestomThread {
     final List<ThreadDispatcherImpl.Partition> entries = new ArrayList<>();
 
     public TickThread(int number) {
-        super(MinecraftServer.THREAD_NAME_TICK + "-" + number);
+        this(MinecraftServer.THREAD_NAME_TICK + "-" + number);
     }
 
     public TickThread(String name) {
-        super(name);
+        this(name, throwable -> LoggerFactory.getLogger(TickThread.class).error("Tick failed", throwable));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
+    public TickThread(String name, Consumer<Throwable> exceptionHandler) {
+        super(name);
+        this.exceptionHandler = Objects.requireNonNull(exceptionHandler);
+    }
+
     @Override
     public void run() {
         LockSupport.park(this); // Wait for first tick
-        while (!stop) {
+        while (!stop || latchRef.get() != null) {
             final CountDownLatch latch = this.latchRef.get();
             if (latch == null) {
                 // Should not happen, but just in case
@@ -54,18 +62,16 @@ public class TickThread extends MinestomThread {
             try {
                 tick();
             } catch (Exception e) {
-                MinecraftServer.getExceptionManager().handleException(e);
+                exceptionHandler.accept(e);
             } finally {
                 lock.unlock();
                 // #acquire() callbacks
+                if (latchRef.compareAndSet(latch, null)) latch.countDown();
             }
-            this.latchRef.set(null);
-            latch.countDown();
             LockSupport.park(this);
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     protected void tick() {
         final ReentrantLock lock = this.lock;
         final long tickTime = TimeUnit.NANOSECONDS.toMillis(this.tickTimeNanos);
@@ -83,7 +89,7 @@ public class TickThread extends MinestomThread {
                     assert assertElement(element);
                     element.tick(tickTime);
                 } catch (Throwable e) {
-                    MinecraftServer.getExceptionManager().handleException(e);
+                    exceptionHandler.accept(e);
                 }
             }
         }
@@ -110,7 +116,7 @@ public class TickThread extends MinestomThread {
         }
         if (stop || entries.isEmpty()) {
             // Nothing to tick
-            latch.countDown();
+            if (latchRef.compareAndSet(latch, null)) latch.countDown();
             return;
         }
         this.tickTimeNanos = tickTimeNanos;
@@ -133,6 +139,8 @@ public class TickThread extends MinestomThread {
 
     void shutdown() {
         this.stop = true;
+        final var latch = latchRef.get();
+        if (latch != null && !isAlive() && latchRef.compareAndSet(latch, null)) latch.countDown();
         LockSupport.unpark(this);
     }
 }

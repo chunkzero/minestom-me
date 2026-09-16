@@ -1,5 +1,6 @@
 package net.minestom.server.event;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.event.trait.CancellableEvent;
 import net.minestom.server.tag.Tag;
 import net.minestom.server.tag.TagReadable;
@@ -9,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -19,6 +21,10 @@ import java.util.function.Predicate;
  * A node may contain any number of children and/or listeners. When an event is called,
  * the node will filter it based on the parameters given at creation and then propagate
  * it down to child nodes and listeners if it passes.
+ * <p>
+ * Construction and configuration require no process. Each node has at most one parent;
+ * attachment to an owned root determines the process for its active registrations.
+ * Detach a node before attaching it elsewhere. Standalone dispatch requires an explicit process.
  *
  * @param <T> The event type accepted by this node
  */
@@ -52,7 +58,7 @@ public sealed interface EventNode<T extends Event> permits EventNodeImpl {
     @Contract(value = "_, _ -> new", pure = true)
     static <E extends Event, V> EventNode<E> type(String name,
                                                            EventFilter<E, V> filter) {
-        return create(name, filter, null);
+        return new EventNodeImpl<>(name, filter, null);
     }
 
     /**
@@ -172,15 +178,29 @@ public sealed interface EventNode<T extends Event> permits EventNodeImpl {
         return create(name, filter, (_, h) -> consumer.test(h.getTag(tag)));
     }
 
+    /** A condition receiving the dispatch process, event, and filtered handler. */
+    @FunctionalInterface
+    interface ContextualPredicate<E extends Event, V> {
+        boolean test(ServerProcess process, E event, V handler);
+    }
+
+    /** Creates a node whose condition receives the dispatching process, event, and handler. */
+    @SuppressWarnings("unchecked")
+    static <E extends Event, V> EventNode<E> contextual(String name, EventFilter<E, V> filter,
+                                                ContextualPredicate<E, V> predicate) {
+        return new EventNodeImpl<>(name, filter, (process, event, value) -> predicate.test(process, event, (V) value));
+    }
+
     @SuppressWarnings("unchecked")
     private static <E extends Event, V> EventNode<E> create(String name,
                                                             EventFilter<E, V> filter,
                                                             @Nullable BiPredicate<E, V> predicate) {
-        return new EventNodeImpl<>(name, filter, predicate != null ? (e, o) -> predicate.test(e, (V) o) : null);
+        return new EventNodeImpl<>(name, filter, predicate != null ? (_, e, o) -> predicate.test(e, (V) o) : null);
     }
 
     /**
-     * Calls an event starting from this node.
+     * Calls an event starting from this node, using its owned root's process.
+     * Standalone nodes must use {@link #call(ServerProcess, Event)}.
      *
      * @param event the event to call
      */
@@ -188,6 +208,15 @@ public sealed interface EventNode<T extends Event> permits EventNodeImpl {
     default void call(T event) {
         getHandle((Class<T>) event.getClass()).call(event);
     }
+
+    /** Dispatches with explicit context. An attached node only accepts its root's process. */
+    @SuppressWarnings("unchecked")
+    default void call(ServerProcess process, T event) {
+        getHandle((Class<T>) event.getClass()).call(process, event);
+    }
+
+    /** The root's owner, or null for a standalone graph. */
+    @Nullable ServerProcess process();
 
     default boolean hasListener(Class<? extends T> type) {
         return getHandle(type).hasListener();
@@ -212,6 +241,13 @@ public sealed interface EventNode<T extends Event> permits EventNodeImpl {
      */
     default void callCancellable(T event, Runnable successCallback) {
         call(event);
+        if (!(event instanceof CancellableEvent cancellableEvent) || !cancellableEvent.isCancelled()) {
+            successCallback.run();
+        }
+    }
+
+    default void callCancellable(ServerProcess process, T event, Runnable successCallback) {
+        call(process, event);
         if (!(event instanceof CancellableEvent cancellableEvent) || !cancellableEvent.isCancelled()) {
             successCallback.run();
         }
@@ -325,6 +361,11 @@ public sealed interface EventNode<T extends Event> permits EventNodeImpl {
 
     @Contract(value = "_, _ -> this")
     default <E extends T> EventNode<T> addListener(Class<E> eventType, Consumer<E> listener) {
+        return addListener(EventListener.of(eventType, listener));
+    }
+
+    @Contract(value = "_, _ -> this")
+    default <E extends T> EventNode<T> addListener(Class<E> eventType, BiConsumer<ServerProcess, E> listener) {
         return addListener(EventListener.of(eventType, listener));
     }
 

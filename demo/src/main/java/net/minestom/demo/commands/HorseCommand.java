@@ -60,12 +60,13 @@ public class HorseCommand extends Command {
         boolean baby = context.get("baby");
         HorseMeta.Marking marking = context.get("marking");
         HorseMeta.Variant variant = context.get("variant");
-        var horse = new EntityCreature(EntityType.HORSE);
-        var meta = (HorseMeta) horse.getEntityMeta();
-        meta.setBaby(baby);
-        meta.setVariantAndMarking(variant, marking);
         //noinspection ConstantConditions - It should be impossible to execute a command without being in an instance
-        horse.setInstance(player.getInstance(), player.getPosition()).join();
+        EntityCreature.builder(EntityType.HORSE)
+                .initialize(horse -> horse.editEntityMeta(HorseMeta.class, meta -> {
+                    meta.setBaby(baby);
+                    meta.setVariantAndMarking(variant, marking);
+                }))
+                .spawn(player.getInstance(), player.getPosition()).join();
     }
 
 }

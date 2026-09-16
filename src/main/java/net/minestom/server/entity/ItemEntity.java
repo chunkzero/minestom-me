@@ -1,7 +1,8 @@
 package net.minestom.server.entity;
 
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.metadata.item.ItemEntityMeta;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.entity.EntityItemMergeEvent;
 import net.minestom.server.instance.EntityTracker;
 import net.minestom.server.item.ItemStack;
@@ -10,10 +11,12 @@ import net.minestom.server.utils.MathUtils;
 import net.minestom.server.utils.time.Cooldown;
 import net.minestom.server.utils.time.TimeUnit;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.temporal.TemporalUnit;
+import java.util.Objects;
 
 /**
  * Represents an item on the ground.
@@ -42,11 +45,54 @@ public class ItemEntity extends Entity {
     // pickup delay in nanos
     private long pickupDelay;
 
-    @SuppressWarnings("this-escape") // deliberate self registration during construction
+    @SuppressWarnings("removal") // Temporary default-process constructor.
     public ItemEntity(ItemStack itemStack) {
-        super(EntityType.ITEM);
+        this(MinecraftServer.process(), itemStack);
+    }
+
+    @SuppressWarnings("this-escape") // Entity initialization.
+    public ItemEntity(ServerProcess process, ItemStack itemStack) {
+        super(process, EntityType.ITEM);
         setItemStack(itemStack);
         setBoundingBox(0.25f, 0.25f, 0.25f);
+    }
+
+    /** Creates an ownerless builder for an item on the ground. */
+    @Contract("_ -> new")
+    public static Builder builder(ItemStack itemStack) {
+        return new Builder(Objects.requireNonNull(itemStack));
+    }
+
+    public static final class Builder extends EntityBuilder<ItemEntity, Builder> {
+        private Builder(ItemStack itemStack) {
+            super(process -> new ItemEntity(process, itemStack));
+        }
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        @Contract("_ -> this")
+        public Builder pickupDelay(Duration delay) {
+            Objects.requireNonNull(delay);
+            return configure(item -> item.setPickupDelay(delay));
+        }
+
+        @Contract("_ -> this")
+        public Builder pickable(boolean pickable) {
+            return configure(item -> item.setPickable(pickable));
+        }
+
+        @Contract("_ -> this")
+        public Builder mergeable(boolean mergeable) {
+            return configure(item -> item.setMergeable(mergeable));
+        }
+
+        @Contract("_ -> this")
+        public Builder mergeRange(float mergeRange) {
+            return configure(item -> item.setMergeRange(mergeRange));
+        }
     }
 
     /**
@@ -69,7 +115,6 @@ public class ItemEntity extends Entity {
         ItemEntity.mergeDelay = delay;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void update(long time) {
         if (isMergeable() && isPickable() &&
@@ -89,7 +134,7 @@ public class ItemEntity extends Entity {
                         if (!MathUtils.isBetween(totalAmount, 0, itemStack.maxStackSize())) return;
                         final ItemStack result = itemStack.withAmount(totalAmount);
                         EntityItemMergeEvent entityItemMergeEvent = new EntityItemMergeEvent(this, itemEntity, result);
-                        EventDispatcher.callCancellable(entityItemMergeEvent, () -> {
+                        process().eventHandler().callCancellable(entityItemMergeEvent, () -> {
                             setItemStack(entityItemMergeEvent.getResult());
                             itemEntity.remove();
                         });

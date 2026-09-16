@@ -1,5 +1,7 @@
 package net.minestom.server.event;
 
+import net.minestom.server.ServerProcess;
+
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.lang.ref.WeakReference;
@@ -75,6 +77,10 @@ final class EventNodeLazyImpl<E extends Event> extends EventNodeImpl<E> {
                 if (previous == null) invalidateEventsFor(holder);
             }
         }
+    }
+
+    void checkOwner(ServerProcess process) {
+        EventOwnership.checkTarget(process, retrieveOwner());
     }
 
     private Object retrieveOwner() {

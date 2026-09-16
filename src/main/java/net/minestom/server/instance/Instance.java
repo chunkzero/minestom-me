@@ -24,7 +24,6 @@ import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityCreature;
 import net.minestom.server.entity.ExperienceOrb;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.EventFilter;
 import net.minestom.server.event.EventHandler;
 import net.minestom.server.event.EventNode;
@@ -127,7 +126,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
     // Field for tick events
     private long lastTickAge = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
 
-    private final EntityTracker entityTracker = new EntityTrackerImpl();
+    private final EntityTracker entityTracker;
 
     @SuppressWarnings("this-escape") // deliberate self registration during construction
     private final ChunkCache blockRetriever = new ChunkCache(this, null, null);
@@ -140,7 +139,9 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
     // instance custom data
     protected TagHandler tagHandler = TagHandler.newHandler();
     private final Scheduler scheduler = Scheduler.newScheduler();
-    private final @Nullable EventNode<InstanceEvent> eventNode;
+    private final EventNode<InstanceEvent> eventNode;
+
+    private final ServerProcess process;
     private final Registries registries;
 
     // the explosion supplier
@@ -164,7 +165,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
      */
     @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public Instance(UUID uuid, RegistryKey<DimensionType> dimensionType, Key dimensionName) {
-        this(MinecraftServer.getRegistries(), uuid, dimensionType, dimensionName);
+        this(MinecraftServer.process(), uuid, dimensionType, dimensionName);
     }
 
     /**
@@ -173,13 +174,16 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
      * @param uuid          the {@link UUID} of the instance
      * @param dimensionType the {@link DimensionType} of the instance
      */
-    @SuppressWarnings({"removal", "this-escape"}) // deliberate self registration during construction
-    public Instance(Registries registries, UUID uuid, RegistryKey<DimensionType> dimensionType, Key dimensionName) {
-        this.registries = registries;
+    @SuppressWarnings("this-escape") // deliberate self registration during construction
+    public Instance(ServerProcess process, UUID uuid, RegistryKey<DimensionType> dimensionType, Key dimensionName) {
+        this.process = Objects.requireNonNull(process,
+                "A ServerProcess is required; use an Instance constructor accepting ServerProcess or process.instance().createInstanceContainer()");
+        this.registries = process.registries();
+        this.entityTracker = EntityTracker.newTracker(process);
         this.uuid = uuid;
         this.dimensionType = dimensionType;
         this.cachedDimensionType = registries.dimensionType().get(dimensionType);
-        Check.argCondition(cachedDimensionType == null, "The dimension " + dimensionType + " is not registered! Please add it to the registry (`MinecraftServer.getDimensionTypeRegistry().registry(dimensionType)`).");
+        Check.argCondition(cachedDimensionType == null, "The dimension " + dimensionType + " is not registered in this process.");
         this.dimensionName = dimensionName.asString();
 
         this.clocks = new Object2ObjectArrayMap<>();
@@ -189,20 +193,19 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         this.worldBorder = WorldBorder.DEFAULT_BORDER;
         targetBorderDiameter = this.worldBorder.diameter();
 
-        final ServerProcess process = MinecraftServer.process();
-        if (process != null) {
-            this.eventNode = process.eventHandler().map(this, EventFilter.INSTANCE);
-        } else {
-            // Local nodes require a server process
-            this.eventNode = null;
-        }
+        this.eventNode = process.eventHandler().map(this, EventFilter.INSTANCE);
     }
 
-    /**
-     * Gets the registries used by this instance.
-     *
-     * @return the registries
-     */
+    public Instance(ServerProcess process, UUID uuid, RegistryKey<DimensionType> dimensionType) {
+        this(process, uuid, dimensionType, dimensionType.key());
+    }
+
+    /** The process that owns this object's lifetime and services. */
+    public final ServerProcess process() {
+        return process;
+    }
+
+    /** Gets the registries owned by this instance's process. */
     public Registries registries() {
         return registries;
     }
@@ -332,14 +335,13 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         unloadChunk(chunk);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void invalidateSection(int sectionX, int sectionY, int sectionZ) {
         final Chunk chunk = getChunk(sectionX, sectionZ);
         if (chunk != null) {
             Section section = chunk.getSection(sectionY);
             section.invalidate();
             chunk.invalidate();
-            EventDispatcher.call(new InstanceSectionInvalidateEvent(this, sectionX, sectionY, sectionZ));
+            process().eventHandler().call(new InstanceSectionInvalidateEvent(this, sectionX, sectionY, sectionZ));
         }
     }
 
@@ -819,7 +821,6 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
      *
      * @param time the tick time in milliseconds, which may only be used as a delta and has no meaning in real life
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void tick(long time) {
         // Scheduled tasks
@@ -840,7 +841,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         // Tick event
         {
             // Process tick events
-            EventDispatcher.call(new InstanceTickEvent(this, time, lastTickAge));
+            process().eventHandler().call(new InstanceTickEvent(this, time, lastTickAge));
             // Set last tick age
             this.lastTickAge = time;
         }
@@ -972,13 +973,12 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         return eventNode;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public InstanceSnapshot updateSnapshot(SnapshotUpdater updater) {
         final Map<Long, AtomicReference<ChunkSnapshot>> chunksMap = updater.referencesMapLong(getChunks(),
                 value -> CoordConversion.chunkIndex(value.getChunkX(), value.getChunkZ()));
         final int[] entities = ArrayUtils.mapToIntArray(entityTracker.entities(), Entity::getEntityId);
-        return new SnapshotImpl.Instance(updater.reference(MinecraftServer.process()),
+        return new SnapshotImpl.Instance(updater.reference(process()),
                 getDimensionType(), getWorldAge(), getTime(), chunksMap, entities,
                 tagHandler.readableCopy());
     }

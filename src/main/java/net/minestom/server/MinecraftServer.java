@@ -19,7 +19,7 @@ import net.minestom.server.entity.metadata.animal.tameable.WolfSoundVariant;
 import net.minestom.server.entity.metadata.animal.tameable.WolfVariant;
 import net.minestom.server.entity.metadata.cube.SulfurCubeArchetype;
 import net.minestom.server.entity.metadata.other.PaintingVariant;
-import net.minestom.server.event.GlobalEventHandler;
+import net.minestom.server.event.ProcessEventHandler;
 import net.minestom.server.exception.ExceptionManager;
 import net.minestom.server.instance.InstanceManager;
 import net.minestom.server.instance.block.BlockManager;
@@ -43,7 +43,6 @@ import net.minestom.server.recipe.RecipeManager;
 import net.minestom.server.registry.DynamicRegistry;
 import net.minestom.server.registry.Registries;
 import net.minestom.server.scoreboard.TeamManager;
-import net.minestom.server.thread.TickSchedulerThread;
 import net.minestom.server.timer.SchedulerManager;
 import net.minestom.server.world.Difficulty;
 import net.minestom.server.world.DimensionType;
@@ -62,7 +61,7 @@ import java.util.Objects;
  * <p>New code must retain an explicit {@link ServerProcess} and use its managers and registries.
  * Do not add default-process accessors or context-free compatibility overloads.</p>
  * <p>The default-process bootstrap remains necessary until gameplay ownership and ticking are migrated.
- * {@link ServerProcess#create()} currently supports independent construction and configuration only.
+ * {@link ServerProcess#create()} supports independent construction, events, and tick dispatch.
  * Static settings require initialization first; each {@link #init()} installs fresh defaults.</p>
  */
 public final class MinecraftServer implements MinecraftConstants {
@@ -192,7 +191,7 @@ public final class MinecraftServer implements MinecraftConstants {
      * @deprecated Scheduled for deletion. Use {@link ServerProcess#eventHandler()} on the owning process.
      */
     @Deprecated(forRemoval = true)
-    public static GlobalEventHandler getGlobalEventHandler() {
+    public static ProcessEventHandler getGlobalEventHandler() {
         return serverProcess.eventHandler();
     }
 
@@ -609,8 +608,6 @@ public final class MinecraftServer implements MinecraftConstants {
     @Deprecated(forRemoval = true)
     public void start(SocketAddress address) {
         serverProcess.start(address);
-        serverProcess.dispatcher().start();
-        new TickSchedulerThread(serverProcess).start();
     }
 
     /**

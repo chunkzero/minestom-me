@@ -10,6 +10,7 @@ import net.minestom.server.command.builder.arguments.minecraft.registry.Argument
 import net.minestom.server.command.builder.condition.Conditions;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
+import net.minestom.server.entity.EntityBuilder;
 import net.minestom.server.entity.EntityCreature;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.LivingEntity;
@@ -40,28 +41,24 @@ public class SummonCommand extends Command {
     }
 
     private void execute(CommandSender commandSender, CommandContext commandContext) {
-        final Entity entity = commandContext.get(entityClass).instantiate(commandContext.get(this.entity));
+        if (!(commandSender instanceof Player player)) return;
         //noinspection ConstantConditions - One couldn't possibly execute a command without being in an instance
-        entity.setInstance(((Player) commandSender).getInstance(), commandContext.get(pos).fromSender(commandSender)).join();
+        commandContext.get(entityClass).builder(commandContext.get(entity))
+                .spawn(player.getInstance(), commandContext.get(pos).fromSender(player)).join();
     }
 
     @SuppressWarnings("unused")
     enum EntityClass {
-        BASE(Entity::new),
-        LIVING(LivingEntity::new),
-        CREATURE(EntityCreature::new);
-        private final EntityFactory factory;
+        BASE,
+        LIVING,
+        CREATURE;
 
-        EntityClass(EntityFactory factory) {
-            this.factory = factory;
+        public EntityBuilder<?, ?> builder(EntityType type) {
+            return switch (this) {
+                case BASE -> Entity.builder(type);
+                case LIVING -> LivingEntity.builder(type);
+                case CREATURE -> EntityCreature.builder(type);
+            };
         }
-
-        public Entity instantiate(EntityType type) {
-            return factory.newInstance(type);
-        }
-    }
-
-    interface EntityFactory {
-        Entity newInstance(EntityType type);
     }
 }

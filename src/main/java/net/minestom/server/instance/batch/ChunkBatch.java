@@ -5,7 +5,6 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.BlockVec;
 import net.minestom.server.coordinate.CoordConversion;
 import net.minestom.server.coordinate.Point;
@@ -168,7 +167,6 @@ public class ChunkBatch implements Batch<ChunkCallback> {
     /**
      * Applies this batch in the current thread, executing the callback upon completion.
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void singleThreadFlush(Instance instance, Chunk chunk, @Nullable ChunkBatch inverse,
                                    @Nullable ChunkCallback callback, boolean safeCallback) {
         try {
@@ -205,7 +203,7 @@ public class ChunkBatch implements Batch<ChunkCallback> {
             if (inverse != null) inverse.readyLatch.countDown();
             updateChunk(instance, chunk, callback, safeCallback);
         } catch (Exception e) {
-            MinecraftServer.getExceptionManager().handleException(e);
+            instance.process().exception().handleException(e);
         }
     }
 

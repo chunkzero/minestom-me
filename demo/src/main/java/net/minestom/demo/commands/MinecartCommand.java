@@ -28,7 +28,7 @@ public class MinecartCommand extends Command {
     private void execute(CommandSender sender, CommandContext context) {
         var player = (Player) sender;
 
-        var minecart = new Entity(switch (context.get(type)) {
+        Entity.builder(switch (context.get(type)) {
             case NORMAL -> EntityType.MINECART;
             case CHEST -> EntityType.CHEST_MINECART;
             case FURNACE -> EntityType.FURNACE_MINECART;
@@ -36,12 +36,12 @@ public class MinecartCommand extends Command {
             case HOPPER -> EntityType.HOPPER_MINECART;
             case SPAWNER -> EntityType.SPAWNER_MINECART;
             case COMMAND_BLOCK -> EntityType.COMMAND_BLOCK_MINECART;
-        });
-        var meta = (AbstractMinecartMeta) minecart.getEntityMeta();
-        meta.setCustomBlockState(context.get(block));
-        meta.setCustomBlockYPosition(context.get(offset));
-
-        minecart.setInstance(player.getInstance(), player.getPosition().withView(0f, 0f)).join();
+        })
+                .initialize(minecart -> minecart.editEntityMeta(AbstractMinecartMeta.class, meta -> {
+                    meta.setCustomBlockState(context.get(block));
+                    meta.setCustomBlockYPosition(context.get(offset));
+                }))
+                .spawn(player.getInstance(), player.getPosition().withView(0f, 0f)).join();
     }
 
     private enum Type {

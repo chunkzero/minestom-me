@@ -39,7 +39,6 @@ import net.minestom.server.dialog.Dialog;
 import net.minestom.server.entity.metadata.LivingEntityMeta;
 import net.minestom.server.entity.metadata.avatar.PlayerMeta;
 import net.minestom.server.entity.vehicle.PlayerInputs;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.inventory.InventoryCloseEvent;
 import net.minestom.server.event.inventory.InventoryOpenEvent;
 import net.minestom.server.event.item.ItemDropEvent;
@@ -118,7 +117,6 @@ import net.minestom.server.network.player.ClientSettings;
 import net.minestom.server.network.player.GameProfile;
 import net.minestom.server.network.player.PlayerConnection;
 import net.minestom.server.recipe.RecipeManager;
-import net.minestom.server.registry.DynamicRegistry;
 import net.minestom.server.registry.RegistryKey;
 import net.minestom.server.scoreboard.BelowNameTag;
 import net.minestom.server.scoreboard.Team;
@@ -173,8 +171,6 @@ import java.util.function.UnaryOperator;
  * You can easily create your own implementation of this and use it with {@link ConnectionManager#setPlayerProvider(PlayerProvider)}.
  */
 public class Player extends LivingEntity implements CommandSender, HoverEventSource<ShowEntity>, NamedAndIdentified {
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    private static final DynamicRegistry<DimensionType> DIMENSION_TYPE_REGISTRY = MinecraftServer.getDimensionTypeRegistry();
 
     private static final Component REMOVE_MESSAGE = Component.text("You have been removed from the server without reason.", NamedTextColor.RED);
     private static final Component MISSING_REQUIRED_RESOURCE_PACK = Component.text("Required resource pack was not loaded.", NamedTextColor.RED);
@@ -231,7 +227,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     final ChunkRange.ChunkConsumer chunkRemover = (chunkX, chunkZ) -> {
         // Unload old chunks
         sendPacket(new UnloadChunkPacket(chunkX, chunkZ));
-        EventDispatcher.call(new PlayerChunkUnloadEvent(this, chunkX, chunkZ));
+        process().eventHandler().call(new PlayerChunkUnloadEvent(this, chunkX, chunkZ));
     };
 
     private final AtomicInteger teleportId = new AtomicInteger();
@@ -296,7 +292,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
 
     @SuppressWarnings("this-escape") // deliberate self registration during construction
     public Player(PlayerConnection playerConnection, GameProfile gameProfile) {
-        super(EntityType.PLAYER, gameProfile.uuid());
+        super(playerConnection.process(), EntityType.PLAYER, gameProfile.uuid());
         this.gameProfile = gameProfile;
         this.username = gameProfile.name();
         this.usernameComponent = Component.text(username);
@@ -312,7 +308,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         refreshAnswerKeepAlive(true);
 
         this.gameMode = GameMode.SURVIVAL;
-        this.dimensionTypeId = DIMENSION_TYPE_REGISTRY.getId(DimensionType.OVERWORLD); // Default dimension
+        this.dimensionTypeId = process().registries().dimensionType().getId(DimensionType.OVERWORLD); // Default dimension
         this.levelFlat = true;
 
         // FakePlayer init its connection there
@@ -344,7 +340,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         this.pendingInstance = null;
 
         this.removed = false;
-        this.dimensionTypeId = DIMENSION_TYPE_REGISTRY.getId(spawnInstance.getDimensionType());
+        this.dimensionTypeId = process().registries().dimensionType().getId(spawnInstance.getDimensionType());
 
         final JoinGamePacket joinGamePacket = new JoinGamePacket(
                 getEntityId(), this.hardcore, List.of(), 0,
@@ -382,7 +378,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
             }
         }
         PlayerSkinInitEvent skinInitEvent = new PlayerSkinInitEvent(this, profileSkin);
-        EventDispatcher.call(skinInitEvent);
+        process().eventHandler().call(skinInitEvent);
         this.skin = skinInitEvent.getSkin();
         // FIXME: when using Geyser, this line remove the skin of the client
         PacketSendingUtils.broadcastPlayPacket(getAddPlayerToList());
@@ -458,7 +454,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
                     EntityTracker.Target.EXPERIENCE_ORBS, experienceOrb -> {
                         if (!expandedBoundingBox.intersectEntity(position, experienceOrb)) return;
                         final PickupExperienceEvent pickupExperienceEvent = new PickupExperienceEvent(this, experienceOrb);
-                        EventDispatcher.callCancellable(pickupExperienceEvent, () -> {
+                        process().eventHandler().callCancellable(pickupExperienceEvent, () -> {
 //                            short experienceCount = pickupExperienceEvent.getExperienceCount(); // TODO give to player
                             experienceOrb.remove();
                         });
@@ -471,7 +467,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
             if (itemUseTime > 0 && getCurrentItemUseTime() >= itemUseTime) {
                 final ItemStack itemStack = getItemInHand(itemUseHand);
                 PlayerFinishItemUseEvent finishUseEvent = new PlayerFinishItemUseEvent(this, itemUseHand, itemStack, itemUseTime);
-                EventDispatcher.call(finishUseEvent);
+                process().eventHandler().call(finishUseEvent);
 
                 // Reset client state
                 triggerStatus((byte) EntityStatuses.Player.MARK_ITEM_FINISHED);
@@ -493,7 +489,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         updatePose();
 
         // Tick event
-        EventDispatcher.call(new PlayerTickEvent(this));
+        process().eventHandler().call(new PlayerTickEvent(this));
     }
 
     @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
@@ -524,7 +520,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
 
             // Call player death event
             PlayerDeathEvent playerDeathEvent = new PlayerDeathEvent(this, deathText, chatMessage);
-            EventDispatcher.call(playerDeathEvent);
+            process().eventHandler().call(playerDeathEvent);
 
             deathText = playerDeathEvent.getDeathText();
             chatMessage = playerDeathEvent.getChatMessage();
@@ -565,7 +561,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         refreshClientStateAfterRespawn();
 
         PlayerRespawnEvent respawnEvent = new PlayerRespawnEvent(this);
-        EventDispatcher.call(respawnEvent);
+        process().eventHandler().call(respawnEvent);
         refreshIsDead(false);
         updatePose();
 
@@ -632,7 +628,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
 
         if (permanent) {
             this.packets.clear();
-            EventDispatcher.call(new PlayerDisconnectEvent(this));
+            process().eventHandler().call(new PlayerDisconnectEvent(this));
             EventsJFR.newPlayerLeave(getUuid()).commit();
         }
 
@@ -684,6 +680,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public CompletableFuture<Void> setInstance(Instance instance, Pos spawnPosition) {
+        Check.argCondition(instance.process() != process(), "Instance belongs to another process");
         final Instance currentInstance = this.instance;
         Check.argCondition(currentInstance == instance, "Instance should be different than the current one");
         if (SharedInstance.areLinked(currentInstance, instance) && spawnPosition.sameChunk(this.position)) {
@@ -715,7 +712,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         // One or more chunks need to be loaded
         final Thread runThread = Thread.currentThread();
         CountDownLatch latch = new CountDownLatch(1);
-        Scheduler scheduler = MinecraftServer.getSchedulerManager();
+        Scheduler scheduler = process().scheduler();
         CompletableFuture<Void> future = new CompletableFuture<>() {
             @Override
             public Void join() {
@@ -793,7 +790,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
                                 // TODO(26.3): Revert this change; the client bug is fixed in 26.3-snapshot5
                                 sendPacket(new UnloadChunkPacket(x, z));
                             }
-                            EventDispatcher.call(new PlayerChunkUnloadEvent(this, x, z));
+                            process().eventHandler().call(new PlayerChunkUnloadEvent(this, x, z));
                         }
                 );
             }
@@ -834,7 +831,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
             sendPacket(new ChangeGameStatePacket(ChangeGameStatePacket.Reason.LEVEL_CHUNKS_LOAD_START, 0));
         }
 
-        EventDispatcher.call(new PlayerSpawnEvent(this, instance, firstSpawn));
+        process().eventHandler().call(new PlayerSpawnEvent(this, instance, firstSpawn));
         if (firstSpawn) EventsJFR.newPlayerJoin(getUuid()).commit();
     }
 
@@ -885,7 +882,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
                 if (chunk == null || !chunk.isLoaded()) continue;
 
                 sendPacket(chunk.getFullDataPacket());
-                EventDispatcher.call(new PlayerChunkLoadEvent(this, chunkX, chunkZ));
+                process().eventHandler().call(new PlayerChunkLoadEvent(this, chunkX, chunkZ));
 
                 pendingChunkCount -= 1f;
                 batchSize += 1;
@@ -1450,7 +1447,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     public boolean dropItem(ItemStack item) {
         if (item.isAir()) return false;
         ItemDropEvent itemDropEvent = new ItemDropEvent(this, item);
-        EventDispatcher.call(itemDropEvent);
+        process().eventHandler().call(itemDropEvent);
         return !itemDropEvent.isCancelled();
     }
 
@@ -1756,7 +1753,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @return the player current dimension
      */
     public DimensionType getDimensionType() {
-        return DIMENSION_TYPE_REGISTRY.get(dimensionTypeId);
+        return process().registries().dimensionType().get(dimensionTypeId);
     }
 
     public PlayerInventory getInventory() {
@@ -1796,7 +1793,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public boolean setGameMode(GameMode gameMode) {
         PlayerGameModeChangeEvent playerGameModeChangeEvent = new PlayerGameModeChangeEvent(this, gameMode);
-        EventDispatcher.call(playerGameModeChangeEvent);
+        process().eventHandler().call(playerGameModeChangeEvent);
         if (playerGameModeChangeEvent.isCancelled()) {
             // Abort
             return false;
@@ -1842,7 +1839,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     protected void sendDimension(RegistryKey<DimensionType> dimensionType, String dimensionName) {
         Check.argCondition(instance.getDimensionName().equals(dimensionName),
                 "The dimension needs to be different than the current one!");
-        this.dimensionTypeId = DIMENSION_TYPE_REGISTRY.getId(dimensionType);
+        this.dimensionTypeId = process().registries().dimensionType().getId(dimensionType);
         sendPacket(new RespawnPacket(new PlayerSpawnInfo(dimensionTypeId, dimensionName,
                 0, gameMode, gameMode, false, levelFlat,
                 deathLocation, portalCooldown, DEFAULT_SEA_LEVEL), (byte) RespawnPacket.COPY_ALL));
@@ -1926,7 +1923,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     public boolean openInventory(Inventory inventory) {
         InventoryOpenEvent inventoryOpenEvent = new InventoryOpenEvent(inventory, this);
 
-        EventDispatcher.callCancellable(inventoryOpenEvent, () -> {
+        process().eventHandler().callCancellable(inventoryOpenEvent, () -> {
             AbstractInventory openInventory = getOpenInventory();
             if (openInventory != null) {
                 openInventory.removeViewer(this);
@@ -1960,7 +1957,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         if (openInventory == null || windowId != openInventory.getWindowId()) return;
 
         InventoryCloseEvent inventoryCloseEvent = new InventoryCloseEvent(openInventory, this, fromClient);
-        EventDispatcher.call(inventoryCloseEvent);
+        process().eventHandler().call(inventoryCloseEvent);
 
         if (!fromClient) {
             didCloseInventory = true;
@@ -2320,7 +2317,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         this.onGround = onGround;
         if (this.onGround && this.isFlyingWithElytra()) {
             this.setFlyingWithElytra(false);
-            EventDispatcher.call(new PlayerStopFlyingWithElytraEvent(this));
+            process().eventHandler().call(new PlayerStopFlyingWithElytraEvent(this));
         }
     }
 
@@ -2388,7 +2385,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         this.setSneaking(shift);
 
         var event = new PlayerInputEvent(this, oldForward, oldBackward, oldLeft, oldRight, oldJump, oldShift, oldSprint);
-        EventDispatcher.call(event);
+        process().eventHandler().call(event);
     }
 
     /**

@@ -5,7 +5,7 @@ import net.minestom.server.adventure.ClickCallbackManager;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.entity.Entity;
-import net.minestom.server.event.GlobalEventHandler;
+import net.minestom.server.event.ProcessEventHandler;
 import net.minestom.server.exception.ExceptionManager;
 import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.InstanceManager;
@@ -31,7 +31,8 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     /**
      * Creates a process with its own managers, configuration, and registries, without changing
      * {@link MinecraftServer#process()}.
-     * <p>Gameplay and packet routing are not yet independent of the default process. In particular,
+     * <p>Events, instances, entities, and tick dispatch use their owning process. Other gameplay services
+     * and packet routing are still being migrated. In particular,
      * compression negotiation, encoded packet caches, and outgoing buffer pools still use default-process
      * state. Different compression settings cannot yet be used for independent client connections.</p>
      * {@snippet :
@@ -51,6 +52,9 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     static ServerProcess create() {
         return create(new Auth.Offline());
     }
+
+    /** Identifier unique to this process within the JVM, used to distinguish its threads and diagnostics. */
+    int id();
 
     String brandName();
 
@@ -88,6 +92,12 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     InstanceManager instance();
 
     /**
+     * Allocates an entity ID shared by all instances in this process, including packet-only entities.
+     * IDs from different processes may overlap; identify an entity by its process and ID together.
+     */
+    int generateEntityId();
+
+    /**
      * Handles {@link net.minestom.server.instance.block.BlockHandler block handlers}
      * and {@link BlockPlacementRule placement rules}.
      */
@@ -109,11 +119,11 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     TeamManager team();
 
     /**
-     * Gets the global event handler.
+     * Gets the event root owned by this process.
      * <p>
-     * Used to register event callback at a global scale.
+     * Used to register event callbacks for this process.
      */
-    GlobalEventHandler eventHandler();
+    ProcessEventHandler eventHandler();
 
     /**
      * Main scheduler ticked at the server rate.
@@ -167,7 +177,7 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
      */
     ClickCallbackManager clickCallbackManager();
 
-    /** Starts this process's socket server. A closed process cannot be started. */
+    /** Starts this process's socket server, dispatcher, and tick scheduler. A closed process cannot be started. */
     void start(SocketAddress socketAddress);
 
     void stop();
@@ -181,6 +191,7 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
 
     @ApiStatus.NonExtendable
     interface Ticker {
+        /** Runs one tick, starting this process's dispatcher on first use. Also usable before socket startup. */
         void tick(long nanoTime);
     }
 }

@@ -1,9 +1,12 @@
 package net.minestom.server.instance;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -15,10 +18,18 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class EntityTrackerTest {
+    private final ServerProcess process = ServerProcess.create();
+
+    @AfterAll
+    void closeProcess() {
+        process.close();
+    }
+
     @Test
     public void register() {
-        var ent1 = new Entity(EntityType.ZOMBIE);
+        var ent1 = new Entity(process, EntityType.ZOMBIE);
         var updater = new EntityTracker.Update<>() {
             @Override
             public void add(Entity entity) {
@@ -32,7 +43,7 @@ public class EntityTrackerTest {
                 fail("No other entity should be registered yet");
             }
         };
-        EntityTracker tracker = EntityTracker.newTracker();
+        EntityTracker tracker = EntityTracker.newTracker(process);
         var chunkEntities = tracker.chunkEntities(Vec.ZERO, EntityTracker.Target.ENTITIES);
         assertTrue(chunkEntities.isEmpty());
 
@@ -45,7 +56,7 @@ public class EntityTrackerTest {
 
     @Test
     public void move() {
-        var ent1 = new Entity(EntityType.ZOMBIE);
+        var ent1 = new Entity(process, EntityType.ZOMBIE);
         var updater = new EntityTracker.Update<>() {
             @Override
             public void add(Entity entity) {
@@ -58,7 +69,7 @@ public class EntityTrackerTest {
             }
         };
 
-        EntityTracker tracker = EntityTracker.newTracker();
+        EntityTracker tracker = EntityTracker.newTracker(process);
 
         tracker.register(ent1, Vec.ZERO, EntityTracker.Target.ENTITIES, updater);
         assertEquals(1, tracker.chunkEntities(Vec.ZERO, EntityTracker.Target.ENTITIES).size());
@@ -70,10 +81,10 @@ public class EntityTrackerTest {
 
     @Test
     public void tracking() {
-        var ent1 = new Entity(EntityType.ZOMBIE);
-        var ent2 = new Entity(EntityType.ZOMBIE);
+        var ent1 = new Entity(process, EntityType.ZOMBIE);
+        var ent2 = new Entity(process, EntityType.ZOMBIE);
 
-        EntityTracker tracker = EntityTracker.newTracker();
+        EntityTracker tracker = EntityTracker.newTracker(process);
         tracker.register(ent1, Vec.ZERO, EntityTracker.Target.ENTITIES, new EntityTracker.Update<>() {
             @Override
             public void add(Entity entity) {
@@ -129,9 +140,9 @@ public class EntityTrackerTest {
 
     @Test
     public void nearby() {
-        var ent1 = new Entity(EntityType.ZOMBIE);
-        var ent2 = new Entity(EntityType.ZOMBIE);
-        var ent3 = new Entity(EntityType.ZOMBIE);
+        var ent1 = new Entity(process, EntityType.ZOMBIE);
+        var ent2 = new Entity(process, EntityType.ZOMBIE);
+        var ent3 = new Entity(process, EntityType.ZOMBIE);
         var updater = new EntityTracker.Update<>() {
             @Override
             public void add(Entity entity) {
@@ -144,7 +155,7 @@ public class EntityTrackerTest {
             }
         };
 
-        EntityTracker tracker = EntityTracker.newTracker();
+        EntityTracker tracker = EntityTracker.newTracker(process);
         tracker.register(ent2, new Vec(5, 0, 0), EntityTracker.Target.ENTITIES, updater);
         tracker.register(ent3, new Vec(50, 0, 0), EntityTracker.Target.ENTITIES, updater);
 
@@ -182,9 +193,9 @@ public class EntityTrackerTest {
 
     @Test
     public void nearbySingleChunk() {
-        var ent1 = new Entity(EntityType.ZOMBIE);
-        var ent2 = new Entity(EntityType.ZOMBIE);
-        var ent3 = new Entity(EntityType.ZOMBIE);
+        var ent1 = new Entity(process, EntityType.ZOMBIE);
+        var ent2 = new Entity(process, EntityType.ZOMBIE);
+        var ent3 = new Entity(process, EntityType.ZOMBIE);
         var updater = new EntityTracker.Update<>() {
             @Override
             public void add(Entity entity) {
@@ -197,7 +208,7 @@ public class EntityTrackerTest {
             }
         };
 
-        EntityTracker tracker = EntityTracker.newTracker();
+        EntityTracker tracker = EntityTracker.newTracker(process);
         tracker.register(ent1, new Vec(5, 0, 5), EntityTracker.Target.ENTITIES, updater);
         tracker.register(ent2, new Vec(8, 0, 8), EntityTracker.Target.ENTITIES, updater);
         tracker.register(ent3, new Vec(17, 0, 17), EntityTracker.Target.ENTITIES, updater);
@@ -222,7 +233,7 @@ public class EntityTrackerTest {
 
     @Test
     public void collectionView() {
-        var ent1 = new Entity(EntityType.ZOMBIE);
+        var ent1 = new Entity(process, EntityType.ZOMBIE);
         var updater = new EntityTracker.Update<>() {
             @Override
             public void add(Entity entity) {
@@ -237,7 +248,7 @@ public class EntityTrackerTest {
             }
         };
 
-        EntityTracker tracker = EntityTracker.newTracker();
+        EntityTracker tracker = EntityTracker.newTracker(process);
         var entities = tracker.entities();
         var chunkEntities = tracker.chunkEntities(Vec.ZERO, EntityTracker.Target.ENTITIES);
 
@@ -247,7 +258,7 @@ public class EntityTrackerTest {
         assertEquals(1, entities.size());
         assertEquals(1, chunkEntities.size());
 
-        assertThrows(Exception.class, () -> entities.add(new Entity(EntityType.ZOMBIE)));
-        assertThrows(Exception.class, () -> chunkEntities.add(new Entity(EntityType.ZOMBIE)));
+        assertThrows(Exception.class, () -> entities.add(new Entity(process, EntityType.ZOMBIE)));
+        assertThrows(Exception.class, () -> chunkEntities.add(new Entity(process, EntityType.ZOMBIE)));
     }
 }

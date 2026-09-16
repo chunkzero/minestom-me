@@ -1,7 +1,6 @@
 package net.minestom.demo.commands;
 
 import net.kyori.adventure.text.Component;
-import net.minestom.server.ServerProcess;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
@@ -20,73 +19,73 @@ import net.minestom.server.utils.time.TimeUnit;
 
 public class DisplayCommand extends Command {
 
-    private final ServerProcess process;
-
-    public DisplayCommand(ServerProcess process) {
+    public DisplayCommand() {
         super("display");
-        this.process = process;
 
         var follow = ArgumentType.Literal("follow");
 
-        addSyntax(this::spawnItem, ArgumentType.Literal("item"));
-        addSyntax(this::spawnBlock, ArgumentType.Literal("block"));
-        addSyntax(this::spawnText, ArgumentType.Literal("text"));
+        addSyntax(DisplayCommand::spawnItem, ArgumentType.Literal("item"));
+        addSyntax(DisplayCommand::spawnBlock, ArgumentType.Literal("block"));
+        addSyntax(DisplayCommand::spawnText, ArgumentType.Literal("text"));
 
-        addSyntax(this::spawnItem, ArgumentType.Literal("item"), follow);
-        addSyntax(this::spawnBlock, ArgumentType.Literal("block"), follow);
-        addSyntax(this::spawnText, ArgumentType.Literal("text"), follow);
+        addSyntax(DisplayCommand::spawnItem, ArgumentType.Literal("item"), follow);
+        addSyntax(DisplayCommand::spawnBlock, ArgumentType.Literal("block"), follow);
+        addSyntax(DisplayCommand::spawnText, ArgumentType.Literal("text"), follow);
     }
 
-    public void spawnItem(CommandSender sender, CommandContext context) {
+    public static void spawnItem(CommandSender sender, CommandContext context) {
         if (!(sender instanceof Player player))
             return;
 
-        var entity = new Entity(EntityType.ITEM_DISPLAY);
-        var meta = (ItemDisplayMeta) entity.getEntityMeta();
-        meta.setTransformationInterpolationDuration(20);
-        meta.setItemStack(ItemStack.of(Material.STICK));
-        entity.setInstance(player.getInstance(), player.getPosition()).join();
+        var entity = Entity.builder(EntityType.ITEM_DISPLAY)
+                .initialize(display -> display.editEntityMeta(ItemDisplayMeta.class, meta -> {
+                    meta.setTransformationInterpolationDuration(20);
+                    meta.setItemStack(ItemStack.of(Material.STICK));
+                }))
+                .spawn(player.getInstance(), player.getPosition()).join();
 
         if (context.has("follow")) {
             startSmoothFollow(entity, player);
         }
     }
 
-    public void spawnBlock(CommandSender sender, CommandContext context) {
+    public static void spawnBlock(CommandSender sender, CommandContext context) {
         if (!(sender instanceof Player player))
             return;
 
-        var entity = new Entity(EntityType.BLOCK_DISPLAY);
-        var meta = (BlockDisplayMeta) entity.getEntityMeta();
-        meta.setTransformationInterpolationDuration(20);
-        meta.setBlockState(Block.ORANGE_CANDLE_CAKE);
-        entity.setInstance(player.getInstance(), player.getPosition()).join();
+        var entity = Entity.builder(EntityType.BLOCK_DISPLAY)
+                .initialize(display -> display.editEntityMeta(BlockDisplayMeta.class, meta -> {
+                    meta.setTransformationInterpolationDuration(20);
+                    meta.setBlockState(Block.ORANGE_CANDLE_CAKE);
+                }))
+                .spawn(player.getInstance(), player.getPosition()).join();
 
         if (context.has("follow")) {
             startSmoothFollow(entity, player);
         }
     }
 
-    public void spawnText(CommandSender sender, CommandContext context) {
+    public static void spawnText(CommandSender sender, CommandContext context) {
         if (!(sender instanceof Player player))
             return;
 
-        var entity = new Entity(EntityType.TEXT_DISPLAY);
-        var meta = (TextDisplayMeta) entity.getEntityMeta();
-        meta.setTransformationInterpolationDuration(20);
-        meta.setBillboardRenderConstraints(AbstractDisplayMeta.BillboardConstraints.CENTER);
-        meta.setText(Component.text("Hello, world!"));
-        entity.setInstance(player.getInstance(), player.getPosition()).join();
+        var entity = Entity.builder(EntityType.TEXT_DISPLAY)
+                .initialize(display -> display.editEntityMeta(TextDisplayMeta.class, meta -> {
+                    meta.setTransformationInterpolationDuration(20);
+                    meta.setBillboardRenderConstraints(AbstractDisplayMeta.BillboardConstraints.CENTER);
+                    meta.setText(Component.text("Hello, world!"));
+                }))
+                .spawn(player.getInstance(), player.getPosition()).join();
 
         if (context.has("follow")) {
             startSmoothFollow(entity, player);
         }
     }
 
-    private void startSmoothFollow(Entity entity, Player player) {
+    private static void startSmoothFollow(Entity entity, Player player) {
 //        entity.setCustomName(Component.text("MY CUSTOM NAME"));
 //        entity.setCustomNameVisible(true);
-        process.scheduler().buildTask(() -> {
+        entity.process().scheduler().buildTask(() -> {
             var meta = (AbstractDisplayMeta) entity.getEntityMeta();
             meta.setNotifyAboutChanges(false);
             meta.setTransformationInterpolationStartDelta(1);

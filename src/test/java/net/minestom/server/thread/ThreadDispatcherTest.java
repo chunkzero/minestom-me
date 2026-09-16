@@ -1,27 +1,106 @@
 package net.minestom.server.thread;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.Tickable;
+import net.minestom.server.entity.Entity;
+import net.minestom.server.entity.EntityType;
+import net.minestom.server.instance.Chunk;
+import net.minestom.server.instance.ChunkLoader;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 public class ThreadDispatcherTest {
+    @Test
+    @Timeout(10)
+    void customDispatcherAcceptsOwnedChunksAndEntities() throws InterruptedException {
+        try (var process = ServerProcess.create()) {
+            var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
+            var chunk = instance.loadChunk(0, 0).join();
+            var ticks = new AtomicInteger();
+            var entity = new Entity(process, EntityType.ZOMBIE) {
+                @Override
+                public void tick(long time) {
+                    ticks.incrementAndGet();
+                }
+            };
+            ThreadDispatcher<Chunk, Entity> dispatcher = ThreadDispatcher.singleThread();
+            try {
+                dispatcher.createPartition(chunk);
+                dispatcher.updateElement(entity, chunk);
+                dispatcher.start();
+                dispatcher.updateAndAwait(System.nanoTime());
+                assertEquals(1, ticks.get());
+                assertSame(dispatcher.threads().getFirst(), entity.acquirable().assignedThread());
+                dispatcher.removeElement(entity);
+                dispatcher.deletePartition(chunk);
+                dispatcher.updateAndAwait(System.nanoTime());
+                assertEquals(1, ticks.get());
+            } finally {
+                dispatcher.shutdown();
+                for (var thread : dispatcher.threads()) thread.join();
+            }
+        }
+    }
+
+    @Test
+    @Timeout(10)
+    void repeatedShutdownReleasesOnlyTheUnstartedWorkersShareOfATick() throws InterruptedException {
+        ThreadDispatcher<Integer, Tickable> dispatcher = ThreadDispatcher.dispatcher(partition -> partition, 2);
+        var running = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        var complete = new CountDownLatch(1);
+        Thread coordinator = null;
+        try {
+            dispatcher.createPartition(0);
+            dispatcher.createPartition(1);
+            dispatcher.updateElement(_ -> {
+                running.countDown();
+                try {
+                    release.await();
+                } catch (InterruptedException _) {
+                    Thread.currentThread().interrupt();
+                }
+            }, 1);
+            dispatcher.threads().get(1).start();
+            coordinator = Thread.startVirtualThread(() -> {
+                dispatcher.updateAndAwait(System.nanoTime());
+                complete.countDown();
+            });
+            assertTrue(running.await(5, TimeUnit.SECONDS));
+            dispatcher.threads().getFirst().shutdown();
+            dispatcher.threads().getFirst().shutdown();
+            assertFalse(complete.await(100, TimeUnit.MILLISECONDS));
+            release.countDown();
+            assertTrue(complete.await(5, TimeUnit.SECONDS));
+        } finally {
+            release.countDown();
+            dispatcher.shutdown();
+            if (coordinator != null) coordinator.join();
+            for (var thread : dispatcher.threads()) thread.join();
+        }
+    }
+
     record World() {
     }
 

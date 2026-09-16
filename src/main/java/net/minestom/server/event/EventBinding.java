@@ -1,5 +1,6 @@
 package net.minestom.server.event;
 
+import net.minestom.server.ServerProcess;
 import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
@@ -7,7 +8,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 @ApiStatus.Experimental
@@ -19,7 +19,7 @@ public interface EventBinding<E extends Event> {
 
     Collection<Class<? extends Event>> eventTypes();
 
-    Consumer<E> consumer(Class<? extends Event> eventType);
+    BiConsumer<ServerProcess, E> consumer(Class<? extends Event> eventType);
 
     class FilteredBuilder<E extends Event, T> {
         private final EventFilter<E, T> filter;
@@ -42,11 +42,11 @@ public interface EventBinding<E extends Event> {
             final var copy = Map.copyOf(mapped);
             final var eventTypes = copy.keySet();
 
-            Map<Class<? extends Event>, Consumer<E>> consumers = new HashMap<>(eventTypes.size());
+            Map<Class<? extends Event>, BiConsumer<ServerProcess, E>> consumers = new HashMap<>(eventTypes.size());
             for (var eventType : eventTypes) {
                 final var consumer = copy.get(eventType);
-                consumers.put(eventType, event -> {
-                    final T handler = filter.getHandler(event);
+                consumers.put(eventType, (process, event) -> {
+                    final T handler = filter.getHandler(process, event);
                     if (!predicate.test(handler)) return;
                     consumer.accept(handler, event);
                 });
@@ -58,7 +58,7 @@ public interface EventBinding<E extends Event> {
                 }
 
                 @Override
-                public Consumer<E> consumer(Class<? extends Event> eventType) {
+                public BiConsumer<ServerProcess, E> consumer(Class<? extends Event> eventType) {
                     return consumers.get(eventType);
                 }
             };

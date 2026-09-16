@@ -1,5 +1,6 @@
 package net.minestom.server.event;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.trait.BlockEvent;
@@ -15,6 +16,7 @@ import net.minestom.server.item.ItemStack;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
@@ -44,10 +46,26 @@ public interface EventFilter<E extends Event, H> {
     static <E extends Event, H> EventFilter<E, H> from(Class<E> eventType,
                                                        @Nullable Class<H> handlerType,
                                                        @Nullable Function<E, H> handlerGetter) {
+        return fromContextual(eventType, handlerType, (_, event) -> handlerGetter != null ? handlerGetter.apply(event) : null);
+    }
+
+    /**
+     * Gets the handler for the given event instance, or null if the event
+     * type has no handler.
+     *
+     * @param process The dispatching process
+     * @param event The event instance
+     * @return The handler, if it exists for the given event
+     */
+    @Nullable H getHandler(ServerProcess process, E event);
+
+    /** Creates a filter whose handler lookup receives the dispatching process. */
+    static <E extends Event, H> EventFilter<E, H> fromContextual(Class<E> eventType, @Nullable Class<H> handlerType,
+                                                                BiFunction<ServerProcess, E, H> handlerGetter) {
         return new EventFilter<>() {
             @Override
-            public @Nullable H getHandler(E event) {
-                return handlerGetter != null ? handlerGetter.apply(event) : null;
+            public @Nullable H getHandler(ServerProcess process, E event) {
+                return handlerGetter.apply(process, event);
             }
 
             @Override
@@ -62,19 +80,10 @@ public interface EventFilter<E extends Event, H> {
         };
     }
 
-    /**
-     * Gets the handler for the given event instance, or null if the event
-     * type has no handler.
-     *
-     * @param event The event instance
-     * @return The handler, if it exists for the given event
-     */
-    @Nullable H getHandler(E event);
-
     @ApiStatus.Internal
     @SuppressWarnings("unchecked")
-    default @Nullable H castHandler(Object event) {
-        return getHandler((E) event);
+    default @Nullable H castHandler(ServerProcess process, Object event) {
+        return getHandler(process, (E) event);
     }
 
     /**
@@ -85,7 +94,7 @@ public interface EventFilter<E extends Event, H> {
     Class<E> eventType();
 
     /**
-     * The type returned by {@link #getHandler(Event)}.
+     * The type returned by {@link #getHandler(ServerProcess, Event)}.
      *
      * @return the handler type, null if not any
      */
