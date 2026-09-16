@@ -11,6 +11,7 @@ import net.minestom.server.instance.generator.GeneratorImpl;
 import net.minestom.server.instance.heightmap.Heightmap;
 import net.minestom.server.network.ConnectionState;
 import net.minestom.server.network.NetworkBuffer;
+import net.minestom.server.network.packet.PacketBufferPool;
 import net.minestom.server.network.packet.PacketReading;
 import net.minestom.server.network.packet.PacketVanilla;
 import net.minestom.server.network.packet.PacketWriting;
@@ -113,8 +114,8 @@ public final class Scratch {
     }
 
     private static void serve(SocketChannel channel, Registries registries, FlatWorld flatWorld) {
-        try (channel) {
-            var connection = new Connection(channel, registries);
+        try (channel; var buffers = new PacketBufferPool(registries)) {
+            var connection = new Connection(channel, buffers);
             ConnectionState clientState = ConnectionState.HANDSHAKE;
             while (channel.isOpen()) {
                 connection.readBuffer.readChannel(channel);
@@ -208,18 +209,20 @@ public final class Scratch {
     private static final class Connection {
         private final SocketChannel channel;
         private final Registries registries;
+        private final PacketBufferPool buffers;
         private final NetworkBuffer readBuffer;
         private ConnectionState serverState = ConnectionState.STATUS;
 
-        private Connection(SocketChannel channel, Registries registries) {
+        private Connection(SocketChannel channel, PacketBufferPool buffers) {
             this.channel = channel;
-            this.registries = registries;
+            this.buffers = buffers;
+            this.registries = buffers.registries();
             this.readBuffer = NetworkBuffer.resizableBuffer(4096, registries);
         }
 
         private void send(SendablePacket packet) {
             ConnectionState previousState = serverState;
-            ServerPacket serverPacket = SendablePacket.extractServerPacket(previousState, packet);
+            ServerPacket serverPacket = SendablePacket.extractServerPacket(buffers.context(previousState, 0), packet);
             if (serverPacket == null) throw new IllegalArgumentException("Unsupported packet: " + packet);
             serverState = PacketVanilla.nextServerState(serverPacket, serverState);
             NetworkBuffer buffer = NetworkBuffer.resizableBuffer(1024, registries);

@@ -1,10 +1,10 @@
 package net.minestom.server.network.packet;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.network.ConnectionState;
 import net.minestom.server.network.packet.server.CachedPacket;
 import net.minestom.server.network.packet.server.ServerPacket;
 import net.minestom.server.network.packet.server.common.KeepAlivePacket;
+import net.minestom.server.registry.Registries;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -32,24 +32,19 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Group)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 public class NetworkCachedPacketBenchmark {
-    static {
-        initializeDefaultProcess();
-    }
-
-    @SuppressWarnings("removal") // Cached packet framing still requires the default process.
-    private static void initializeDefaultProcess() {
-        MinecraftServer.init();
-    }
-
     @Param({"1", "1000", "100000"})
     private int packetTime;
 
+    private PacketBufferPool buffers;
+    private PacketEncodingContext context;
     private Random random;
     private ServerPacket packet;
     private CachedPacket cachedPacket;
 
     @Setup(Level.Iteration)
     public void setup() {
+        buffers = new PacketBufferPool(Registries.vanilla());
+        context = buffers.context(ConnectionState.PLAY, 256);
         random = new Random(151243);
         packet = new KeepAlivePacket(0);
         int packetTime = this.packetTime;
@@ -62,7 +57,7 @@ public class NetworkCachedPacketBenchmark {
     @Group("shared")
     @GroupThreads(3)
     public void packet(Blackhole blackhole) {
-        blackhole.consume(cachedPacket.packet(ConnectionState.PLAY));
+        blackhole.consume(cachedPacket.packet(context));
     }
 
     @Benchmark
@@ -75,8 +70,9 @@ public class NetworkCachedPacketBenchmark {
         Blackhole.consumeCPU(1500);
     }
 
-    @TearDown
+    @TearDown(Level.Iteration)
     public void teardown(Blackhole blackhole) {
+        buffers.close();
         blackhole.consume(random);
         blackhole.consume(packet);
         blackhole.consume(cachedPacket);

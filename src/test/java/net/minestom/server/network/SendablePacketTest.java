@@ -1,42 +1,121 @@
 package net.minestom.server.network;
 
 import net.kyori.adventure.text.Component;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.PlayerHand;
+import net.minestom.server.network.packet.PacketBufferPool;
+import net.minestom.server.network.packet.PacketEncodingContext;
 import net.minestom.server.network.packet.PacketReading;
 import net.minestom.server.network.packet.PacketWriting;
 import net.minestom.server.network.packet.client.ClientPacket;
 import net.minestom.server.network.packet.client.play.ClientAnimationPacket;
 import net.minestom.server.network.packet.server.CachedPacket;
 import net.minestom.server.network.packet.server.play.SystemChatPacket;
+import net.minestom.server.registry.Registries;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.DataFormatException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 public class SendablePacketTest {
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void cached() {
-        var packet = new SystemChatPacket(Component.text("Hello World!"), false);
-        var cached = new CachedPacket(packet);
-        assertSame(packet, cached.packet(ConnectionState.PLAY));
+        try (var pool = new PacketBufferPool(Registries.vanilla())) {
+            var context = pool.context(ConnectionState.PLAY, 256);
+            var packet = new SystemChatPacket(Component.text("Hello World!"), false);
+            var cached = new CachedPacket(packet);
+            assertSame(packet, cached.packet(context));
+            var buffer = context.frame(packet);
+            var cachedBuffer = cached.body(context);
+            assertTrue(NetworkBuffer.equals(buffer, cachedBuffer));
+            assertSame(cached.body(context), cachedBuffer);
+            assertSame(packet, cached.packet(context));
+        }
+    }
 
-        var buffer = PacketWriting.allocateTrimmedPacket(ConnectionState.PLAY, packet,
-                MinecraftServer.getCompressionThreshold()); // TODO required because CachedPacket internally uses process.
-        var cachedBuffer = cached.body(ConnectionState.PLAY);
-        assertTrue(NetworkBuffer.equals(buffer, cachedBuffer));
-        // May fail in the very unlikely case where soft references are cleared
-        // Rare enough to make this test worth it
-        assertSame(cached.body(ConnectionState.PLAY), cachedBuffer);
+    @Test
+    @Timeout(10)
+    void concurrentContextsSerializeTheSupplier() throws Exception {
+        try (var pool = new PacketBufferPool(Registries.vanilla());
+             var executor = Executors.newFixedThreadPool(2)) {
+            var packet = new SystemChatPacket(Component.text("shared"), false);
+            var active = new AtomicInteger();
+            var calls = new AtomicInteger();
+            var cached = new CachedPacket(() -> {
+                assertEquals(1, active.incrementAndGet());
+                try {
+                    calls.incrementAndGet();
+                    return packet;
+                } finally {
+                    active.decrementAndGet();
+                }
+            });
+            var barrier = new CyclicBarrier(2);
+            var firstContext = pool.context(ConnectionState.PLAY, 0);
+            var secondContext = pool.context(ConnectionState.PLAY, 1);
+            var first = executor.submit(() -> readConcurrentCache(cached, firstContext, barrier));
+            var second = executor.submit(() -> readConcurrentCache(cached, secondContext, barrier));
+            first.get(5, TimeUnit.SECONDS);
+            second.get(5, TimeUnit.SECONDS);
+            assertTrue(calls.get() >= 2);
+            int previousCalls = calls.get();
+            cached.invalidate();
+            assertFalse(cached.isValid());
+            assertSame(packet, cached.packet(firstContext));
+            assertEquals(previousCalls + 1, calls.get());
+        }
+    }
 
-        assertSame(packet, cached.packet(ConnectionState.PLAY));
+    private static Void readConcurrentCache(CachedPacket cached, PacketEncodingContext context, CyclicBarrier barrier)
+            throws Exception {
+        var expected = context.frame(new SystemChatPacket(Component.text("shared"), false));
+        for (int i = 0; i < 16; i++) {
+            barrier.await(5, TimeUnit.SECONDS);
+            assertTrue(NetworkBuffer.equals(expected, cached.body(context)));
+        }
+        return null;
+    }
+
+    @Test
+    @Timeout(10)
+    void invalidationDoesNotWaitForAnInProgressSupplier() throws Exception {
+        try (var pool = new PacketBufferPool(Registries.vanilla());
+             var executor = Executors.newFixedThreadPool(2)) {
+            var entered = new CountDownLatch(1);
+            var release = new CountDownLatch(1);
+            var cached = new CachedPacket(() -> {
+                entered.countDown();
+                try {
+                    assertTrue(release.await(5, TimeUnit.SECONDS));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError(e);
+                }
+                return new SystemChatPacket(Component.text("pending"), false);
+            });
+            var future = executor.submit(() -> cached.body(pool.context(ConnectionState.PLAY, 0)));
+            try {
+                assertTrue(entered.await(5, TimeUnit.SECONDS));
+                executor.submit(cached::invalidate).get(5, TimeUnit.SECONDS);
+                assertFalse(cached.isValid());
+            } finally {
+                release.countDown();
+            }
+            future.get(5, TimeUnit.SECONDS);
+            assertTrue(cached.isValid(), "An admitted computation can publish after invalidation");
+        }
     }
 
     @Test

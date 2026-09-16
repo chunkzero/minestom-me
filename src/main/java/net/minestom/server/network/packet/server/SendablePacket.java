@@ -1,6 +1,6 @@
 package net.minestom.server.network.packet.server;
 
-import net.minestom.server.network.ConnectionState;
+import net.minestom.server.network.packet.PacketEncodingContext;
 import net.minestom.server.network.player.PlayerConnection;
 import org.jetbrains.annotations.Nullable;
 
@@ -10,10 +10,10 @@ import org.jetbrains.annotations.Nullable;
 public sealed interface SendablePacket
         permits BufferedPacket, CachedPacket, FramedPacket, ServerPacket {
 
-    static @Nullable ServerPacket extractServerPacket(ConnectionState state, SendablePacket packet) {
+    static @Nullable ServerPacket extractServerPacket(PacketEncodingContext context, SendablePacket packet) {
         return switch (packet) {
             case ServerPacket serverPacket -> serverPacket;
-            case CachedPacket cachedPacket -> cachedPacket.packet(state);
+            case CachedPacket cachedPacket -> cachedPacket.packet(context);
             case FramedPacket framedPacket -> framedPacket.packet();
             case BufferedPacket _ -> null;
         };

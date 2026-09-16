@@ -7,6 +7,7 @@ import net.minestom.server.network.packet.client.ClientPacket;
 import net.minestom.server.network.packet.server.ServerPacket;
 import org.jctools.queues.MessagePassingQueue;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.function.BiPredicate;
 
@@ -14,6 +15,8 @@ import java.util.function.BiPredicate;
  * Tools to write packets into a {@link NetworkBuffer} for network processing.
  * <p>
  * Fairly internal and performance sensitive.
+ * <p>Allocating overloads without a buffer or encoding context have no game registries.
+ * Use an explicit context when encoding registry-dependent packets.
  */
 @ApiStatus.Internal
 public final class PacketWriting {
@@ -70,8 +73,13 @@ public final class PacketWriting {
                                              NetworkBuffer.Type<? super T> type,
                                              int id, T packet,
                                              int compressionThreshold) throws IndexOutOfBoundsException {
+        writeFramedPacket(buffer, type, id, packet, compressionThreshold, null);
+    }
+
+    static <T> void writeFramedPacket(NetworkBuffer buffer, NetworkBuffer.Type<? super T> type,
+                                    int id, T packet, int compressionThreshold, @Nullable PacketBufferPool pool) {
         if (compressionThreshold <= 0) writeUncompressedFormat(buffer, type, id, packet);
-        else writeCompressedFormat(buffer, type, id, packet, compressionThreshold);
+        else writeCompressedFormat(buffer, type, id, packet, compressionThreshold, pool);
     }
 
     private static <T> void writeUncompressedFormat(NetworkBuffer buffer,
@@ -88,7 +96,7 @@ public final class PacketWriting {
     private static <T> void writeCompressedFormat(NetworkBuffer buffer,
                                                   NetworkBuffer.Type<? super T> type,
                                                   int id, T packet,
-                                                  int compressionThreshold) throws IndexOutOfBoundsException {
+                                                  int compressionThreshold, @Nullable PacketBufferPool pool) throws IndexOutOfBoundsException {
         // Compressed format https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Protocol#With_compression
         final long compressedIndex = buffer.advanceWrite(3);
         final long uncompressedIndex = buffer.advanceWrite(3);
@@ -100,14 +108,14 @@ public final class PacketWriting {
         if (compressed) {
             // Write the compressed content into the pooled buffer
             // and compress it into the current buffer
-            NetworkBuffer input = PacketVanilla.PACKET_POOL.get();
+            NetworkBuffer input = pool != null ? pool.get() : NetworkBuffer.staticBuffer(packetSize);
             try {
                 if (input.capacity() < packetSize) input.resize(packetSize);
                 NetworkBuffer.copy(buffer, contentStart, input, 0, packetSize);
                 buffer.writeIndex(contentStart);
                 input.compress(0, packetSize, buffer);
             } finally {
-                PacketVanilla.PACKET_POOL.add(input);
+                if (pool != null) pool.add(input);
             }
         }
         // Packet header (Packet + Data Length)
@@ -132,12 +140,8 @@ public final class PacketWriting {
             ConnectionState state,
             T packet,
             int compressionThreshold) {
-        NetworkBuffer buffer = PacketVanilla.PACKET_POOL.get();
-        try {
-            return allocateTrimmedPacket(buffer, parser, state, packet, compressionThreshold);
-        } finally {
-            PacketVanilla.PACKET_POOL.add(buffer);
-        }
+        NetworkBuffer buffer = NetworkBuffer.staticBuffer(ServerFlag.POOLED_BUFFER_SIZE);
+        return allocateTrimmedPacket(buffer, parser, state, packet, compressionThreshold);
     }
 
     public static <T> NetworkBuffer allocateTrimmedPacket(
@@ -151,16 +155,32 @@ public final class PacketWriting {
         return allocateTrimmedPacket(tmpBuffer, registry, packet, compressionThreshold);
     }
 
+    public static NetworkBuffer allocateTrimmedPacket(PacketEncodingContext context, ServerPacket packet) {
+        NetworkBuffer buffer = context.buffers().get();
+        try {
+            @SuppressWarnings("unchecked") // The packet must be valid for this protocol state.
+            var registry = (PacketRegistry<ServerPacket>) PacketVanilla.SERVER_PACKET_PARSER.stateRegistry(context.state());
+            return allocateTrimmedPacket(buffer, registry, packet, context.compressionThreshold(), context.buffers());
+        } finally {
+            context.buffers().add(buffer);
+        }
+    }
+
     public static <T> NetworkBuffer allocateTrimmedPacket(
             NetworkBuffer tmpBuffer,
             PacketRegistry<? super T> registry,
             T packet,
             int compressionThreshold) {
+        return allocateTrimmedPacket(tmpBuffer, registry, packet, compressionThreshold, null);
+    }
+
+    private static <T> NetworkBuffer allocateTrimmedPacket(NetworkBuffer tmpBuffer, PacketRegistry<? super T> registry,
+                                                          T packet, int compressionThreshold, @Nullable PacketBufferPool pool) {
         final PacketRegistry.PacketInfo<? super T> packetInfo = registry.packetInfo(packet);
         final int id = packetInfo.id();
         final NetworkBuffer.Type<? super T> serializer = packetInfo.serializer();
         try {
-            writeFramedPacket(tmpBuffer, serializer, id, packet, compressionThreshold);
+            writeFramedPacket(tmpBuffer, serializer, id, packet, compressionThreshold, pool);
             return tmpBuffer.copy(0, tmpBuffer.writeIndex());
         } catch (IndexOutOfBoundsException _) {
             final long sizeOf = serializer.sizeOf(packet, tmpBuffer.registries());
@@ -171,7 +191,7 @@ public final class PacketWriting {
             // Packet Length - Data Length - Packet ID
             tmpBuffer.resize(sizeOf + 15);
             tmpBuffer.writeIndex(0);
-            writeFramedPacket(tmpBuffer, serializer, id, packet, compressionThreshold);
+            writeFramedPacket(tmpBuffer, serializer, id, packet, compressionThreshold, pool);
             return tmpBuffer.copy(0, tmpBuffer.writeIndex());
         }
     }
@@ -192,7 +212,6 @@ public final class PacketWriting {
             } catch (IndexOutOfBoundsException _) {
                 success = false;
             }
-            assert !success || buffer.writeIndex() > 0;
             // Poll the packet only if fully written
             if (success) {
                 // Packet fully written

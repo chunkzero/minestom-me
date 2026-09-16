@@ -1,12 +1,7 @@
 package net.minestom.server.network;
 
-import net.minestom.server.network.packet.PacketVanilla;
 import net.minestom.server.network.packet.PacketWriting;
 import net.minestom.server.network.packet.server.ServerPacket;
-import net.minestom.testing.Env;
-import net.minestom.testing.EnvTest;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -16,13 +11,7 @@ import static net.minestom.server.network.NetworkBuffer.STRING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-@EnvTest
 public class SocketWriteIntegrationTest {
-
-    @BeforeAll
-    public static void setup(Env env) { // PACKET_POOL
-        Assertions.assertNotNull(env.process().registries());
-    }
 
     record IntPacket(int value) implements ServerPacket.Play {
         public static final NetworkBuffer.Type<IntPacket> SERIALIZER = NetworkBufferTemplate.template(
@@ -40,7 +29,7 @@ public class SocketWriteIntegrationTest {
     public void writeSingleUncompressed() {
         var packet = new IntPacket(5);
 
-        var buffer = PacketVanilla.PACKET_POOL.get();
+        var buffer = NetworkBuffer.staticBuffer(8192);
         PacketWriting.writeFramedPacket(buffer, IntPacket.SERIALIZER, 1, packet, -1);
 
         // 3 bytes length [var-int] + 1 byte packet id [var-int] + 4 bytes int
@@ -52,7 +41,7 @@ public class SocketWriteIntegrationTest {
     public void writeMultiUncompressed() {
         var packet = new IntPacket(5);
 
-        var buffer = PacketVanilla.PACKET_POOL.get();
+        var buffer = NetworkBuffer.staticBuffer(8192);
         PacketWriting.writeFramedPacket(buffer, IntPacket.SERIALIZER, 1, packet, -1);
         PacketWriting.writeFramedPacket(buffer, IntPacket.SERIALIZER, 1, packet, -1);
 
@@ -69,7 +58,7 @@ public class SocketWriteIntegrationTest {
 
         var packet = new CompressiblePacket(string);
 
-        var buffer = PacketVanilla.PACKET_POOL.get();
+        var buffer = NetworkBuffer.staticBuffer(8192);
         PacketWriting.writeFramedPacket(buffer, CompressiblePacket.SERIALIZER, 1, packet, 256);
 
         // 3 bytes packet length [var-int] + 3 bytes data length [var-int] + 1 byte packet id [var-int] + payload
@@ -81,7 +70,7 @@ public class SocketWriteIntegrationTest {
     public void writeSingleCompressedSmall() {
         var packet = new IntPacket(5);
 
-        var buffer = PacketVanilla.PACKET_POOL.get();
+        var buffer = NetworkBuffer.staticBuffer(8192);
         PacketWriting.writeFramedPacket(buffer, IntPacket.SERIALIZER, 1, packet, 256);
 
         // 3 bytes packet length [var-int] + 3 bytes data length [var-int] + 1 byte packet id [var-int] + 4 bytes int
@@ -93,7 +82,7 @@ public class SocketWriteIntegrationTest {
     public void writeMultiCompressedSmall() {
         var packet = new IntPacket(5);
 
-        var buffer = PacketVanilla.PACKET_POOL.get();
+        var buffer = NetworkBuffer.staticBuffer(8192);
         PacketWriting.writeFramedPacket(buffer, IntPacket.SERIALIZER, 1, packet, 256);
         PacketWriting.writeFramedPacket(buffer, IntPacket.SERIALIZER, 1, packet, 256);
 

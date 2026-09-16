@@ -92,7 +92,7 @@ final class TestConnectionImpl implements TestConnection {
 
         private ServerPacket extractPacket(final SendablePacket packet) {
             if (!(packet instanceof ServerPacket serverPacket))
-                return SendablePacket.extractServerPacket(getServerState(), packet);
+                return SendablePacket.extractServerPacket(packetContext(), packet);
 
             final Player player = getPlayer();
             if (player == null) return serverPacket;

@@ -13,6 +13,8 @@ import net.minestom.server.instance.block.BlockManager;
 import net.minestom.server.instance.block.rule.BlockPlacementRule;
 import net.minestom.server.listener.manager.PacketListenerManager;
 import net.minestom.server.network.ConnectionManager;
+import net.minestom.server.network.packet.PacketBatcher;
+import net.minestom.server.network.packet.PacketBufferPool;
 import net.minestom.server.network.packet.PacketParser;
 import net.minestom.server.network.socket.Server;
 import net.minestom.server.recipe.RecipeManager;
@@ -31,10 +33,9 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     /**
      * Creates a process with its own managers, configuration, and registries, without changing
      * {@link MinecraftServer#process()}.
-     * <p>Events, instances, entities, schedulers, and tick dispatch use their owning process. Other gameplay services
-     * and packet routing are still being migrated. In particular,
-     * compression negotiation, encoded packet caches, and outgoing buffer pools still use default-process
-     * state. Different compression settings cannot yet be used for independent client connections.</p>
+     * <p>Events, instances, entities, schedulers, packet encoding, and tick dispatch use their owning process.
+     * Authentication, player initialization, commands, and contextual serialization are still being migrated;
+     * independent client sessions are not yet complete.</p>
      * {@snippet :
      * try (var first = ServerProcess.create(); var second = ServerProcess.create()) {
      *     first.setBrandName("First");
@@ -156,6 +157,14 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
      * Can be used if you want to convert a buffer to a client packet object.
      */
     PacketParser.Client packetParser();
+
+    /** Registry-bound packet buffers, released when this process closes. */
+    @ApiStatus.Internal
+    PacketBufferPool packetBuffers();
+
+    /** Pending viewable packets flushed by this process's tick. */
+    @ApiStatus.Internal
+    PacketBatcher packetBatcher();
 
     /**
      * Exposed socket server.

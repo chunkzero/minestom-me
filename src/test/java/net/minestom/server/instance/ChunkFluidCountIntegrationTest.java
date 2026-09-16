@@ -1,6 +1,5 @@
 package net.minestom.server.instance;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.network.ConnectionState;
 import net.minestom.server.network.NetworkBuffer;
@@ -48,12 +47,11 @@ public class ChunkFluidCountIntegrationTest {
         assertEquals(0, sectionFluidCount(chunk, 40));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static int sectionFluidCount(Chunk chunk, int blockY) {
-        var packet = (ChunkDataPacket) SendablePacket.extractServerPacket(ConnectionState.PLAY, chunk.getFullDataPacket());
+        var packet = (ChunkDataPacket) SendablePacket.extractServerPacket(chunk.getInstance().process().packetBuffers().context(ConnectionState.PLAY, 0), chunk.getFullDataPacket());
         Assertions.assertNotNull(packet);
         final byte[] data = packet.chunkData().data();
-        final var sectionType = ChunkData.Section.networkType(MinecraftServer.getBiomeRegistry().size());
+        final var sectionType = ChunkData.Section.networkType(chunk.getInstance().process().registries().biome().size());
         final NetworkBuffer buffer = NetworkBuffer.wrap(data, 0, data.length);
         ChunkData.Section section = null;
         for (int i = (blockY >> 4) - chunk.getMinSection(); i >= 0; i--) section = buffer.read(sectionType);

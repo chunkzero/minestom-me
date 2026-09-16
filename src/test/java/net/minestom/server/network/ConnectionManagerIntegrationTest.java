@@ -84,7 +84,7 @@ public class ConnectionManagerIntegrationTest {
         }
 
         @Override
-        public void sendPacket(SendablePacket packet) {
+        public synchronized void sendPacket(SendablePacket packet) {
             if (packet instanceof LoginSuccessPacket) {
                 // Model the socket reader handling an immediate acknowledgement before the login
                 // thread resumes from sendPacket.
