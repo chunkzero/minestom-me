@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 
 import static net.minestom.server.network.NetworkBuffer.STRING;
 
@@ -73,7 +74,9 @@ public final class LoginListener {
                         .thenAccept(response -> handleVelocityProxyResponse(socketConnection, response))
                         .exceptionally(error -> {
                             connection.kick(INVALID_PROXY_RESPONSE);
-                            connection.process().exception().handleException(error);
+                            connection.process().exception().handleException(
+                                    error instanceof CompletionException exception && exception.getCause() != null
+                                            ? exception.getCause() : error);
                             return null;
                         });
                 return;
@@ -125,6 +128,8 @@ public final class LoginListener {
             return;
         }
 
+        final SecretKey secretKey;
+        final byte[] digestedData;
         try {
             final boolean hasPublicKey = connection.playerPublicKey() != null;
             final boolean verificationFailed = hasPublicKey || !Arrays.equals(socketConnection.getNonce(),
@@ -136,8 +141,15 @@ public final class LoginListener {
                 return;
             }
 
-            final SecretKey secretKey = MojangCrypt.decryptByteToSecretKey(keyPair.getPrivate(), packet.sharedSecret());
-            final byte[] digestedData = MojangCrypt.digestData("", keyPair.getPublic(), secretKey);
+            secretKey = MojangCrypt.decryptByteToSecretKey(keyPair.getPrivate(), packet.sharedSecret());
+            digestedData = MojangCrypt.digestData("", keyPair.getPublic(), secretKey);
+        } catch (Exception e) {
+            connection.kick(ENCRYPTION_FAILED);
+            connection.process().exception().handleException(e);
+            return;
+        }
+
+        try {
             // Query Mojang's session server.
             final String serverId = new BigInteger(digestedData).toString(16);
 
@@ -244,7 +256,7 @@ public final class LoginListener {
                 connection.process().connection().transitionLoginToConfig(connection, gameProfile);
             } catch (Throwable t) {
                 connection.process().exception().handleException(t);
-                connection.kick(ERROR_DURING_LOGIN);
+                if (connection.isOnline()) connection.kick(ERROR_DURING_LOGIN);
             }
         });
     }

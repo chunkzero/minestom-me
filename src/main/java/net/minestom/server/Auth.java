@@ -12,7 +12,6 @@ import java.security.Key;
 import java.security.KeyPair;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Objects;
 import java.util.Set;
 
 import static net.minestom.server.network.NetworkBuffer.BYTE;
@@ -25,7 +24,7 @@ public sealed interface Auth {
 
     record Online(KeyPair keyPair) implements Auth {
         public Online() {
-            this(Objects.requireNonNull(MojangCrypt.generateKeyPair()));
+            this(MojangCrypt.generateKeyPair());
         }
     }
 

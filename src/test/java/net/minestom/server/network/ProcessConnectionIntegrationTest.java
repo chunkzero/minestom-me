@@ -97,13 +97,15 @@ class ProcessConnectionIntegrationTest {
                 assertEquals(Set.of(firstPlayer), first.connection().getOnlinePlayers());
                 assertEquals(Set.of(secondPlayer), second.connection().getOnlinePlayers());
                 assertEquals(firstPlayer.getEntityId(), secondPlayer.getEntityId());
+                assertEquals(settings(Locale.ENGLISH), firstEvents.settings.poll(5, TimeUnit.SECONDS));
                 assertEquals(Locale.ENGLISH, firstPlayer.getSettings().locale());
+                assertEquals(settings(Locale.FRENCH), secondEvents.settings.poll(5, TimeUnit.SECONDS));
                 assertEquals(Locale.FRENCH, secondPlayer.getSettings().locale());
                 assertEquals(1, firstEvents.preLogins.get());
                 assertEquals(1, secondEvents.preLogins.get());
 
-                firstPackets.addAll(barrier(a, 1));
-                secondPackets.addAll(barrier(b, 2));
+                firstPackets.addAll(ping(a, 1));
+                secondPackets.addAll(ping(b, 2));
                 assertTrue(firstPackets.stream().noneMatch(SetCompressionPacket.class::isInstance));
                 assertEquals(128, only(secondPackets, SetCompressionPacket.class).threshold());
                 assertEquals(firstId, only(firstPackets, LoginSuccessPacket.class).gameProfile().uuid());
@@ -124,10 +126,8 @@ class ProcessConnectionIntegrationTest {
 
                 a.send(new ClientPlayerLoadedPacket());
                 b.send(new ClientPlayerLoadedPacket());
-                barrier(a, 3);
-                barrier(b, 4);
-                assertEquals(1, firstEvents.loaded.get());
-                assertEquals(1, secondEvents.loaded.get());
+                assertSame(firstPlayer, firstEvents.loaded.poll(5, TimeUnit.SECONDS));
+                assertSame(secondPlayer, secondEvents.loaded.poll(5, TimeUnit.SECONDS));
 
                 // Reconfiguration stays with the same owner and preserves the player scheduler.
                 secondPlayer.acquirable().sync(Player::startConfigurationPhase);
@@ -135,9 +135,10 @@ class ProcessConnectionIntegrationTest {
                 b.send(new ClientConfigurationAckPacket());
                 b.configure(settings(Locale.GERMAN));
                 assertSame(secondPlayer, secondEvents.spawned.poll(5, TimeUnit.SECONDS));
-                barrier(b, 5);
+                ping(b, 5);
                 assertEquals(2, secondEvents.configurations.get());
                 assertEquals(1, firstEvents.configurations.get());
+                assertEquals(settings(Locale.GERMAN), secondEvents.settings.poll(5, TimeUnit.SECONDS));
                 assertEquals(Locale.GERMAN, secondPlayer.getSettings().locale());
                 assertDoesNotThrow(() -> secondPlayer.scheduler().scheduleNextTick(() -> {}));
 
@@ -146,8 +147,9 @@ class ProcessConnectionIntegrationTest {
                 assertEquals(firstPlayer, firstEvents.disconnected.poll(5, TimeUnit.SECONDS));
                 assertEquals(0, first.connection().getOnlinePlayerCount());
                 b.send(new ClientSettingsPacket(settings(Locale.ITALIAN)));
-                barrier(b, 6);
+                assertEquals(settings(Locale.ITALIAN), secondEvents.settings.poll(5, TimeUnit.SECONDS));
                 assertEquals(Locale.ITALIAN, secondPlayer.getSettings().locale());
+                ping(b, 6);
                 assertEquals(Set.of(secondPlayer), second.connection().getOnlinePlayers());
                 assertTrue(secondPlayer.isOnline());
                 assertTrue(firstEvents.errors.isEmpty(), firstEvents.errors.toString());
@@ -179,7 +181,7 @@ class ProcessConnectionIntegrationTest {
                 assertNotNull(aEvents.spawned.poll(5, TimeUnit.SECONDS));
                 assertNotNull(bEvents.spawned.poll(5, TimeUnit.SECONDS));
                 a.send(new ClientPingRequestPacket(10));
-                assertEquals(List.of(11L), barrier(a, 11).stream().filter(PingResponsePacket.class::isInstance)
+                assertEquals(List.of(11L), ping(a, 11).stream().filter(PingResponsePacket.class::isInstance)
                         .map(PingResponsePacket.class::cast).map(PingResponsePacket::number).toList());
                 b.send(new ClientPingRequestPacket(20));
                 assertSame(expected, bEvents.errors.poll(5, TimeUnit.SECONDS));
@@ -227,7 +229,7 @@ class ProcessConnectionIntegrationTest {
                 assertEquals(Set.of(destination), pair.second().connection().getOnlinePlayers());
                 assertEquals(1, firstTransfers.get());
                 assertEquals(0, secondTransfers.get());
-                barrier(client, 1);
+                ping(client, 1);
                 assertTrue(firstEvents.errors.isEmpty(), firstEvents.errors.toString());
                 assertTrue(secondEvents.errors.isEmpty(), secondEvents.errors.toString());
             }
@@ -241,7 +243,8 @@ class ProcessConnectionIntegrationTest {
                 defaults.allowServerListings(), defaults.particleSetting());
     }
 
-    private static List<ServerPacket> barrier(ProtocolClient client, long id) throws Exception {
+    // This immediate read-thread response does not wait for queued tick-thread handlers.
+    private static List<ServerPacket> ping(ProtocolClient client, long id) throws Exception {
         client.send(new ClientPingRequestPacket(id));
         var packets = client.readThrough(PingResponsePacket.class);
         assertEquals(id, only(packets, PingResponsePacket.class).number());
@@ -273,7 +276,8 @@ class ProcessConnectionIntegrationTest {
         final LinkedBlockingQueue<Throwable> errors = new LinkedBlockingQueue<>();
         final AtomicInteger preLogins = new AtomicInteger();
         final AtomicInteger configurations = new AtomicInteger();
-        final AtomicInteger loaded = new AtomicInteger();
+        final LinkedBlockingQueue<Player> loaded = new LinkedBlockingQueue<>();
+        final LinkedBlockingQueue<ClientSettings> settings = new LinkedBlockingQueue<>();
 
         SessionEvents(ServerProcess process, Instance instance) {
             process.exception().setExceptionHandler(errors::add);
@@ -292,8 +296,11 @@ class ProcessConnectionIntegrationTest {
                 event.getPlayer().setRespawnPoint(new Pos(0, 40, 0));
                 configurations.incrementAndGet();
             });
-            process.eventHandler().addListener(PlayerSettingsChangeEvent.class, event -> assertSame(process, event.getPlayer().process()));
-            process.eventHandler().addListener(PlayerLoadedEvent.class, _ -> loaded.incrementAndGet());
+            process.eventHandler().addListener(PlayerSettingsChangeEvent.class, event -> {
+                assertSame(process, event.getPlayer().process());
+                settings.add(event.getPlayer().getSettings());
+            });
+            process.eventHandler().addListener(PlayerLoadedEvent.class, event -> loaded.add(event.getPlayer()));
             process.eventHandler().addListener(PlayerSpawnEvent.class, event -> spawned.add(event.getPlayer()));
             process.eventHandler().addListener(PlayerDisconnectEvent.class, event -> disconnected.add(event.getPlayer()));
         }

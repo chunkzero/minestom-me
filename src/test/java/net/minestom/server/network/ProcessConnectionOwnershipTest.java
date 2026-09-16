@@ -1,9 +1,13 @@
 package net.minestom.server.network;
 
 import net.minestom.server.ServerProcess;
+import net.minestom.server.event.player.AsyncPlayerPreLoginEvent;
+import net.minestom.server.listener.preplay.LoginListener;
 import net.minestom.server.network.packet.client.handshake.ClientHandshakePacket;
+import net.minestom.server.network.packet.client.login.ClientLoginStartPacket;
 import net.minestom.server.network.packet.server.SendablePacket;
 import net.minestom.server.network.packet.server.configuration.SelectKnownPacksPacket;
+import net.minestom.server.network.packet.server.login.LoginDisconnectPacket;
 import net.minestom.server.network.player.GameProfile;
 import net.minestom.server.network.player.PlayerConnection;
 import net.minestom.testing.ServerProcessPair;
@@ -11,11 +15,15 @@ import org.junit.jupiter.api.Test;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -84,13 +92,37 @@ class ProcessConnectionOwnershipTest {
         }
     }
 
+    @Test
+    void failedLoginPluginReplyOnlyDisconnectsOnce() throws Exception {
+        try (var pair = new ServerProcessPair()) {
+            var connection = new ImmediateConnection(pair.second());
+            connection.setClientState(ConnectionState.LOGIN);
+            var loginThread = new CompletableFuture<Thread>();
+            var errors = new CopyOnWriteArrayList<Throwable>();
+            pair.second().exception().setExceptionHandler(errors::add);
+            pair.second().eventHandler().addListener(AsyncPlayerPreLoginEvent.class, event -> {
+                event.sendPluginRequest("test:failure", new byte[0]).completeExceptionally(new IllegalStateException("Invalid reply"));
+                loginThread.complete(Thread.currentThread());
+            });
+            LoginListener.loginStartListener(new ClientLoginStartPacket("Failure", UUID.randomUUID()), connection);
+            assertTrue(loginThread.get(5, TimeUnit.SECONDS).join(Duration.ofSeconds(5)));
+            assertEquals(List.of(new LoginDisconnectPacket(LoginListener.INVALID_PROXY_RESPONSE)),
+                    connection.packets.stream().filter(LoginDisconnectPacket.class::isInstance).toList());
+            assertFalse(connection.isOnline());
+            assertEquals(1, errors.size());
+        }
+    }
+
     private static final class ImmediateConnection extends PlayerConnection {
+        private final List<SendablePacket> packets = new CopyOnWriteArrayList<>();
+
         ImmediateConnection(ServerProcess process) {
             super(process);
         }
 
         @Override
         public void sendPacket(SendablePacket packet) {
+            packets.add(packet);
             if (packet instanceof SelectKnownPacksPacket) receiveKnownPacksResponse(List.of());
         }
 

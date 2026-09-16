@@ -1,5 +1,7 @@
 package net.minestom.server.network;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.minestom.server.Auth;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.event.player.AsyncPlayerPreLoginEvent;
@@ -28,7 +30,6 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProcessAuthenticationIntegrationTest {
@@ -78,13 +79,19 @@ class ProcessAuthenticationIntegrationTest {
                 first.send(new ClientEncryptionResponsePacket(new byte[0], cipher.doFinal(wrongNonce)));
                 assertInstanceOf(LoginDisconnectPacket.class, first.read());
             }
-            try (var malformed = new ProtocolClient(pair.second())) {
-                malformed.login("Malformed", UUID.randomUUID());
-                assertInstanceOf(EncryptionRequestPacket.class, malformed.read());
-                malformed.send(new ClientEncryptionResponsePacket(new byte[0], new byte[]{1}));
-                assertInstanceOf(LoginDisconnectPacket.class, malformed.read());
-                assertInstanceOf(IllegalStateException.class, secondErrors.poll(5, TimeUnit.SECONDS));
-                assertTrue(firstErrors.isEmpty());
+            for (boolean malformedNonce : List.of(true, false)) {
+                try (var malformed = new ProtocolClient(pair.second())) {
+                    malformed.login("Malformed", UUID.randomUUID());
+                    var request = assertInstanceOf(EncryptionRequestPacket.class, malformed.read());
+                    var cipher = Cipher.getInstance("RSA");
+                    cipher.init(Cipher.ENCRYPT_MODE, secondAuth.keyPair().getPublic());
+                    byte[] token = malformedNonce ? new byte[]{1} : cipher.doFinal(request.verifyToken());
+                    malformed.send(new ClientEncryptionResponsePacket(new byte[]{1}, token));
+                    var disconnect = assertInstanceOf(LoginDisconnectPacket.class, malformed.read());
+                    assertEquals(Component.text("Encryption failed!", NamedTextColor.RED), disconnect.kickMessage());
+                    assertInstanceOf(IllegalStateException.class, secondErrors.poll(5, TimeUnit.SECONDS));
+                    assertTrue(firstErrors.isEmpty());
+                }
             }
         }
     }
@@ -133,7 +140,7 @@ class ProcessAuthenticationIntegrationTest {
                 var request = assertInstanceOf(LoginPluginRequestPacket.class, malformed.read());
                 malformed.send(new ClientLoginPluginResponsePacket(request.messageId(), new byte[]{1}));
                 assertInstanceOf(LoginDisconnectPacket.class, malformed.read());
-                assertNotNull(secondErrors.poll(5, TimeUnit.SECONDS));
+                assertInstanceOf(IndexOutOfBoundsException.class, secondErrors.poll(5, TimeUnit.SECONDS));
                 assertTrue(firstErrors.isEmpty());
             }
         }
