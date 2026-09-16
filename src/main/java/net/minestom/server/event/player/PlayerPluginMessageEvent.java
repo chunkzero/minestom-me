@@ -1,7 +1,7 @@
 package net.minestom.server.event.player;
 
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.trait.PlayerEvent;
+import net.minestom.server.event.trait.PlayerInstanceEvent;
 import net.minestom.server.network.packet.client.common.ClientPluginMessagePacket;
 
 import java.nio.charset.StandardCharsets;
@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * Called when a player send {@link ClientPluginMessagePacket}.
  */
-public class PlayerPluginMessageEvent implements PlayerEvent {
+public class PlayerPluginMessageEvent implements PlayerInstanceEvent {
 
     private final Player player;
     private final String identifier;

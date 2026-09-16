@@ -2,9 +2,9 @@ package net.minestom.server.event.entity;
 
 import net.minestom.server.entity.Entity;
 import net.minestom.server.event.trait.CancellableEvent;
-import net.minestom.server.event.trait.EntityEvent;
+import net.minestom.server.event.trait.EntityInstanceEvent;
 
-public class EntityFireExtinguishEvent implements EntityEvent, CancellableEvent {
+public class EntityFireExtinguishEvent implements EntityInstanceEvent, CancellableEvent {
 
     private final Entity entity;
     private final boolean natural;

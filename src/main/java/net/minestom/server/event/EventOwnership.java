@@ -7,6 +7,7 @@ import net.minestom.server.event.entity.EntityAttackEvent;
 import net.minestom.server.event.entity.EntityDamageEvent;
 import net.minestom.server.event.entity.EntityItemMergeEvent;
 import net.minestom.server.event.entity.EntityShootEvent;
+import net.minestom.server.event.entity.EntitySpawnEvent;
 import net.minestom.server.event.entity.projectile.ProjectileCollideWithEntityEvent;
 import net.minestom.server.event.instance.InstanceChunkLoadEvent;
 import net.minestom.server.event.instance.InstanceChunkUnloadEvent;
@@ -17,10 +18,12 @@ import net.minestom.server.event.player.AsyncPlayerPreLoginEvent;
 import net.minestom.server.event.player.PlayerEntityInteractEvent;
 import net.minestom.server.event.player.PlayerPickEntityEvent;
 import net.minestom.server.event.player.PlayerSpectateEntityEvent;
+import net.minestom.server.event.player.PlayerSpawnEvent;
 import net.minestom.server.event.player.PlayerTeleportToEntityEvent;
 import net.minestom.server.event.server.ClientPingServerEvent;
 import net.minestom.server.event.server.ServerListPingEvent;
 import net.minestom.server.event.trait.EntityEvent;
+import net.minestom.server.event.trait.EntityInstanceEvent;
 import net.minestom.server.event.trait.InstanceEvent;
 import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.EntityTracker;
@@ -33,6 +36,17 @@ import net.minestom.server.utils.validate.Check;
 import org.jetbrains.annotations.Nullable;
 
 final class EventOwnership {
+    private static final ClassValue<Boolean> INHERITS_ENTITY_INSTANCE = new ClassValue<>() {
+        @Override
+        protected Boolean computeValue(Class<?> type) {
+            try {
+                return type.getMethod("getInstance").getDeclaringClass() == EntityInstanceEvent.class;
+            } catch (NoSuchMethodException e) {
+                throw new AssertionError(e);
+            }
+        }
+    };
+
     private EventOwnership() {
     }
 
@@ -56,8 +70,20 @@ final class EventOwnership {
 
     static void checkEvent(ServerProcess process, Event event) {
         if (event instanceof EntityEvent entityEvent) checkTarget(process, entityEvent.getEntity());
-        if (event instanceof InstanceEvent instanceEvent) checkTarget(process, instanceEvent.getInstance());
+        if (event instanceof InstanceEvent instanceEvent) {
+            if (event instanceof EntityInstanceEvent entityEvent && INHERITS_ENTITY_INSTANCE.get(event.getClass())) {
+                checkTarget(process, entityEvent.getEntity().getInstance());
+            } else {
+                checkTarget(process, instanceEvent.getInstance());
+            }
+        }
         switch (event) {
+            case EntitySpawnEvent spawn -> checkTarget(process, spawn.getSpawnInstance());
+            case PlayerSpawnEvent spawn -> {
+                @SuppressWarnings("deprecation")
+                final Instance spawnInstance = spawn.getSpawnInstance();
+                checkTarget(process, spawnInstance);
+            }
             case EntityAttackEvent attack -> checkTarget(process, attack.getTarget());
             case EntityDamageEvent damage -> {
                 checkTarget(process, damage.getDamage().getAttacker());

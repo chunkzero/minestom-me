@@ -1,12 +1,12 @@
 package net.minestom.server.event.entity;
 
 import net.minestom.server.entity.Entity;
-import net.minestom.server.event.trait.EntityEvent;
+import net.minestom.server.event.trait.EntityInstanceEvent;
 
 /**
  * Called right before an entity is removed
  */
-public class EntityDespawnEvent implements EntityEvent {
+public class EntityDespawnEvent implements EntityInstanceEvent {
 
     private final Entity entity;
 

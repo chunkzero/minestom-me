@@ -6,7 +6,7 @@ import net.minestom.server.entity.Player;
  * Represents an {@link PlayerEvent} which happen in {@link Player#getInstance()}.
  * Useful if you need to listen to player events happening in its instance.
  * <p>
- * Requires a placed player. Connection and configuration events implement {@link PlayerEvent} directly.
+ * Be aware that the player's instance must be non-null.
  */
 public interface PlayerInstanceEvent extends PlayerEvent, EntityInstanceEvent {
 }

@@ -11,7 +11,7 @@ public interface InstanceEvent extends Event {
     /**
      * Gets the instance.
      *
-     * @return the instance targeted by this event
+     * @return instance
      */
     Instance getInstance();
 }

@@ -693,6 +693,237 @@
       ]
     },
     {
+      "type": "net.minestom.server.event.book.EditBookEvent"
+    },
+    {
+      "type": "net.minestom.server.event.entity.EntityAttackEvent"
+    },
+    {
+      "type": "net.minestom.server.event.entity.EntityDamageEvent"
+    },
+    {
+      "type": "net.minestom.server.event.entity.EntityDeathEvent"
+    },
+    {
+      "type": "net.minestom.server.event.entity.EntityDespawnEvent"
+    },
+    {
+      "type": "net.minestom.server.event.entity.EntityFireExtinguishEvent"
+    },
+    {
+      "type": "net.minestom.server.event.entity.EntityItemMergeEvent"
+    },
+    {
+      "type": "net.minestom.server.event.entity.EntityPotionAddEvent"
+    },
+    {
+      "type": "net.minestom.server.event.entity.EntityPotionRemoveEvent"
+    },
+    {
+      "type": "net.minestom.server.event.entity.EntitySetFireEvent"
+    },
+    {
+      "type": "net.minestom.server.event.entity.EntityShootEvent"
+    },
+    {
+      "type": "net.minestom.server.event.entity.EntitySpawnEvent"
+    },
+    {
+      "type": "net.minestom.server.event.entity.EntityTickEvent"
+    },
+    {
+      "type": "net.minestom.server.event.entity.EntityVelocityEvent"
+    },
+    {
+      "type": "net.minestom.server.event.entity.projectile.ProjectileUncollideEvent"
+    },
+    {
+      "type": "net.minestom.server.event.instance.RemoveEntityFromInstanceEvent"
+    },
+    {
+      "type": "net.minestom.server.event.inventory.CreativeInventoryActionEvent"
+    },
+    {
+      "type": "net.minestom.server.event.inventory.InventoryBundleItemSelectEvent"
+    },
+    {
+      "type": "net.minestom.server.event.inventory.InventoryButtonClickEvent"
+    },
+    {
+      "type": "net.minestom.server.event.inventory.InventoryClickEvent"
+    },
+    {
+      "type": "net.minestom.server.event.inventory.InventoryCloseEvent"
+    },
+    {
+      "type": "net.minestom.server.event.inventory.InventoryOpenEvent"
+    },
+    {
+      "type": "net.minestom.server.event.inventory.InventoryPreClickEvent"
+    },
+    {
+      "type": "net.minestom.server.event.item.EntityEquipEvent"
+    },
+    {
+      "type": "net.minestom.server.event.item.ItemDropEvent"
+    },
+    {
+      "type": "net.minestom.server.event.item.PickupExperienceEvent"
+    },
+    {
+      "type": "net.minestom.server.event.item.PickupItemEvent"
+    },
+    {
+      "type": "net.minestom.server.event.item.PlayerBeginItemUseEvent"
+    },
+    {
+      "type": "net.minestom.server.event.item.PlayerCancelItemUseEvent"
+    },
+    {
+      "type": "net.minestom.server.event.item.PlayerFinishItemUseEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.AdvancementTabEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerAnvilInputEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerBlockBreakEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerBlockInteractEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerBlockPlaceEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerCancelDiggingEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerChangeHeldSlotEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerChatEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerChunkLoadEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerChunkUnloadEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerCommandEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerCustomClickEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerDeathEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerDisconnectEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerEditSignEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerEntityInteractEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerFinishDiggingEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerGameModeChangeEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerGameModeRequestEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerGameRulesRequestEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerHandAnimationEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerInputEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerLeaveBedEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerLoadedEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerMoveEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerPacketEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerPickBlockEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerPickEntityEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerPluginMessageEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerRespawnEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerSetGameRulesEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerSpawnEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerSpectateEntityEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerStabEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerStartDiggingEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerStartFlyingEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerStartFlyingWithElytraEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerStartSprintingEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerStopFlyingEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerStopFlyingWithElytraEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerStopSprintingEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerSwapItemEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerTeleportToEntityEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerTickEndEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerTickEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerUseItemEvent"
+    },
+    {
+      "type": "net.minestom.server.event.player.PlayerUseItemOnBlockEvent"
+    },
+    {
       "type": "net.minestom.server.network.packet.server.CachedPacket",
       "fields": [
         {

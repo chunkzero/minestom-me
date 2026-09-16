@@ -6,6 +6,7 @@ import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.LivingEntity;
+import net.minestom.server.entity.Player;
 import net.minestom.server.event.entity.EntityAttackEvent;
 import net.minestom.server.event.entity.EntityPotionAddEvent;
 import net.minestom.server.event.entity.EntityPotionRemoveEvent;
@@ -15,16 +16,16 @@ import net.minestom.server.event.entity.EntityTickEvent;
 import net.minestom.server.event.entity.EntityVelocityEvent;
 import net.minestom.server.event.instance.InstanceChunkLoadEvent;
 import net.minestom.server.event.item.EntityEquipEvent;
+import net.minestom.server.event.player.PlayerSpawnEvent;
 import net.minestom.server.event.server.ClientPingServerEvent;
-import net.minestom.server.event.trait.EntityEvent;
 import net.minestom.server.event.trait.EntityInstanceEvent;
-import net.minestom.server.event.trait.InstanceEvent;
 import net.minestom.server.instance.ChunkLoader;
 import net.minestom.server.instance.DynamicChunk;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.network.packet.server.SendablePacket;
+import net.minestom.server.network.player.GameProfile;
 import net.minestom.server.network.player.PlayerConnection;
 import net.minestom.server.potion.Potion;
 import net.minestom.server.potion.PotionEffect;
@@ -35,6 +36,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -82,7 +84,7 @@ class EventProcessTest {
     }
 
     @Test
-    void configurationEventsFireBeforePlacementWithoutClaimingAnInstance() {
+    void configurationEventsUseTheOwnerBeforePlacementAndReachInstanceListenersAfterPlacement() {
         try (var pair = new ServerProcessPair()) {
             var process = pair.first();
             var errors = new ArrayList<Throwable>();
@@ -91,13 +93,12 @@ class EventProcessTest {
             entity.setAutoViewable(false);
             var calls = new ArrayList<Class<?>>();
             var foreignCalls = new AtomicInteger();
-            List<Class<? extends EntityEvent>> types = List.of(EntityVelocityEvent.class,
+            List<Class<? extends EntityInstanceEvent>> types = List.of(EntityVelocityEvent.class,
                     EntityEquipEvent.class, EntityPotionAddEvent.class, EntityPotionRemoveEvent.class);
             for (var type : types) {
                 entity.eventNode().addListener(type, (owner, event) -> {
                     assertSame(process, owner);
                     assertSame(entity, event.getEntity());
-                    assertFalse(event instanceof InstanceEvent);
                     calls.add(event.getClass());
                 });
                 pair.second().eventHandler().addListener(type, _ -> foreignCalls.incrementAndGet());
@@ -108,7 +109,6 @@ class EventProcessTest {
             entity.removeEffect(PotionEffect.SPEED);
             assertEquals(types, calls);
             assertNull(entity.getInstance());
-            assertThrows(NullPointerException.class, () -> new EntityTickEvent(entity).getInstance());
 
             var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
             var instanceCalls = new AtomicInteger();
@@ -123,6 +123,20 @@ class EventProcessTest {
             entity.setInstance(instance).join();
             process.eventHandler().call(new EntityTickEvent(entity));
             assertEquals(2, instanceCalls.get());
+            var configurationCalls = new ArrayList<Class<?>>();
+            for (var type : types) {
+                instance.eventNode().addListener(type, (owner, event) -> {
+                    assertSame(process, owner);
+                    assertSame(instance, event.getInstance());
+                    configurationCalls.add(event.getClass());
+                });
+            }
+            entity.setVelocity(Vec.ZERO);
+            entity.setItemInMainHand(ItemStack.of(Material.DIRT));
+            entity.addEffect(new Potion(PotionEffect.SPEED, 0, 20));
+            entity.removeEffect(PotionEffect.SPEED);
+            assertEquals(types, configurationCalls);
+            assertEquals(2 * types.size(), calls.size());
             assertEquals(0, foreignCalls.get());
             assertTrue(errors.isEmpty(), errors::toString);
         }
@@ -167,11 +181,13 @@ class EventProcessTest {
             var second = pair.second();
             var local = new Entity(first, EntityType.ZOMBIE);
             var foreign = new Entity(second, EntityType.ZOMBIE);
+            var player = new Player(connection(first), new GameProfile(UUID.randomUUID(), "test"));
             var localInstance = first.instance().createInstanceContainer(ChunkLoader.noop());
             var foreignInstance = second.instance().createInstanceContainer(ChunkLoader.noop());
             List<Event> invalid = List.of(
                     new InstanceTargetEvent(local, foreignInstance),
                     new EntitySpawnEvent(local, foreignInstance),
+                    new PlayerSpawnEvent(player, foreignInstance, true),
                     new EntityAttackEvent(local, foreign),
                     new EntityShootEvent(local, foreign, Pos.ZERO, 1, 0),
                     new InstanceChunkLoadEvent(localInstance, new DynamicChunk(foreignInstance, 0, 0)),

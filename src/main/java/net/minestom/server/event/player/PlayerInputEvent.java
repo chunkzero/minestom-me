@@ -1,7 +1,7 @@
 package net.minestom.server.event.player;
 
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.trait.PlayerEvent;
+import net.minestom.server.event.trait.PlayerInstanceEvent;
 
 /**
  * Called when a player's input state changes.
@@ -10,7 +10,7 @@ import net.minestom.server.event.trait.PlayerEvent;
  * For example, this event may say a player has their jump key held down
  * even if they are in a situation where they can not actually jump.
  */
-public final class PlayerInputEvent implements PlayerEvent {
+public final class PlayerInputEvent implements PlayerInstanceEvent {
 
     private final Player player;
 
