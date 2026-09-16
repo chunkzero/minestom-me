@@ -31,6 +31,15 @@ public final class ServerFlag {
     public static final long KEEP_ALIVE_KICK = longProperty("minestom.keep-alive-kick", 15_000);
     public static final int PLAYER_CHUNK_UPDATE_LIMITER_HISTORY_SIZE = intProperty("minestom.player.chunk-update-limiter-history-size", 5, 0, Integer.MAX_VALUE);
 
+    // Network error handling
+    public static final boolean SUPPRESS_CONNECTION_ACCEPT_ERRORS = booleanProperty("minestom.suppress-connection-accept-errors", true);
+    public static final boolean SUPPRESS_CONNECTION_IO_ERRORS = booleanProperty("minestom.suppress-connection-io-errors", true); // Like peer resets etc
+    public static final int SUPPRESS_MALFORMED_PACKET_ERROR_LEVEL = intProperty("minestom.suppress-malformed-packet-error-level", 0); // Suppress packet read errors for states with ordinal at or below this level
+    public static final int SUPPRESS_MISUSED_PACKET_ERROR_LEVEL = intProperty("minestom.suppress-misused-packet-error-level", 0); // Suppress packet handling errors for states with ordinal at or below this level
+    public static final boolean REJECT_MALFORMED_PACKET = booleanProperty("minestom.reject-malformed-packet", true);
+    public static final boolean REJECT_MISUSED_PACKET = booleanProperty("minestom.reject-misused-packet", false);
+    public static final boolean WARN_PACKET_UNREAD_BYTES = booleanProperty("minestom.warn-packet-unread-bytes", true);
+
     // Network buffers
     public static final int MAX_PACKET_SIZE = intProperty("minestom.max-packet-size", 2_097_151); // 3 bytes var-int
     public static final int MAX_PACKET_SIZE_PRE_AUTH = intProperty("minestom.max-packet-size-pre-auth", 8_192);
@@ -61,10 +70,6 @@ public final class ServerFlag {
     // World
     public static final int WORLD_BORDER_SIZE = intProperty("minestom.world-border-size", 29999984);
 
-    // Maps
-    public static final String MAP_RGB_MAPPING = stringProperty("minestom.map.rgbmapping", "lazy");
-    public static final int MAP_RGB_REDUCTION = intProperty("minestom.map.rgbreduction", -1); // Only used if rgb mapping is "approximate"
-
     // Entities
     public static final boolean ENFORCE_INTERACTION_LIMIT = booleanProperty("minestom.enforce-entity-interaction-range", true);
 
@@ -79,8 +84,7 @@ public final class ServerFlag {
     public static final int NBT_MAX_DEPTH = intProperty("minestom.nbt.max-depth", 512, 1, Integer.MAX_VALUE); // Binary tags are read and written recursively, so raising this can overflow the java stack
     public static final int NBT_MAX_BYTES = intProperty("minestom.nbt.max-bytes", 2_097_152, 1, Integer.MAX_VALUE); // Approximate decoded heap usage, not encoded bytes
 
-    @SuppressWarnings("ConstantField") // kept not final for binary compatibility until the next breaking release
-    public static boolean INSIDE_TEST = booleanProperty("minestom.inside-test", false);
+    public static final boolean INSIDE_TEST = booleanProperty("minestom.inside-test", false);
 
     private ServerFlag() {}
 

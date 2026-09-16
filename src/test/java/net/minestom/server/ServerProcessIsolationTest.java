@@ -6,6 +6,7 @@ import net.minestom.server.world.DimensionType;
 import net.minestom.server.world.Difficulty;
 import net.minestom.testing.ServerProcessPair;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -91,9 +92,9 @@ class ServerProcessIsolationTest {
     }
 
     @Test
+    @EnabledIfSystemProperty(named = "minestom.inside-test", matches = "false")
     void startingOneProcessDoesNotFreezeAnother() {
-        final boolean insideTest = ServerFlag.INSIDE_TEST;
-        ServerFlag.INSIDE_TEST = false;
+        assertFalse(ServerFlag.INSIDE_TEST);
         try (var first = ServerProcess.create()) {
             first.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             assertTrue(first.registries().dimensionType().isFrozen());
@@ -110,8 +111,6 @@ class ServerProcessIsolationTest {
                 assertDoesNotThrow(() -> Registries.vanilla().dimensionType()
                         .register("test:standalone", dimension));
             }
-        } finally {
-            ServerFlag.INSIDE_TEST = insideTest;
         }
     }
 }

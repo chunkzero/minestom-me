@@ -55,6 +55,19 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.add("-Xlint:-requires-transitive-automatic") // Adventure dependencies are automatic until 5.0.0, see https://github.com/KyoriPowered/adventure/issues/1287
 }
 
+val processStartupTest = tasks.register<Test>("processStartupTest") {
+    description = "Checks process registry freezing with test mode disabled."
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    jvmArgs("-Dminestom.inside-test=false")
+    filter.includeTestsMatching("net.minestom.server.ServerProcessIsolationTest.startingOneProcessDoesNotFreezeAnother")
+}
+
+tasks.check {
+    dependsOn(processStartupTest)
+}
+
 graalvmNative {
     agent {
         defaultMode = "standard"
