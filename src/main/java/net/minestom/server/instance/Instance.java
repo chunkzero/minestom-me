@@ -141,7 +141,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
 
     // instance custom data
     protected TagHandler tagHandler = TagHandler.newHandler();
-    private final Scheduler scheduler = Scheduler.newScheduler();
+    private final Scheduler scheduler;
     private final EventNode<InstanceEvent> eventNode;
 
     private final ServerProcess process;
@@ -196,6 +196,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         this.worldBorder = WorldBorder.DEFAULT_BORDER;
         targetBorderDiameter = this.worldBorder.diameter();
 
+        this.scheduler = Scheduler.newScheduler(process);
         this.eventNode = process.eventHandler().map(this, EventFilter.INSTANCE);
     }
 
@@ -979,6 +980,10 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         return tagHandler;
     }
 
+    /**
+     * Scheduler owned by this instance's process. Unregistration permanently closes it.
+     * For an instance that was never registered, close this scheduler directly when discarding it.
+     */
     @Override
     public Scheduler scheduler() {
         return scheduler;

@@ -624,6 +624,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void remove(boolean permanent) {
+        if (permanent) scheduler().close();
         if (isRemoved()) return;
 
         if (permanent) {

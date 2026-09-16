@@ -1,10 +1,13 @@
 package net.minestom.server.timer;
 
-import net.minestom.server.MinecraftServer;
-import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -15,10 +18,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 public class TestScheduler {
+    private final List<Throwable> errors = new ArrayList<>();
+    private final Scheduler scheduler = Scheduler.newScheduler(errors::add);
+
+    @AfterEach
+    void closeScheduler() {
+        scheduler.close();
+    }
+
+    static void awaitTimer(Task task) throws Exception {
+        Future<?> pending;
+        synchronized (task.owner()) {
+            pending = ((TaskImpl) task).pending;
+        }
+        if (pending != null) pending.get(5, TimeUnit.SECONDS);
+    }
 
     @Test
     public void tickTask() {
-        Scheduler scheduler = Scheduler.newScheduler();
         AtomicBoolean result = new AtomicBoolean(false);
         Task task = scheduler.scheduleNextTick(() -> result.set(true));
         assertEquals(ExecutionType.TICK_START, task.executionType(), "Tasks default execution type should be tick start");
@@ -34,23 +51,19 @@ public class TestScheduler {
     }
 
     @Test
-    public void durationTask() throws InterruptedException {
-        Scheduler scheduler = Scheduler.newScheduler();
+    public void durationTask() throws Exception {
         AtomicBoolean result = new AtomicBoolean(false);
-        scheduler.buildTask(() -> result.set(true))
-                .delay(TaskSchedule.seconds(1))
+        var task = scheduler.buildTask(() -> result.set(true))
+                .delay(TaskSchedule.millis(1))
                 .schedule();
-        Thread.sleep(100);
+        awaitTimer(task);
+        assertFalse(result.get(), "Timer callbacks only enqueue work");
         scheduler.process();
-        assertFalse(result.get(), "900ms remaining");
-        Thread.sleep(1200);
-        scheduler.process();
-        assertTrue(result.get(), "Tick task must be executed after 1 second");
+        assertTrue(result.get(), "Tick task must be executed after the timer completes");
     }
 
     @Test
     public void immediateTask() {
-        Scheduler scheduler = Scheduler.newScheduler();
         AtomicBoolean result = new AtomicBoolean(false);
         scheduler.scheduleNextProcess(() -> result.set(true));
         assertFalse(result.get());
@@ -66,7 +79,6 @@ public class TestScheduler {
 
     @Test
     public void cancelTask() {
-        Scheduler scheduler = Scheduler.newScheduler();
         AtomicBoolean result = new AtomicBoolean(false);
         var task = scheduler.buildTask(() -> result.set(true))
                 .schedule();
@@ -79,7 +91,6 @@ public class TestScheduler {
 
     @Test
     public void parkTask() {
-        Scheduler scheduler = Scheduler.newScheduler();
         // Ignored parked task
         scheduler.buildTask(() -> fail("This parked task should never be executed"))
                 .executionType(ExecutionType.TICK_START)
@@ -103,7 +114,6 @@ public class TestScheduler {
 
     @Test
     public void futureTask() {
-        Scheduler scheduler = Scheduler.newScheduler();
         CompletableFuture<Void> future = new CompletableFuture<>();
         AtomicBoolean result = new AtomicBoolean(false);
         scheduler.buildTask(() -> result.set(true))
@@ -116,31 +126,22 @@ public class TestScheduler {
         assertTrue(result.get(), "Future should be completed");
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     public void exceptionTask() {
-        MinecraftServer.init();
-        MinecraftServer.getExceptionManager().setExceptionHandler(Assertions::assertNotNull);
-        Scheduler scheduler = Scheduler.newScheduler();
         scheduler.scheduleNextTick(() -> {
             throw new RuntimeException("Test exception");
         });
 
-        // This is a bit of a weird use case. I dont want this test to depend on the order the scheduler executes in
-        // so this is a guess that the first one wont be before all 100 of the ones scheduled below.
-        // Not great, but should be fine anyway.
         AtomicInteger executed = new AtomicInteger(0);
-        for (int i = 0; i < 100; i++) {
-            scheduler.scheduleNextTick(executed::incrementAndGet);
-        }
+        scheduler.scheduleNextTick(executed::incrementAndGet);
 
         assertDoesNotThrow(scheduler::processTick);
-        assertEquals(100, executed.get());
+        assertEquals(1, executed.get());
+        assertEquals("Test exception", errors.getFirst().getCause().getMessage());
     }
 
     @Test
     public void scheduleEndOfTick() {
-        Scheduler scheduler = Scheduler.newScheduler();
         AtomicBoolean result = new AtomicBoolean(false);
         scheduler.scheduleEndOfTick(() -> result.set(true));
         assertFalse(result.get(), "End of tick tasks should not be executed immediately upon submission");
@@ -157,7 +158,6 @@ public class TestScheduler {
 
     @Test
     public void delayedEndOfTick() {
-        Scheduler scheduler = Scheduler.newScheduler();
         AtomicBoolean result = new AtomicBoolean(false);
         scheduler.buildTask(() -> result.set(true)).delay(TaskSchedule.tick(1))
                 .executionType(ExecutionType.TICK_END).schedule();
@@ -171,7 +171,6 @@ public class TestScheduler {
 
     @Test
     public void repeatingEndOfTick() {
-        Scheduler scheduler = Scheduler.newScheduler();
         AtomicInteger result = new AtomicInteger(0);
         Task task = scheduler.scheduleTask(result::getAndIncrement, TaskSchedule.immediate(), TaskSchedule.tick(1), ExecutionType.TICK_END);
         assertEquals(0, result.get(), "TICK_END tasks should not be executed immediately upon submission");
@@ -191,21 +190,17 @@ public class TestScheduler {
     }
 
     @Test
-    public void durationEndOfTick() throws InterruptedException {
-        Scheduler scheduler = Scheduler.newScheduler();
+    public void durationEndOfTick() throws Exception {
         AtomicBoolean result = new AtomicBoolean(false);
-        scheduler.buildTask(() -> result.set(true))
-                .delay(TaskSchedule.seconds(1))
+        var task = scheduler.buildTask(() -> result.set(true))
+                .delay(TaskSchedule.millis(1))
                 .executionType(ExecutionType.TICK_END)
                 .schedule();
-        Thread.sleep(100);
-        scheduler.process();
-        scheduler.processTickEnd();
-        assertFalse(result.get(), "900ms remaining");
-        Thread.sleep(1200);
+        awaitTimer(task);
+        assertFalse(result.get(), "Timer callbacks only enqueue work");
         scheduler.process();
         assertFalse(result.get(), "process() should never execute TICK_END tasks");
         scheduler.processTickEnd();
-        assertTrue(result.get(), "Tick end task must be executed after 1 second");
+        assertTrue(result.get(), "Tick end task must be executed after the timer completes");
     }
 }

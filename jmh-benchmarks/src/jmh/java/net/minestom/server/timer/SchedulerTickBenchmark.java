@@ -10,6 +10,7 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 
 import java.util.concurrent.TimeUnit;
@@ -34,6 +35,11 @@ public class SchedulerTickBenchmark {
             this.scheduler.scheduleTask(() -> {
             }, TaskSchedule.nextTick(), TaskSchedule.nextTick());
         }
+    }
+
+    @TearDown
+    public void close() {
+        scheduler.close();
     }
 
     @Benchmark

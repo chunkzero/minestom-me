@@ -91,6 +91,7 @@ public final class InstanceManager {
         final InstanceContainer instanceContainer = sharedInstance.getInstanceContainer();
         Objects.requireNonNull(instanceContainer, "SharedInstance needs to have an InstanceContainer to be created!");
 
+        Check.stateCondition(sharedInstance.scheduler().isClosed(), "Instance scheduler is closed");
         instanceContainer.addSharedInstance(sharedInstance);
         UNSAFE_registerInstance(sharedInstance);
         return sharedInstance;
@@ -115,6 +116,7 @@ public final class InstanceManager {
     /**
      * Unregisters the {@link Instance} internally.
      * <p>
+     * Permanently closes the instance scheduler; the instance cannot be registered again.
      * If {@code instance} is an {@link InstanceContainer} all chunks are unloaded.
      *
      * @param instance the {@link Instance} to unregister
@@ -124,6 +126,7 @@ public final class InstanceManager {
         long onlinePlayers = instance.getPlayers().stream().filter(Player::isOnline).count();
         Check.stateCondition(onlinePlayers > 0, "You cannot unregister an instance with players inside.");
         synchronized (instance) {
+            instance.scheduler().close();
             InstanceUnregisterEvent event = new InstanceUnregisterEvent(instance);
             process().eventHandler().call(event);
 
@@ -174,6 +177,7 @@ public final class InstanceManager {
      */
     private void UNSAFE_registerInstance(Instance instance) {
         Check.argCondition(instance.process() != process, "Instance belongs to another process");
+        Check.stateCondition(instance.scheduler().isClosed(), "Instance scheduler is closed");
         instance.setRegistered(true);
         this.instances.add(instance);
         var dispatcher = process().dispatcher();

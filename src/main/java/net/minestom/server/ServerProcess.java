@@ -31,7 +31,7 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     /**
      * Creates a process with its own managers, configuration, and registries, without changing
      * {@link MinecraftServer#process()}.
-     * <p>Events, instances, entities, and tick dispatch use their owning process. Other gameplay services
+     * <p>Events, instances, entities, schedulers, and tick dispatch use their owning process. Other gameplay services
      * and packet routing are still being migrated. In particular,
      * compression negotiation, encoded packet caches, and outgoing buffer pools still use default-process
      * state. Different compression settings cannot yet be used for independent client connections.</p>

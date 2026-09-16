@@ -18,6 +18,7 @@ public sealed interface Task permits TaskImpl {
 
     boolean isParked();
 
+    /** Cancels pending work without interrupting or waiting for a callback already admitted to execution. */
     void cancel();
 
     boolean isAlive();

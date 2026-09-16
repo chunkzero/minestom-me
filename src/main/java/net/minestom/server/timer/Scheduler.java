@@ -1,6 +1,10 @@
 package net.minestom.server.timer;
 
+import net.minestom.server.ServerProcess;
+import net.minestom.server.exception.ExceptionHandler;
+
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Supplier;
 
 /**
@@ -9,10 +13,36 @@ import java.util.function.Supplier;
  * <p>
  * Tasks are by default executed in the caller thread.
  */
-public sealed interface Scheduler extends Executor permits SchedulerImpl, SchedulerManager {
+public sealed interface Scheduler extends Executor, AutoCloseable permits SchedulerImpl, SchedulerManager {
+    /**
+     * Creates a standalone scheduler with its own timer executor and stack-trace exception logging.
+     * The caller must close it when no longer needed. No default server process is used.
+     */
     static Scheduler newScheduler() {
-        return new SchedulerImpl();
+        return newScheduler(Throwable::printStackTrace);
     }
+
+    /** Creates a standalone scheduler with an explicit exception handler. The caller owns its lifetime. */
+    static Scheduler newScheduler(ExceptionHandler exceptionHandler) {
+        return new SchedulerScope(exceptionHandler, "Ms-StandaloneScheduler").newScheduler(true);
+    }
+
+    /** Creates a scheduler whose exceptions and lifetime belong to the given process. */
+    static Scheduler newScheduler(ServerProcess process) {
+        return process.scheduler().createScheduler();
+    }
+
+    /**
+     * Cancels all tasks and rejects further submissions. Idempotent and safe inside a callback.
+     * Callbacks already admitted to execution may finish, without interruption or rescheduling;
+     * this method does not wait for them. Concurrent/reentrant calls do not wait for an ongoing close.
+     * Processing a closed scheduler does nothing.
+     */
+    @Override
+    void close();
+
+    /** Whether closing this scheduler or its process has begun. */
+    boolean isClosed();
 
     /**
      * Process scheduled tasks based on time to increase scheduling precision.
@@ -45,6 +75,7 @@ public sealed interface Scheduler extends Executor permits SchedulerImpl, Schedu
      * @param task          the task to be directly executed in the caller thread
      * @param executionType the execution type
      * @return the created task
+     * @throws RejectedExecutionException if the scheduler or its process has closed
      */
     Task submitTask(Supplier<TaskSchedule> task, ExecutionType executionType);
 
