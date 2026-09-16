@@ -246,13 +246,13 @@ public class PlayerSocketConnection extends PlayerConnection {
     }
 
     @Override
-    public synchronized void sendPacket(SendablePacket packet) {
+    public void sendPacket(SendablePacket packet) {
         this.packetQueue.relaxedOffer(packet);
         unlockWriteThread();
     }
 
     @Override
-    public synchronized void sendPackets(Collection<? extends SendablePacket> packets) {
+    public void sendPackets(Collection<? extends SendablePacket> packets) {
         for (SendablePacket packet : packets) this.packetQueue.relaxedOffer(packet);
         unlockWriteThread();
     }
@@ -434,8 +434,11 @@ public class PlayerSocketConnection extends PlayerConnection {
                     }
                 }
                 case BufferedPacket buffered -> {
-                    if (!buffered.context().equals(context))
+                    if (buffered.context().buffers() != context.buffers()
+                            || buffered.context().compressionThreshold() != context.compressionThreshold())
                         throw new IllegalArgumentException("Buffered packet encoding context does not match connection");
+                    // A queued transition can advance the connection past this batch's state.
+                    if (buffered.context().state() != state) return true;
                     return writeBuffer(buffer, buffered.buffer(), buffered.index(), buffered.length());
                 }
             }

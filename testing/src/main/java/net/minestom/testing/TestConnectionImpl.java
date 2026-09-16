@@ -56,9 +56,13 @@ final class TestConnectionImpl implements TestConnection {
             // `isFirstConfig` is set to false in order to not block the thread
             // waiting for known packs.
             // The consequence is that registry packets cannot be listened to.
-            process.connection().doConfiguration(player, false);
-            process.connection().transitionConfigToPlay(player);
-            future.complete(player);
+            try {
+                process.connection().doConfiguration(player, false);
+                process.connection().transitionConfigToPlay(player);
+                future.complete(player);
+            } catch (Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
         });
         future.join();
         playerConnection.setClientState(ConnectionState.PLAY);

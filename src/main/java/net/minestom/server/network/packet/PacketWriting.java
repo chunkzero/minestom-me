@@ -15,8 +15,6 @@ import java.util.function.BiPredicate;
  * Tools to write packets into a {@link NetworkBuffer} for network processing.
  * <p>
  * Fairly internal and performance sensitive.
- * <p>Allocating overloads without a buffer or encoding context have no game registries.
- * Use an explicit context when encoding registry-dependent packets.
  */
 @ApiStatus.Internal
 public final class PacketWriting {
@@ -123,27 +121,6 @@ public final class PacketWriting {
         buffer.writeAt(uncompressedIndex, NetworkBuffer.VAR_INT_3, compressed ? (int) packetSize : 0);
     }
 
-    public static NetworkBuffer allocateTrimmedPacket(ConnectionState state,
-                                                      ClientPacket packet,
-                                                      int compressionThreshold) {
-        return allocateTrimmedPacket(PacketVanilla.CLIENT_PACKET_PARSER, state, packet, compressionThreshold);
-    }
-
-    public static NetworkBuffer allocateTrimmedPacket(ConnectionState state,
-                                                      ServerPacket packet,
-                                                      int compressionThreshold) {
-        return allocateTrimmedPacket(PacketVanilla.SERVER_PACKET_PARSER, state, packet, compressionThreshold);
-    }
-
-    public static <T> NetworkBuffer allocateTrimmedPacket(
-            PacketParser<T> parser,
-            ConnectionState state,
-            T packet,
-            int compressionThreshold) {
-        NetworkBuffer buffer = NetworkBuffer.staticBuffer(ServerFlag.POOLED_BUFFER_SIZE);
-        return allocateTrimmedPacket(buffer, parser, state, packet, compressionThreshold);
-    }
-
     public static <T> NetworkBuffer allocateTrimmedPacket(
             NetworkBuffer tmpBuffer,
             PacketParser<? super T> parser,
@@ -179,20 +156,20 @@ public final class PacketWriting {
         final PacketRegistry.PacketInfo<? super T> packetInfo = registry.packetInfo(packet);
         final int id = packetInfo.id();
         final NetworkBuffer.Type<? super T> serializer = packetInfo.serializer();
-        try {
-            writeFramedPacket(tmpBuffer, serializer, id, packet, compressionThreshold, pool);
-            return tmpBuffer.copy(0, tmpBuffer.writeIndex());
-        } catch (IndexOutOfBoundsException _) {
-            final long sizeOf = serializer.sizeOf(packet, tmpBuffer.registries());
-            if (sizeOf > ServerFlag.MAX_PACKET_SIZE) {
-                throw new IllegalStateException("Packet too large: " + sizeOf);
+        while (true) {
+            try {
+                writeFramedPacket(tmpBuffer, serializer, id, packet, compressionThreshold, pool);
+                return tmpBuffer.copy(0, tmpBuffer.writeIndex());
+            } catch (IndexOutOfBoundsException _) {
+                final long sizeOf = serializer.sizeOf(packet, tmpBuffer.registries());
+                // Leave room for the three framing varints, and retry if compression expands the payload.
+                final long maxCapacity = ServerFlag.MAX_PACKET_SIZE + 15L;
+                if (sizeOf > ServerFlag.MAX_PACKET_SIZE || tmpBuffer.capacity() >= maxCapacity) {
+                    throw new IllegalStateException("Packet too large: " + sizeOf);
+                }
+                tmpBuffer.resize(Math.min(maxCapacity, Math.max(sizeOf + 15, tmpBuffer.capacity() * 2)));
+                tmpBuffer.writeIndex(0);
             }
-            // Add 15 bytes to account for the 3 potential varints in the packet header
-            // Packet Length - Data Length - Packet ID
-            tmpBuffer.resize(sizeOf + 15);
-            tmpBuffer.writeIndex(0);
-            writeFramedPacket(tmpBuffer, serializer, id, packet, compressionThreshold, pool);
-            return tmpBuffer.copy(0, tmpBuffer.writeIndex());
         }
     }
 
@@ -212,9 +189,9 @@ public final class PacketWriting {
             } catch (IndexOutOfBoundsException _) {
                 success = false;
             }
-            // Poll the packet only if fully written
+            // Consumed packets may write no bytes when cancelled or when a batch has become stale.
             if (success) {
-                // Packet fully written
+                // Packet consumed
                 queue.poll();
                 written++;
             } else {

@@ -8,14 +8,13 @@ import net.minestom.server.utils.ObjectPool;
 import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Objects;
-import java.util.concurrent.RejectedExecutionException;
 
 /** Registry-bound buffers owned by one process. Borrowers must return buffers, including on failure. */
 @ApiStatus.Internal
 public final class PacketBufferPool implements AutoCloseable {
     private final Registries registries;
     private final ObjectPool<NetworkBuffer> pool;
-    private boolean closed;
+    private volatile boolean closed;
 
     public PacketBufferPool(Registries registries) {
         this.registries = Objects.requireNonNull(registries);
@@ -31,19 +30,21 @@ public final class PacketBufferPool implements AutoCloseable {
         return new PacketEncodingContext(this, state, Math.max(0, compressionThreshold));
     }
 
-    public synchronized NetworkBuffer get() {
-        if (closed) throw new RejectedExecutionException("Packet buffer pool is closed");
-        return pool.get();
+    public NetworkBuffer get() {
+        // Connection writers can still drain their final packets after process shutdown.
+        return closed ? NetworkBuffer.staticBuffer(ServerFlag.POOLED_BUFFER_SIZE, registries) : pool.get();
     }
 
-    public synchronized void add(NetworkBuffer buffer) {
+    public void add(NetworkBuffer buffer) {
         if (buffer.registries() != registries || buffer.isReadOnly())
             throw new IllegalArgumentException("Buffer does not belong to this registry context");
-        if (!closed) pool.add(buffer);
+        if (closed) return;
+        pool.add(buffer);
+        if (closed) pool.clear();
     }
 
     @Override
-    public synchronized void close() {
+    public void close() {
         closed = true;
         pool.clear();
     }

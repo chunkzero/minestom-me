@@ -5,6 +5,7 @@ import net.minestom.server.entity.PlayerHand;
 import net.minestom.server.network.packet.PacketBufferPool;
 import net.minestom.server.network.packet.PacketEncodingContext;
 import net.minestom.server.network.packet.PacketReading;
+import net.minestom.server.network.packet.PacketVanilla;
 import net.minestom.server.network.packet.PacketWriting;
 import net.minestom.server.network.packet.client.ClientPacket;
 import net.minestom.server.network.packet.client.play.ClientAnimationPacket;
@@ -122,7 +123,8 @@ public class SendablePacketTest {
     public void trimmed() throws DataFormatException {
         var packet = new ClientAnimationPacket(PlayerHand.MAIN);
 
-        var buffer = PacketWriting.allocateTrimmedPacket(ConnectionState.PLAY, packet, 0);
+        var buffer = PacketWriting.allocateTrimmedPacket(NetworkBuffer.staticBuffer(16),
+                PacketVanilla.CLIENT_PACKET_PARSER, ConnectionState.PLAY, packet, 0);
 
         var result = PacketReading.readClient(buffer, ConnectionState.PLAY, false);
         if (!(result instanceof PacketReading.Result.Success<ClientPacket>(

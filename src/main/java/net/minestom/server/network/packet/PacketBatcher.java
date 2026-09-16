@@ -19,13 +19,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 
 /** Pending viewable packets, flushed only by their owning process. */
 @ApiStatus.Internal
 public final class PacketBatcher implements AutoCloseable {
     private final ServerProcess process;
-    private final Map<Viewable, List<Entry>> pending = new HashMap<>();
+    private final Map<Viewable, List<Entry>> pending = new ConcurrentHashMap<>();
     private volatile boolean closed;
 
     public PacketBatcher(ServerProcess process) {
@@ -36,7 +37,7 @@ public final class PacketBatcher implements AutoCloseable {
         prepareViewablePacket(viewable, packet, null);
     }
 
-    public synchronized void prepareViewablePacket(Viewable viewable, ServerPacket packet, @Nullable Entity entity) {
+    public void prepareViewablePacket(Viewable viewable, ServerPacket packet, @Nullable Entity entity) {
         if (closed) throw new RejectedExecutionException("Packet batcher is closed");
         if (entity != null) requireOwner(entity.process());
         switch (viewable) {
@@ -45,26 +46,31 @@ public final class PacketBatcher implements AutoCloseable {
             case Chunk chunk -> requireOwner(chunk.getInstance().process());
             default -> { }
         }
-        pending.computeIfAbsent(viewable, _ -> new ArrayList<>())
-                .add(new Entry(packet, entity instanceof Player player ? player.getEntityId() : -1));
+        pending.compute(viewable, (_, entries) -> {
+            if (closed) throw new RejectedExecutionException("Packet batcher is closed");
+            if (entries == null) entries = new ArrayList<>();
+            entries.add(new Entry(packet, entity instanceof Player player ? player.getEntityId() : -1));
+            return entries;
+        });
+        if (closed) pending.remove(viewable);
     }
 
     public void flush() {
-        final Map<Viewable, List<Entry>> batches;
-        synchronized (this) {
-            if (closed || pending.isEmpty()) return;
-            batches = new HashMap<>(pending);
-            pending.clear();
-        }
-        batches.entrySet().parallelStream().forEach(batch -> flush(batch.getKey(), batch.getValue()));
+        if (closed) return;
+        pending.keySet().parallelStream().forEach(viewable -> {
+            // Removal waits for this viewable's preparation; later packets get a new list.
+            var entries = pending.remove(viewable);
+            if (entries != null) flush(viewable, entries);
+        });
     }
 
     private void flush(Viewable viewable, List<Entry> entries) {
         if (closed) return;
         var viewers = List.copyOf(viewable.getViewers());
-        viewers.forEach(player -> requireOwner(player.process()));
         Map<PacketEncodingContext, List<Player>> recipients = new HashMap<>();
         for (Player player : viewers) {
+            if (closed) return;
+            if (player.process() != process) continue;
             var connection = player.getPlayerConnection();
             var context = connection.packetContext();
             if (context.state() != ConnectionState.PLAY) continue;
@@ -106,7 +112,7 @@ public final class PacketBatcher implements AutoCloseable {
     }
 
     @Override
-    public synchronized void close() {
+    public void close() {
         closed = true;
         pending.clear();
     }

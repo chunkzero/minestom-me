@@ -311,15 +311,21 @@ final class NetworkBufferImpl implements NetworkBuffer {
         assertReadOnly(outputSegment);
 
         ByteBuffer input = bufferSlice(segment, start, length);
-        ByteBuffer outputBuffer = bufferSlice(outputSegment, output.writeIndex(), output.writableBytes());
-
+        final long outputStart = output.writeIndex();
         Deflater deflater = CompressionHolder.DEFLATER_POOL.get();
         try {
             deflater.setInput(input);
             deflater.finish();
-            final int bytes = deflater.deflate(outputBuffer);
-            output.advanceWrite(bytes);
-            return bytes;
+            do {
+                output.ensureWritable(1);
+                ByteBuffer outputBuffer = bufferSlice(impl(output).segment, output.writeIndex(), output.writableBytes());
+                output.advanceWrite(deflater.deflate(outputBuffer));
+                if (!deflater.finished()) output.ensureWritable(output.writableBytes() + 1);
+            } while (!deflater.finished());
+            return output.writeIndex() - outputStart;
+        } catch (IndexOutOfBoundsException e) {
+            output.writeIndex(outputStart);
+            throw e;
         } finally {
             deflater.reset();
             CompressionHolder.DEFLATER_POOL.add(deflater);

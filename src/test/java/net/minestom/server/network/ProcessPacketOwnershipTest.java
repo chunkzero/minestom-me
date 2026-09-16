@@ -1,9 +1,11 @@
 package net.minestom.server.network;
 
+import net.kyori.adventure.text.Component;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Viewable;
 import net.minestom.server.component.DataComponents;
 import net.minestom.server.entity.Player;
+import net.minestom.server.event.player.PlayerPacketOutEvent;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.item.instrument.Instrument;
@@ -15,11 +17,13 @@ import net.minestom.server.network.packet.server.BufferedPacket;
 import net.minestom.server.network.packet.server.CachedPacket;
 import net.minestom.server.network.packet.server.FramedPacket;
 import net.minestom.server.network.packet.server.ServerPacket;
+import net.minestom.server.network.packet.server.common.DisconnectPacket;
 import net.minestom.server.network.packet.server.common.PluginMessagePacket;
 import net.minestom.server.network.packet.server.configuration.FinishConfigurationPacket;
 import net.minestom.server.network.packet.server.login.LoginPluginRequestPacket;
 import net.minestom.server.network.packet.server.login.SetCompressionPacket;
 import net.minestom.server.network.packet.server.play.SetSlotPacket;
+import net.minestom.server.network.packet.server.play.StartConfigurationPacket;
 import net.minestom.server.network.player.GameProfile;
 import net.minestom.server.network.player.PlayerSocketConnection;
 import net.minestom.testing.ServerProcessPair;
@@ -27,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -40,6 +45,7 @@ import java.nio.channels.spi.SelectorProvider;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.RejectedExecutionException;
@@ -50,6 +56,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -260,7 +267,9 @@ class ProcessPacketOwnershipTest {
             second.connection.flushSync(); // leave a partial frame outstanding
             pair.second().close();
             second.connection.cleanup(); // late returns must not reopen a closed pool
-            assertThrows(RejectedExecutionException.class, pair.second().packetBuffers()::get);
+            var unpooled = pair.second().packetBuffers().get();
+            pair.second().packetBuffers().add(unpooled);
+            assertNotSame(unpooled, pair.second().packetBuffers().get());
             first.channel.failWrite = false;
             first.channel.writeLimit = Integer.MAX_VALUE;
             first.connection.sendPacket(packet);
@@ -276,8 +285,7 @@ class ProcessPacketOwnershipTest {
             var packet = new PluginMessagePacket("test:buffer", new byte[20]);
             for (var context : List.of(
                     pair.first().packetBuffers().context(ConnectionState.PLAY, 0),
-                    pair.second().packetBuffers().context(ConnectionState.PLAY, 32),
-                    pair.second().packetBuffers().context(ConnectionState.CONFIGURATION, 0))) {
+                    pair.second().packetBuffers().context(ConnectionState.PLAY, 32))) {
                 var body = context.frame(packet);
                 second.connection.sendPacket(new BufferedPacket(context, body, 0, body.writeIndex()));
                 assertThrows(IllegalArgumentException.class, second.connection::flushSync);
@@ -324,13 +332,104 @@ class ProcessPacketOwnershipTest {
             var outstanding = pair.first().packetBuffers().get();
             pair.first().close();
             pair.first().packetBuffers().add(outstanding);
-            assertThrows(RejectedExecutionException.class, pair.first().packetBuffers()::get);
+            assertNotSame(outstanding, pair.first().packetBuffers().get());
             assertThrows(RejectedExecutionException.class, () -> batcher.prepareViewablePacket(firstView, packet));
             batcher.flush();
             assertEquals(0, first.channel.output.size());
             pair.second().packetBatcher().prepareViewablePacket(secondView, packet);
             pair.second().ticker().tick(System.nanoTime());
             assertEquals(List.of(packet), second.flushPackets());
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {493, 32749})
+    void incompressiblePacketsSurviveBufferGrowth(int length) throws Exception {
+        try (var pair = new ServerProcessPair(); var session = new Session(pair.first())) {
+            session.play(256);
+            byte[] data = new byte[length];
+            new Random(0).nextBytes(data);
+            var packet = new PluginMessagePacket("test:data", data);
+            pair.first().packetBatcher().prepareViewablePacket(new TestViewable(Set.of(session.player())), packet);
+            pair.first().packetBatcher().flush();
+            assertEquals(List.of(packet), session.flushPackets());
+            session.connection.sendPacket(new CachedPacket(packet));
+            assertEquals(List.of(packet), session.flushPackets());
+            session.connection.sendPacket(packet);
+            assertEquals(List.of(packet), session.flushPackets());
+        }
+    }
+
+    @Test
+    void queuedConfigurationTransitionDiscardsTheStalePlayBatch() throws Exception {
+        try (var pair = new ServerProcessPair(); var session = new Session(pair.first())) {
+            session.play(32);
+            var viewable = new TestViewable(Set.of(session.player()));
+            var transition = new StartConfigurationPacket();
+            var stale = new PluginMessagePacket("test:stale", new byte[100]);
+            var next = new PluginMessagePacket("test:configuration", new byte[100]);
+            session.connection.sendPacket(transition);
+            pair.first().packetBatcher().prepareViewablePacket(viewable, stale);
+            pair.first().packetBatcher().flush();
+            session.connection.sendPacket(next);
+            session.connection.flushSync();
+            var buffer = session.takeBuffer();
+            assertEquals(transition, readOne(buffer, ConnectionState.PLAY, true));
+            assertEquals(next, readOne(buffer, ConnectionState.CONFIGURATION, true));
+            assertEquals(0, buffer.readableBytes());
+            assertTrue(session.connection.isOnline());
+        }
+    }
+
+    @Test
+    void shutdownAllowsTheFinalCompressedDisconnectToDrain() throws Exception {
+        try (var pair = new ServerProcessPair();
+             var first = new Session(pair.first()); var second = new Session(pair.second())) {
+            first.play(1);
+            second.play(32);
+            var reason = Component.text("Server shutting down");
+            first.connection.kick(reason);
+            pair.first().close();
+            assertEquals(List.of(new DisconnectPacket(reason)), first.flushPackets());
+            assertFalse(first.connection.isOnline());
+            var packet = new PluginMessagePacket("test:alive", new byte[100]);
+            second.connection.sendPacket(packet);
+            assertEquals(List.of(packet), second.flushPackets());
+        }
+    }
+
+    @Test
+    void mixedViewersDoNotPreventDeliveryToOwnedViewersOrOtherBatches() throws Exception {
+        try (var pair = new ServerProcessPair();
+             var first = new Session(pair.first()); var sibling = new Session(pair.first());
+             var second = new Session(pair.second())) {
+            first.play(0);
+            sibling.play(0);
+            second.play(0);
+            var packet = new PluginMessagePacket("test:owned", new byte[10]);
+            var batcher = pair.first().packetBatcher();
+            batcher.prepareViewablePacket(new TestViewable(Set.of(first.player(), second.player())), packet);
+            batcher.prepareViewablePacket(new TestViewable(Set.of(sibling.player())), packet);
+            batcher.flush();
+            assertEquals(List.of(packet), first.flushPackets());
+            assertEquals(List.of(packet), sibling.flushPackets());
+            assertTrue(second.flushPackets().isEmpty());
+        }
+    }
+
+    @Test
+    void cancelledOutgoingPacketIsConsumedBeforeTheNextPacket() throws Exception {
+        try (var pair = new ServerProcessPair(); var session = new Session(pair.first())) {
+            session.play(32);
+            session.player();
+            var cancelled = new PluginMessagePacket("test:cancelled", new byte[100]);
+            var next = new PluginMessagePacket("test:next", new byte[100]);
+            pair.first().eventHandler().addListener(PlayerPacketOutEvent.class, event -> {
+                if (event.getPacket() == cancelled) event.setCancelled(true);
+            });
+            session.connection.sendPacket(cancelled);
+            session.connection.sendPacket(next);
+            assertEquals(List.of(next), session.flushPackets());
         }
     }
 
