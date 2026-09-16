@@ -346,8 +346,8 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
                 getEntityId(), this.hardcore, List.of(), 0,
                 ServerFlag.CHUNK_VIEW_DISTANCE, ServerFlag.CHUNK_VIEW_DISTANCE,
                 false, true, false,
-                new PlayerSpawnInfo(dimensionTypeId, spawnInstance.getDimensionName(), 0,
-                        gameMode, null, false, levelFlat,
+                new PlayerSpawnInfo(dimensionTypeId, spawnInstance.getDimensionName(),
+                        spawnInstance.getHashedSeed(), gameMode, null, false, levelFlat,
                         deathLocation, portalCooldown, DEFAULT_SEA_LEVEL),
                 // Always leave online mode & chat secure chat enabled
                 // so the client makes a chat session and shows tablist heads.
@@ -556,7 +556,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         refreshHealth();
 
         sendPacket(new RespawnPacket(new PlayerSpawnInfo(dimensionTypeId, instance.getDimensionName(),
-                0, gameMode, gameMode, false, levelFlat,
+                instance.getHashedSeed(), gameMode, gameMode, false, levelFlat,
                 deathLocation, portalCooldown, DEFAULT_SEA_LEVEL), (byte) RespawnPacket.COPY_ALL));
         refreshClientStateAfterRespawn();
 
@@ -796,7 +796,9 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
             }
         }
 
-        if (dimensionChange) sendDimension(instance.getDimensionType(), instance.getDimensionName());
+        if (dimensionChange) {
+            sendDimension(instance.getDimensionType(), instance.getDimensionName(), instance.getHashedSeed());
+        }
 
         var _ = super.setInstance(instance, spawnPosition);
 
@@ -1360,7 +1362,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         final PlayerInfoUpdatePacket addPlayerPacket = getAddPlayerToList();
 
         final RespawnPacket respawnPacket = new RespawnPacket(new PlayerSpawnInfo(dimensionTypeId,
-                instance.getDimensionName(), 0, gameMode, gameMode,
+                instance.getDimensionName(), instance.getHashedSeed(), gameMode, gameMode,
                 false, levelFlat, deathLocation, portalCooldown,
                 DEFAULT_SEA_LEVEL), (byte) RespawnPacket.COPY_ALL);
 
@@ -1587,7 +1589,8 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         sendPacketToViewersAndSelf(getVelocityPacket());
         sendPacketToViewersAndSelf(getMetadataPacket());
         sendPacketToViewersAndSelf(getPropertiesPacket());
-        sendPacketToViewersAndSelf(getEquipmentsPacket());
+        final var equipmentsPacket = getEquipmentsPacket();
+        if (equipmentsPacket != null) sendPacketToViewersAndSelf(equipmentsPacket);
 
         getInventory().update();
     }
@@ -1676,7 +1679,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         this.playerConnection.sendPackets(packets);
     }
 
-    public void sendPackets(Collection<SendablePacket> packets) {
+    public void sendPackets(Collection<? extends SendablePacket> packets) {
         this.playerConnection.sendPackets(packets);
     }
 
@@ -1835,13 +1838,14 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * Mostly unsafe since it requires sending chunks after.
      *
      * @param dimensionType the new player dimension
+     * @param hashedSeed    the {@link Instance#getHashedSeed()} of the dimension being entered
      */
-    protected void sendDimension(RegistryKey<DimensionType> dimensionType, String dimensionName) {
+    protected void sendDimension(RegistryKey<DimensionType> dimensionType, String dimensionName, long hashedSeed) {
         Check.argCondition(instance.getDimensionName().equals(dimensionName),
                 "The dimension needs to be different than the current one!");
         this.dimensionTypeId = process().registries().dimensionType().getId(dimensionType);
         sendPacket(new RespawnPacket(new PlayerSpawnInfo(dimensionTypeId, dimensionName,
-                0, gameMode, gameMode, false, levelFlat,
+                hashedSeed, gameMode, gameMode, false, levelFlat,
                 deathLocation, portalCooldown, DEFAULT_SEA_LEVEL), (byte) RespawnPacket.COPY_ALL));
         refreshClientStateAfterRespawn();
     }
@@ -2291,12 +2295,20 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Internal
     public void interpretPacketQueue() {
-        final PacketListenerManager manager = MinecraftServer.getPacketListenerManager();
+        final PacketListenerManager manager = process().packetListener();
         // This method is NOT thread-safe
-        this.packets.drain(packet -> manager.processClientPacket(packet, playerConnection), ServerFlag.PLAYER_PACKET_PER_TICK);
+        this.packets.drain(packet -> { // drain cannot throw
+            try {
+                manager.processClientPacket(packet, playerConnection);
+            } catch (Throwable e) {
+                if (playerConnection.getClientState().ordinal() > ServerFlag.SUPPRESS_MISUSED_PACKET_ERROR_LEVEL)
+                    process().exception().handleException(e);
+                if (ServerFlag.REJECT_MISUSED_PACKET)
+                    kick(Component.translatable("multiplayer.disconnect.invalid_packet", "Invalid Packet", NamedTextColor.RED));
+            }
+        }, ServerFlag.PLAYER_PACKET_PER_TICK);
     }
 
     /**
@@ -2442,7 +2454,8 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         connection.sendPacket(getSpawnPacket());
         connection.sendPacket(getVelocityPacket());
         connection.sendPacket(getMetadataPacket());
-        connection.sendPacket(getEquipmentsPacket());
+        final var equipmentsPacket = getEquipmentsPacket();
+        if (equipmentsPacket != null) connection.sendPacket(equipmentsPacket);
         if (hasPassenger()) {
             connection.sendPacket(getPassengersPacket());
         }

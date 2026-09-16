@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -78,10 +79,15 @@ class ProcessTickTest {
             Thread closer;
             synchronized (process.ticker()) {
                 process.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-                var scheduler = Thread.getAllStackTraces().keySet().stream()
-                        .filter(thread -> thread.getName().equals("Ms-TickScheduler-" + process.id()))
-                        .findFirst().orElseThrow();
                 long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                Thread scheduler = null;
+                while (scheduler == null && System.nanoTime() < deadline) {
+                    scheduler = Thread.getAllStackTraces().keySet().stream()
+                            .filter(thread -> thread.getName().equals("Ms-TickScheduler-" + process.id()))
+                            .findFirst().orElse(null);
+                    if (scheduler == null) Thread.sleep(1);
+                }
+                assertNotNull(scheduler);
                 while (scheduler.getState() != Thread.State.BLOCKED && System.nanoTime() < deadline) Thread.sleep(1);
                 assertEquals(Thread.State.BLOCKED, scheduler.getState());
                 closer = Thread.startVirtualThread(process::close);

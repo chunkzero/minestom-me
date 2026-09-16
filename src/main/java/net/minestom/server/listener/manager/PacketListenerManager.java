@@ -1,7 +1,5 @@
 package net.minestom.server.listener.manager;
 
-import net.minestom.server.MinecraftServer;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.PlayerPacketEvent;
 import net.minestom.server.listener.AbilitiesListener;
 import net.minestom.server.listener.AdvancementTabListener;
@@ -205,12 +203,13 @@ public final class PacketListenerManager {
 
     /**
      * Processes a packet by getting its {@link PacketPlayListenerConsumer} and calling all the packet listeners.
+     * <p>
+     * Callers are responsible for handling any errors.
      *
      * @param packet     the received packet
      * @param connection the connection of the player who sent the packet
      * @param <T>        the packet type
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public <T extends ClientPacket> void processClientPacket(T packet, PlayerConnection connection) {
         // Update connection state 'as we receive' the packet, aka before we send any responses
         // from processing. This is important for sending packets in response which are state-dependent.
@@ -233,19 +232,14 @@ public final class PacketListenerManager {
         // Event
         if (currState == ConnectionState.PLAY) {
             PlayerPacketEvent playerPacketEvent = new PlayerPacketEvent(connection.getPlayer(), packet);
-            EventDispatcher.call(playerPacketEvent);
+            connection.process().eventHandler().call(playerPacketEvent);
             if (playerPacketEvent.isCancelled()) {
                 return;
             }
         }
 
         // Finally execute the listener
-        try {
-            packetListenerConsumer.accept(packet, connection);
-        } catch (Exception e) {
-            // Packet is likely invalid
-            MinecraftServer.getExceptionManager().handleException(e);
-        }
+        packetListenerConsumer.accept(packet, connection); // possible throws
     }
 
     private record MissingListener(Class<?> packetClass, ConnectionState state) {
