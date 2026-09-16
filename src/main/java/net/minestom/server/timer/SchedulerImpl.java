@@ -17,7 +17,6 @@ final class SchedulerImpl implements Scheduler {
     private static final AtomicInteger TASK_COUNTER = new AtomicInteger();
 
     private final SchedulerScope scope;
-    private final boolean ownsScope;
     // All task state and queues are guarded by this scheduler; callbacks run outside the lock.
     private final Set<TaskImpl> tasks = new HashSet<>();
     private final ArrayDeque<TaskImpl> tasksToExecute = new ArrayDeque<>();
@@ -27,9 +26,8 @@ final class SchedulerImpl implements Scheduler {
     private int tickState;
     private volatile boolean closed;
 
-    SchedulerImpl(SchedulerScope scope, boolean ownsScope) {
+    SchedulerImpl(SchedulerScope scope) {
         this.scope = scope;
-        this.ownsScope = ownsScope;
     }
 
     @Override
@@ -157,7 +155,6 @@ final class SchedulerImpl implements Scheduler {
             tickEndTaskQueue.clear();
         }
         scope.remove(this);
-        if (ownsScope) scope.close();
     }
 
     @Override

@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -26,7 +27,8 @@ class SchedulerLifecycleTest {
     @Test
     void cancellationAndCloseDisableEveryWakeupPath() throws Exception {
         for (boolean close : List.of(false, true)) {
-            try (var scheduler = Scheduler.newScheduler()) {
+            try (var scope = newScope()) {
+                var scheduler = scope.newScheduler();
                 var calls = new AtomicInteger();
                 var future = new CompletableFuture<Void>();
                 var tasks = new ArrayList<Task>();
@@ -61,7 +63,8 @@ class SchedulerLifecycleTest {
 
     @Test
     void unparkAndCompletedFutureRespectExecutionPhase() {
-        try (var scheduler = Scheduler.newScheduler()) {
+        try (var scope = newScope()) {
+            var scheduler = scope.newScheduler();
             var calls = new AtomicInteger();
             var parked = scheduler.buildTask(calls::incrementAndGet)
                     .delay(TaskSchedule.park()).executionType(ExecutionType.TICK_END).schedule();
@@ -82,7 +85,8 @@ class SchedulerLifecycleTest {
 
     @Test
     void inFlightSubmissionMayFinishButCannotRescheduleAfterClose() throws Exception {
-        try (var scheduler = Scheduler.newScheduler(); var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (var scope = newScope(); var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var scheduler = scope.newScheduler();
             var entered = new CountDownLatch(1);
             var release = new CountDownLatch(1);
             var calls = new AtomicInteger();
@@ -117,7 +121,8 @@ class SchedulerLifecycleTest {
     void futureCompletionUnparkAndSubmissionCanRaceClose() throws Exception {
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             for (int i = 0; i < 30; i++) {
-                try (var scheduler = Scheduler.newScheduler()) {
+                try (var scope = newScope()) {
+                    var scheduler = scope.newScheduler();
                     var gate = new CountDownLatch(1);
                     var calls = new AtomicInteger();
                     var future = new CompletableFuture<Void>();
@@ -153,8 +158,8 @@ class SchedulerLifecycleTest {
 
     @Test
     void scopeCancelsTimerHandlesAndTerminatesExecutor() throws Exception {
-        try (var scope = new SchedulerScope(_ -> fail("Unexpected task failure"), "test-scheduler")) {
-            var scheduler = scope.newScheduler(false);
+        try (var scope = newScope()) {
+            var scheduler = scope.newScheduler();
             var task = scheduler.buildTask(() -> fail("Cancelled timer ran")).delay(TaskSchedule.hours(1)).schedule();
             var pending = ((TaskImpl) task).pending;
             assertNotNull(pending);
@@ -169,7 +174,8 @@ class SchedulerLifecycleTest {
 
     @Test
     void failedAndCancelledFuturesReleaseTheirWaitingTasks() {
-        try (var scheduler = Scheduler.newScheduler()) {
+        try (var scope = newScope()) {
+            var scheduler = scope.newScheduler();
             for (boolean cancelled : List.of(false, true)) {
                 for (boolean alreadyDone : List.of(false, true)) {
                     var future = new CompletableFuture<Void>();
@@ -196,25 +202,42 @@ class SchedulerLifecycleTest {
     }
 
     @Test
-    void idleTimerThreadRetiresAndRestartsForNewWork() throws Exception {
-        try (var scope = new SchedulerScope(_ -> fail("Unexpected task failure"), "test-idle-scheduler")) {
-            var scheduler = scope.newScheduler(false);
-            assertTrue(scope.timer().allowsCoreThreadTimeOut());
-            scope.timer().setKeepAliveTime(10, TimeUnit.MILLISECONDS);
-            var worker = scope.timer().submit(Thread::currentThread).get(5, TimeUnit.SECONDS);
+    void timerStartsLazilyAndLivesUntilScopeClose() throws Exception {
+        try (var scope = newScope()) {
+            var scheduler = scope.newScheduler();
+            assertFalse(scope.timer().allowsCoreThreadTimeOut());
             var calls = new AtomicInteger();
-            var task = scheduler.buildTask(calls::incrementAndGet).delay(TaskSchedule.millis(50)).schedule();
+            scheduler.scheduleNextTick(calls::incrementAndGet);
+            scheduler.processTick();
+            assertEquals(1, calls.get());
+            assertEquals(0, scope.timer().getPoolSize(), "Tick-only work must not start the timer thread");
+
+            var task = scheduler.buildTask(calls::incrementAndGet).delay(TaskSchedule.millis(1)).schedule();
             awaitTimer(task);
             scheduler.process();
-            assertEquals(1, calls.get());
+            assertEquals(2, calls.get());
+            var worker = scope.timer().submit(Thread::currentThread).get(5, TimeUnit.SECONDS);
+            closeScheduler(scheduler);
+            assertTrue(worker.isAlive());
+            assertFalse(scope.timer().isShutdown());
+
+            var other = scope.newScheduler();
+            var next = other.buildTask(calls::incrementAndGet).delay(TaskSchedule.millis(1)).schedule();
+            awaitTimer(next);
+            other.process();
+            assertEquals(3, calls.get());
+            assertSame(worker, scope.timer().submit(Thread::currentThread).get(5, TimeUnit.SECONDS));
+
+            closeScope(scope);
             worker.join(5000);
             assertFalse(worker.isAlive());
-            assertFalse(scope.timer().isShutdown());
-            var next = scheduler.buildTask(calls::incrementAndGet).delay(TaskSchedule.millis(1)).schedule();
-            awaitTimer(next);
-            scheduler.process();
-            assertEquals(2, calls.get());
+            assertTrue(scope.timer().isTerminated());
+            assertTrue(other.isClosed());
         }
+    }
+
+    private static SchedulerScope newScope() {
+        return new SchedulerScope(failure -> fail("Unexpected task failure", failure), "test-scheduler");
     }
 
     private static void closeScheduler(Scheduler scheduler) {

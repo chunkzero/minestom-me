@@ -9,7 +9,6 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 /** Owns timer resources and tracks schedulers independently of entity placement or instance registration. */
 final class SchedulerScope implements AutoCloseable {
@@ -22,15 +21,13 @@ final class SchedulerScope implements AutoCloseable {
     SchedulerScope(ExceptionHandler exceptionHandler, String threadName) {
         this.exceptionHandler = Objects.requireNonNull(exceptionHandler);
         this.timer = new ScheduledThreadPoolExecutor(1, Thread.ofPlatform().daemon().name(threadName).factory());
-        timer.setKeepAliveTime(10, TimeUnit.SECONDS);
-        timer.allowCoreThreadTimeOut(true);
         timer.setRemoveOnCancelPolicy(true);
         timer.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
     }
 
-    synchronized SchedulerImpl newScheduler(boolean ownsScope) {
+    synchronized SchedulerImpl newScheduler() {
         if (closed) throw new RejectedExecutionException("Scheduler owner is closed");
-        var scheduler = new SchedulerImpl(this, ownsScope);
+        var scheduler = new SchedulerImpl(this);
         schedulers.add(scheduler);
         return scheduler;
     }

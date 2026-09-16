@@ -26,11 +26,13 @@ public class SchedulerTickBenchmark {
     @Param({"0", "1", "5"})
     public int tickTasks;
 
+    SchedulerScope schedulerScope;
     Scheduler scheduler;
 
     @Setup
     public void setup() {
-        this.scheduler = Scheduler.newScheduler();
+        this.schedulerScope = new SchedulerScope(Throwable::printStackTrace, "benchmark-scheduler");
+        this.scheduler = schedulerScope.newScheduler();
         for (int i = 0; i < this.tickTasks; i++) {
             this.scheduler.scheduleTask(() -> {
             }, TaskSchedule.nextTick(), TaskSchedule.nextTick());
@@ -39,7 +41,7 @@ public class SchedulerTickBenchmark {
 
     @TearDown
     public void close() {
-        scheduler.close();
+        schedulerScope.close();
     }
 
     @Benchmark

@@ -1,7 +1,6 @@
 package net.minestom.server.timer;
 
 import net.minestom.server.ServerProcess;
-import net.minestom.server.exception.ExceptionHandler;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
@@ -14,20 +13,6 @@ import java.util.function.Supplier;
  * Tasks are by default executed in the caller thread.
  */
 public sealed interface Scheduler extends Executor, AutoCloseable permits SchedulerImpl, SchedulerManager {
-    /**
-     * Creates a standalone scheduler with its own timer executor and stack-trace exception logging.
-     * Its timer thread retires when idle. The caller must still close it to cancel outstanding work.
-     * No default server process is used.
-     */
-    static Scheduler newScheduler() {
-        return newScheduler(Throwable::printStackTrace);
-    }
-
-    /** Creates a standalone scheduler with an explicit exception handler. The caller owns its lifetime. */
-    static Scheduler newScheduler(ExceptionHandler exceptionHandler) {
-        return new SchedulerScope(exceptionHandler, "Ms-StandaloneScheduler").newScheduler(true);
-    }
-
     /** Creates a scheduler whose exceptions and lifetime belong to the given process. */
     static Scheduler newScheduler(ServerProcess process) {
         return process.scheduler().createScheduler();

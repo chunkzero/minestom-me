@@ -19,11 +19,12 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 public class TestScheduler {
     private final List<Throwable> errors = new ArrayList<>();
-    private final Scheduler scheduler = Scheduler.newScheduler(errors::add);
+    private final SchedulerScope scope = new SchedulerScope(errors::add, "test-scheduler");
+    private final Scheduler scheduler = scope.newScheduler();
 
     @AfterEach
-    void closeScheduler() {
-        scheduler.close();
+    void closeScope() {
+        scope.close();
     }
 
     static void awaitTimer(Task task) throws Exception {

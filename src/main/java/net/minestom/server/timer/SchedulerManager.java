@@ -8,7 +8,10 @@ import java.util.Objects;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Supplier;
 
-/** Owns the server scheduler, its child schedulers, and a single process-local timer executor. */
+/**
+ * Owns the server scheduler, its child schedulers, and a single process-local timer executor.
+ * The timer thread starts on demand and remains alive until this manager closes.
+ */
 public final class SchedulerManager implements Scheduler {
     private final SchedulerScope scope;
     private final Scheduler scheduler;
@@ -18,12 +21,12 @@ public final class SchedulerManager implements Scheduler {
     public SchedulerManager(ServerProcess process) {
         Objects.requireNonNull(process);
         this.scope = new SchedulerScope(process.exception()::handleException, "Ms-Scheduler-" + process.id());
-        this.scheduler = scope.newScheduler(false);
+        this.scheduler = scope.newScheduler();
     }
 
     /** Creates an independently ticked scheduler closed by this manager, even if its object is unregistered. */
     public Scheduler createScheduler() {
-        return scope.newScheduler(false);
+        return scope.newScheduler();
     }
 
     @Override
