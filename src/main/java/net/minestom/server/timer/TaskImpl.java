@@ -1,29 +1,20 @@
 package net.minestom.server.timer;
 
 import it.unimi.dsi.fastutil.HashCommon;
+import org.jetbrains.annotations.Nullable;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
+import java.util.concurrent.Future;
 import java.util.function.Supplier;
 
 final class TaskImpl implements Task {
-    private static final VarHandle PARKED;
-
-    static {
-        try {
-            PARKED = MethodHandles.lookup().findVarHandle(TaskImpl.class, "parked", boolean.class);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
     private final int id;
-    private final Supplier<TaskSchedule> task;
     private final ExecutionType executionType;
     private final SchedulerImpl owner;
 
     volatile boolean alive;
     volatile boolean parked;
+    @Nullable Supplier<TaskSchedule> task;
+    @Nullable Future<?> pending;
 
     TaskImpl(int id,
              Supplier<TaskSchedule> task,
@@ -41,10 +32,6 @@ final class TaskImpl implements Task {
         this.owner.unparkTask(this);
     }
 
-    boolean tryUnpark() {
-        return PARKED.compareAndSet(this, true, false);
-    }
-
     @Override
     public boolean isParked() {
         return parked;
@@ -52,7 +39,7 @@ final class TaskImpl implements Task {
 
     @Override
     public void cancel() {
-        this.alive = false;
+        this.owner.cancelTask(this);
     }
 
     @Override
@@ -63,10 +50,6 @@ final class TaskImpl implements Task {
     @Override
     public int id() {
         return id;
-    }
-
-    public Supplier<TaskSchedule> task() {
-        return task;
     }
 
     @Override

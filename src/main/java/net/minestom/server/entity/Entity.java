@@ -205,7 +205,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     protected final EntityView viewEngine = new EntityView(this);
     protected final Set<Player> viewers = viewEngine.set;
     private final TagHandler tagHandler = TagHandler.newHandler();
-    private final Scheduler scheduler = Scheduler.newScheduler();
+    private final Scheduler scheduler;
     private final EventNode<EntityEvent> eventNode;
 
     private final UUID uuid;
@@ -246,6 +246,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     public Entity(ServerProcess process, EntityType entityType, UUID uuid) {
         this.process = Objects.requireNonNull(process,
                 "A ServerProcess is required; use an Entity constructor accepting ServerProcess or Entity.builder(type).spawn(instance)");
+        this.scheduler = Scheduler.newScheduler(process);
         this.id = process.generateEntityId();
         this.entityType = entityType;
         this.uuid = uuid;
@@ -1660,7 +1661,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     }
 
     /**
-     * Removes the entity from the server immediately.
+     * Removes the entity from the server immediately and permanently closes its scheduler.
      * <p>
      * WARNING: this does not trigger {@link EntityDeathEvent}.
      */
@@ -1669,6 +1670,15 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     }
 
     protected void remove(boolean permanent) {
+        try {
+            removeInternal(permanent);
+        } finally {
+            if (permanent) scheduler.close();
+        }
+    }
+
+    // Player completes its disconnect callbacks before closing the same scheduler.
+    final void removeInternal(boolean permanent) {
         if (isRemoved()) return;
         process().eventHandler().call(new EntityDespawnEvent(this));
         try {
@@ -1834,6 +1844,10 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         return tagHandler;
     }
 
+    /**
+     * Scheduler owned by this entity's process. Permanent removal closes it; instance movement
+     * and temporary removal preserve it. Unplaced entities are still covered by process shutdown.
+     */
     @Override
     public Scheduler scheduler() {
         return scheduler;

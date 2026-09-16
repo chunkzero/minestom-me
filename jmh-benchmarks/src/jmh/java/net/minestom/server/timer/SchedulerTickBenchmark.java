@@ -10,6 +10,7 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 
 import java.util.concurrent.TimeUnit;
@@ -25,15 +26,22 @@ public class SchedulerTickBenchmark {
     @Param({"0", "1", "5"})
     public int tickTasks;
 
+    SchedulerScope schedulerScope;
     Scheduler scheduler;
 
     @Setup
     public void setup() {
-        this.scheduler = Scheduler.newScheduler();
+        this.schedulerScope = new SchedulerScope(Throwable::printStackTrace, "benchmark-scheduler");
+        this.scheduler = schedulerScope.newScheduler();
         for (int i = 0; i < this.tickTasks; i++) {
             this.scheduler.scheduleTask(() -> {
             }, TaskSchedule.nextTick(), TaskSchedule.nextTick());
         }
+    }
+
+    @TearDown
+    public void close() {
+        schedulerScope.close();
     }
 
     @Benchmark

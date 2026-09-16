@@ -108,7 +108,7 @@ final class ServerProcessImpl implements ServerProcess {
         this.recipe = new RecipeManager(registries);
         this.team = new TeamManager();
         this.eventHandler = new ProcessEventHandler(this);
-        this.scheduler = new SchedulerManager();
+        this.scheduler = new SchedulerManager(this);
         this.advancement = new AdvancementManager();
         this.bossBar = new BossBarManager();
         this.clickCallbackManager = new ClickCallbackManager();

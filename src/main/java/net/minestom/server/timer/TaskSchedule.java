@@ -19,6 +19,7 @@ public sealed interface TaskSchedule permits
         return new TaskScheduleImpl.TickSchedule(tick);
     }
 
+    /** Resumes on successful completion; failure or cancellation stops the task without modifying the source future. */
     static TaskSchedule future(CompletableFuture<?> future) {
         return new TaskScheduleImpl.FutureSchedule(future);
     }

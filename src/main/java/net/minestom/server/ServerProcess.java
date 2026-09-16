@@ -31,7 +31,7 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     /**
      * Creates a process with its own managers, configuration, and registries, without changing
      * {@link MinecraftServer#process()}.
-     * <p>Events, instances, entities, and tick dispatch use their owning process. Other gameplay services
+     * <p>Events, instances, entities, schedulers, and tick dispatch use their owning process. Other gameplay services
      * and packet routing are still being migrated. In particular,
      * compression negotiation, encoded packet caches, and outgoing buffer pools still use default-process
      * state. Different compression settings cannot yet be used for independent client connections.</p>
@@ -180,6 +180,10 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     /** Starts this process's socket server, dispatcher, and tick scheduler. A closed process cannot be started. */
     void start(SocketAddress socketAddress);
 
+    /**
+     * Stops this process, closing its schedulers before shutdown callbacks and player disconnection.
+     * Teardown during process shutdown cannot submit scheduled work; perform required cleanup directly.
+     */
     void stop();
 
     @Override

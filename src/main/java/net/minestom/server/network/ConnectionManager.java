@@ -4,6 +4,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minestom.server.ServerFlag;
 import net.minestom.server.ServerProcess;
+import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.AsyncPlayerConfigurationEvent;
@@ -27,12 +28,14 @@ import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.StaticProtocolObject;
 import net.minestom.server.utils.StringUtils;
 import net.minestom.server.utils.collection.ConcurrentMessageQueues;
+import net.minestom.server.utils.validate.Check;
 import org.jctools.queues.MessagePassingQueue;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -73,6 +76,9 @@ public final class ConnectionManager {
 
     // All players once their Player object has been instantiated.
     private final Map<PlayerConnection, Player> connectionPlayerMap = new ConcurrentHashMap<>();
+    // Disconnect teardown must survive cancellation of the player's scheduler.
+    private final ArrayDeque<Player> pendingRemovals = new ArrayDeque<>();
+    private boolean shuttingDown;
     // Players waiting to be spawned (post configuration state)
     private final MessagePassingQueue<Player> playWaitingPlayers = ConcurrentMessageQueues.mpscUnboundedArrayQueue(64);
     // Players waiting to be (re) configured
@@ -328,22 +334,54 @@ public final class ConnectionManager {
         this.keepAlivePlayers.remove(player);
     }
 
-    /**
-     * Shutdowns the connection manager by kicking all the currently connected players.
-     */
-    public synchronized void shutdown() {
-        for (final PlayerConnection configPlayer : connectionPlayerMap.keySet())
-            configPlayer.kick(SHUTDOWN_TEXT);
-        this.configurationPlayers.clear();
-        for (final Player playPlayer : playPlayers)
-            playPlayer.kick(SHUTDOWN_TEXT);
-        this.playPlayers.clear();
+    /** Defers entity removal until the next connection tick, or removes it during shutdown. */
+    @ApiStatus.Internal
+    public void schedulePlayerRemoval(Player player) {
+        Check.argCondition(player.process() != process, "Player belongs to another process");
+        synchronized (this) {
+            if (!shuttingDown) {
+                pendingRemovals.add(player);
+                return;
+            }
+        }
+        removePlayerEntity(player);
+    }
 
+    private void processRemovals() {
+        while (true) {
+            Player player;
+            synchronized (this) {
+                player = pendingRemovals.poll();
+            }
+            if (player == null) return;
+            removePlayerEntity(player);
+        }
+    }
+
+    private static void removePlayerEntity(Player player) {
+        if (player.acquirable().assignedThread() == null) player.remove();
+        else player.acquirable().sync(Entity::remove);
+    }
+
+    /** Kicks all connected players and completes pending disconnect removals. */
+    public void shutdown() {
+        List<PlayerConnection> connections;
+        synchronized (this) {
+            if (shuttingDown) return;
+            shuttingDown = true;
+            connections = List.copyOf(connectionPlayerMap.keySet());
+        }
+        // Disconnect callbacks may acquire tick threads; do not hold the manager lock here.
+        for (var connection : connections) connection.kick(SHUTDOWN_TEXT);
+        processRemovals();
+        this.configurationPlayers.clear();
+        this.playPlayers.clear();
         this.keepAlivePlayers.clear();
         this.connectionPlayerMap.clear();
     }
 
     public void tick(long tickStart) {
+        processRemovals();
         // Let waiting players into their instances
         updateWaitingPlayers();
 
