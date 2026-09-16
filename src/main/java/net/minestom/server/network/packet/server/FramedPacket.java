@@ -1,6 +1,7 @@
 package net.minestom.server.network.packet.server;
 
 import net.minestom.server.network.NetworkBuffer;
+import net.minestom.server.network.packet.PacketEncodingContext;
 import org.jetbrains.annotations.ApiStatus;
 
 /**
@@ -8,9 +9,11 @@ import org.jetbrains.annotations.ApiStatus;
  * Can be used if you want to send the exact same buffer to multiple clients without processing it more than once.
  */
 @ApiStatus.Internal
-public record FramedPacket(ServerPacket packet,
+public record FramedPacket(PacketEncodingContext context,
+                           ServerPacket packet,
                            NetworkBuffer body) implements SendablePacket {
     public FramedPacket {
+        if (body.registries() != context.registries()) throw new IllegalArgumentException("Foreign buffer registries");
         body = body.readOnly().readIndex(0);
     }
 }

@@ -1,19 +1,21 @@
 package net.minestom.server.command;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.arguments.ArgumentType;
 import net.minestom.server.entity.Player;
+import net.minestom.server.network.packet.server.SendablePacket;
 import net.minestom.server.network.packet.server.play.DeclareCommandsPacket;
 import net.minestom.server.network.player.GameProfile;
+import net.minestom.server.network.player.PlayerConnection;
 import org.junit.jupiter.api.Test;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.Set;
 import java.util.UUID;
 
-@SuppressWarnings("ConstantConditions")
 public class CommandPacketFilteringTest {
-    private static final Player PLAYER = new Player(null, new GameProfile(UUID.randomUUID(), "Test"));
-
     @Test
     public void singleCommandFilteredFalse() {
         final Command foo = new Command("foo");
@@ -200,7 +202,14 @@ public class CommandPacketFilteringTest {
     }
 
     private static void assertFiltering(Command command, String expectedStructure) {
-        final DeclareCommandsPacket packet = GraphConverter.createPacket(new CommandManager(), Graph.merge(Set.of(command)), PLAYER);
-        CommandTestUtils.assertPacket(packet, expectedStructure);
+        try (var process = ServerProcess.create()) {
+            var connection = new PlayerConnection(process) {
+                @Override public void sendPacket(SendablePacket packet) { }
+                @Override public SocketAddress getRemoteAddress() { return new InetSocketAddress(0); }
+            };
+            var player = new Player(connection, new GameProfile(UUID.randomUUID(), "Test"));
+            final DeclareCommandsPacket packet = GraphConverter.createPacket(process.command(), Graph.merge(Set.of(command)), player);
+            CommandTestUtils.assertPacket(packet, expectedStructure);
+        }
     }
 }

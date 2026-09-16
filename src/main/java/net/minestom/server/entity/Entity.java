@@ -1460,22 +1460,22 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         assert chunk != null;
         if (distanceX > 8 || distanceY > 8 || distanceZ > 8) {
             // Send relative 0 velocity to avoid affecting it in this case
-            PacketViewableUtils.prepareViewablePacket(chunk, new EntityTeleportPacket(getEntityId(), position,
+            PacketViewableUtils.prepareViewablePacket(process(), chunk, new EntityTeleportPacket(getEntityId(), position,
                     Vec.ZERO, RelativeFlags.DELTA_COORD, isOnGround()), this);
             nextSynchronizationTick = synchronizationTicks + 1;
         } else if (positionChange && viewChange) {
-            PacketViewableUtils.prepareViewablePacket(chunk, EntityPositionAndRotationPacket.getPacket(getEntityId(), position,
+            PacketViewableUtils.prepareViewablePacket(process(), chunk, EntityPositionAndRotationPacket.getPacket(getEntityId(), position,
                     lastSyncedPosition, isOnGround()), this);
             // Fix head rotation
-            PacketViewableUtils.prepareViewablePacket(chunk, new EntityHeadLookPacket(getEntityId(), headRotation), this);
+            PacketViewableUtils.prepareViewablePacket(process(), chunk, new EntityHeadLookPacket(getEntityId(), headRotation), this);
         } else if (positionChange) {
             // This is a confusing fix for a confusing issue. If rotation is only sent when the entity actually changes, then spawning an entity
             // on the ground causes the entity not to update its rotation correctly. It works fine if the entity is spawned in the air. Very weird.
-            PacketViewableUtils.prepareViewablePacket(chunk, EntityPositionAndRotationPacket.getPacket(getEntityId(), position,
+            PacketViewableUtils.prepareViewablePacket(process(), chunk, EntityPositionAndRotationPacket.getPacket(getEntityId(), position,
                     lastSyncedPosition, onGround), this);
         } else if (viewChange) {
-            PacketViewableUtils.prepareViewablePacket(chunk, new EntityHeadLookPacket(getEntityId(), headRotation), this);
-            PacketViewableUtils.prepareViewablePacket(chunk, EntityPositionAndRotationPacket.getPacket(getEntityId(), position,
+            PacketViewableUtils.prepareViewablePacket(process(), chunk, new EntityHeadLookPacket(getEntityId(), headRotation), this);
+            PacketViewableUtils.prepareViewablePacket(process(), chunk, EntityPositionAndRotationPacket.getPacket(getEntityId(), position,
                     lastSyncedPosition, isOnGround()), this);
         }
         this.lastSyncedPosition = position;
@@ -1793,7 +1793,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     protected void synchronizePosition() {
         final Pos posCache = this.position;
         final Pos delta = posCache.sub(lastSyncedPosition);
-        PacketViewableUtils.prepareViewablePacket(currentChunk, new EntityPositionSyncPacket(getEntityId(), posCache, delta, posCache.yaw(), posCache.pitch(), isOnGround()), this);
+        PacketViewableUtils.prepareViewablePacket(process(), currentChunk, new EntityPositionSyncPacket(getEntityId(), posCache, delta, posCache.yaw(), posCache.pitch(), isOnGround()), this);
         nextSynchronizationTick = ticks + synchronizationTicks;
         this.lastSyncedPosition = posCache;
     }

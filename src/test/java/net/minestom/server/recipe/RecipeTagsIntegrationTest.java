@@ -50,7 +50,7 @@ class RecipeTagsIntegrationTest {
     }
 
     private static DeclareRecipesPacket packet(ServerProcess process) {
-        return (DeclareRecipesPacket) SendablePacket.extractServerPacket(ConnectionState.PLAY,
+        return (DeclareRecipesPacket) SendablePacket.extractServerPacket(process.packetBuffers().context(ConnectionState.PLAY, 0),
                 process.recipe().getDeclareRecipesPacket());
     }
 }

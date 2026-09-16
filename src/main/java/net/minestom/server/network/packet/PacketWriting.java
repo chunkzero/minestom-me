@@ -7,6 +7,7 @@ import net.minestom.server.network.packet.client.ClientPacket;
 import net.minestom.server.network.packet.server.ServerPacket;
 import org.jctools.queues.MessagePassingQueue;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.function.BiPredicate;
 
@@ -70,8 +71,13 @@ public final class PacketWriting {
                                              NetworkBuffer.Type<? super T> type,
                                              int id, T packet,
                                              int compressionThreshold) throws IndexOutOfBoundsException {
+        writeFramedPacket(buffer, type, id, packet, compressionThreshold, null);
+    }
+
+    static <T> void writeFramedPacket(NetworkBuffer buffer, NetworkBuffer.Type<? super T> type,
+                                    int id, T packet, int compressionThreshold, @Nullable PacketBufferPool pool) {
         if (compressionThreshold <= 0) writeUncompressedFormat(buffer, type, id, packet);
-        else writeCompressedFormat(buffer, type, id, packet, compressionThreshold);
+        else writeCompressedFormat(buffer, type, id, packet, compressionThreshold, pool);
     }
 
     private static <T> void writeUncompressedFormat(NetworkBuffer buffer,
@@ -88,7 +94,7 @@ public final class PacketWriting {
     private static <T> void writeCompressedFormat(NetworkBuffer buffer,
                                                   NetworkBuffer.Type<? super T> type,
                                                   int id, T packet,
-                                                  int compressionThreshold) throws IndexOutOfBoundsException {
+                                                  int compressionThreshold, @Nullable PacketBufferPool pool) throws IndexOutOfBoundsException {
         // Compressed format https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Protocol#With_compression
         final long compressedIndex = buffer.advanceWrite(3);
         final long uncompressedIndex = buffer.advanceWrite(3);
@@ -100,44 +106,19 @@ public final class PacketWriting {
         if (compressed) {
             // Write the compressed content into the pooled buffer
             // and compress it into the current buffer
-            NetworkBuffer input = PacketVanilla.PACKET_POOL.get();
+            NetworkBuffer input = pool != null ? pool.get() : NetworkBuffer.staticBuffer(packetSize);
             try {
                 if (input.capacity() < packetSize) input.resize(packetSize);
                 NetworkBuffer.copy(buffer, contentStart, input, 0, packetSize);
                 buffer.writeIndex(contentStart);
                 input.compress(0, packetSize, buffer);
             } finally {
-                PacketVanilla.PACKET_POOL.add(input);
+                if (pool != null) pool.add(input);
             }
         }
         // Packet header (Packet + Data Length)
         buffer.writeAt(compressedIndex, NetworkBuffer.VAR_INT_3, (int) (buffer.writeIndex() - uncompressedIndex));
         buffer.writeAt(uncompressedIndex, NetworkBuffer.VAR_INT_3, compressed ? (int) packetSize : 0);
-    }
-
-    public static NetworkBuffer allocateTrimmedPacket(ConnectionState state,
-                                                      ClientPacket packet,
-                                                      int compressionThreshold) {
-        return allocateTrimmedPacket(PacketVanilla.CLIENT_PACKET_PARSER, state, packet, compressionThreshold);
-    }
-
-    public static NetworkBuffer allocateTrimmedPacket(ConnectionState state,
-                                                      ServerPacket packet,
-                                                      int compressionThreshold) {
-        return allocateTrimmedPacket(PacketVanilla.SERVER_PACKET_PARSER, state, packet, compressionThreshold);
-    }
-
-    public static <T> NetworkBuffer allocateTrimmedPacket(
-            PacketParser<T> parser,
-            ConnectionState state,
-            T packet,
-            int compressionThreshold) {
-        NetworkBuffer buffer = PacketVanilla.PACKET_POOL.get();
-        try {
-            return allocateTrimmedPacket(buffer, parser, state, packet, compressionThreshold);
-        } finally {
-            PacketVanilla.PACKET_POOL.add(buffer);
-        }
     }
 
     public static <T> NetworkBuffer allocateTrimmedPacket(
@@ -151,28 +132,44 @@ public final class PacketWriting {
         return allocateTrimmedPacket(tmpBuffer, registry, packet, compressionThreshold);
     }
 
+    public static NetworkBuffer allocateTrimmedPacket(PacketEncodingContext context, ServerPacket packet) {
+        NetworkBuffer buffer = context.buffers().get();
+        try {
+            @SuppressWarnings("unchecked") // The packet must be valid for this protocol state.
+            var registry = (PacketRegistry<ServerPacket>) PacketVanilla.SERVER_PACKET_PARSER.stateRegistry(context.state());
+            return allocateTrimmedPacket(buffer, registry, packet, context.compressionThreshold(), context.buffers());
+        } finally {
+            context.buffers().add(buffer);
+        }
+    }
+
     public static <T> NetworkBuffer allocateTrimmedPacket(
             NetworkBuffer tmpBuffer,
             PacketRegistry<? super T> registry,
             T packet,
             int compressionThreshold) {
+        return allocateTrimmedPacket(tmpBuffer, registry, packet, compressionThreshold, null);
+    }
+
+    private static <T> NetworkBuffer allocateTrimmedPacket(NetworkBuffer tmpBuffer, PacketRegistry<? super T> registry,
+                                                          T packet, int compressionThreshold, @Nullable PacketBufferPool pool) {
         final PacketRegistry.PacketInfo<? super T> packetInfo = registry.packetInfo(packet);
         final int id = packetInfo.id();
         final NetworkBuffer.Type<? super T> serializer = packetInfo.serializer();
-        try {
-            writeFramedPacket(tmpBuffer, serializer, id, packet, compressionThreshold);
-            return tmpBuffer.copy(0, tmpBuffer.writeIndex());
-        } catch (IndexOutOfBoundsException _) {
-            final long sizeOf = serializer.sizeOf(packet, tmpBuffer.registries());
-            if (sizeOf > ServerFlag.MAX_PACKET_SIZE) {
-                throw new IllegalStateException("Packet too large: " + sizeOf);
+        while (true) {
+            try {
+                writeFramedPacket(tmpBuffer, serializer, id, packet, compressionThreshold, pool);
+                return tmpBuffer.copy(0, tmpBuffer.writeIndex());
+            } catch (IndexOutOfBoundsException _) {
+                final long sizeOf = serializer.sizeOf(packet, tmpBuffer.registries());
+                // Leave room for the three framing varints, and retry if compression expands the payload.
+                final long maxCapacity = ServerFlag.MAX_PACKET_SIZE + 15L;
+                if (sizeOf > ServerFlag.MAX_PACKET_SIZE || tmpBuffer.capacity() >= maxCapacity) {
+                    throw new IllegalStateException("Packet too large: " + sizeOf);
+                }
+                tmpBuffer.resize(Math.min(maxCapacity, Math.max(sizeOf + 15, tmpBuffer.capacity() * 2)));
+                tmpBuffer.writeIndex(0);
             }
-            // Add 15 bytes to account for the 3 potential varints in the packet header
-            // Packet Length - Data Length - Packet ID
-            tmpBuffer.resize(sizeOf + 15);
-            tmpBuffer.writeIndex(0);
-            writeFramedPacket(tmpBuffer, serializer, id, packet, compressionThreshold);
-            return tmpBuffer.copy(0, tmpBuffer.writeIndex());
         }
     }
 
@@ -192,10 +189,9 @@ public final class PacketWriting {
             } catch (IndexOutOfBoundsException _) {
                 success = false;
             }
-            assert !success || buffer.writeIndex() > 0;
-            // Poll the packet only if fully written
+            // Consumed packets may write no bytes when cancelled or when a batch has become stale.
             if (success) {
-                // Packet fully written
+                // Packet consumed
                 queue.poll();
                 written++;
             } else {

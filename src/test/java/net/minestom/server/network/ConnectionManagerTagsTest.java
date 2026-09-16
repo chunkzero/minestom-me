@@ -1,6 +1,5 @@
 package net.minestom.server.network;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.network.packet.server.common.TagsPacket;
@@ -13,10 +12,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConnectionManagerTagsTest {
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
     void onlyTheChangedRegistriesInvalidateTheirCachedTags() {
-        try (var first = MinecraftServer.updateProcess()) {
+        try (var first = ServerProcess.create()) {
             var firstPacket = tags(first);
             try (var second = ServerProcess.create()) {
                 assertSame(firstPacket, tags(first));
@@ -38,7 +36,7 @@ class ConnectionManagerTagsTest {
     }
 
     private static TagsPacket tags(ServerProcess process) {
-        return (TagsPacket) process.connection().tagsPacket().packet(ConnectionState.CONFIGURATION);
+        return (TagsPacket) process.connection().tagsPacket().packet(process.packetBuffers().context(ConnectionState.CONFIGURATION, 0));
     }
 
     private static boolean hasTag(TagsPacket packet, String name) {

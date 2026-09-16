@@ -132,11 +132,23 @@ public final class PacketReading {
             boolean compressed,
             PacketReader<T> packetReader
     ) throws DataFormatException {
+        return readPackets(buffer, parser, state, stateUpdater, compressed, packetReader, null);
+    }
+
+    public static <T> Result<T> readPackets(
+            NetworkBuffer buffer,
+            PacketParser<T> parser,
+            ConnectionState state,
+            BiFunction<T, ConnectionState, ConnectionState> stateUpdater,
+            boolean compressed,
+            PacketReader<T> packetReader,
+            @Nullable PacketBufferPool pool
+    ) throws DataFormatException {
         List<ParsedPacket<T>> packets = new ArrayList<>();
         boolean skipped = false;
         readLoop:
         while (buffer.readableBytes() > 0) {
-            final Result<T> result = readPacket(buffer, parser, state, stateUpdater, compressed, packetReader);
+            final Result<T> result = readPacket(buffer, parser, state, stateUpdater, compressed, packetReader, pool);
             if (buffer.readableBytes() == 0 && packets.isEmpty()) return result;
             switch (result) {
                 case Result.Success<T> success -> {
@@ -192,6 +204,18 @@ public final class PacketReading {
             boolean compressed,
             PacketReader<T> packetReader
     ) throws DataFormatException {
+        return readPacket(buffer, parser, state, stateUpdater, compressed, packetReader, null);
+    }
+
+    public static <T> Result<T> readPacket(
+            NetworkBuffer buffer,
+            PacketParser<T> parser,
+            ConnectionState state,
+            BiFunction<T, ConnectionState, ConnectionState> stateUpdater,
+            boolean compressed,
+            PacketReader<T> packetReader,
+            @Nullable PacketBufferPool pool
+    ) throws DataFormatException {
         final long beginMark = buffer.readIndex();
         // READ PACKET LENGTH
         final int packetLength;
@@ -224,7 +248,7 @@ public final class PacketReading {
         final PacketRegistry<? extends T> registry = parser.stateRegistry(state);
         final long offset = buffer.advanceRead(packetLength); // ensureReadable checked above
         final NetworkBuffer slice = buffer.slice(offset, packetLength, 0, packetLength).readOnly();
-        final @Nullable T packet = readFramedPacket(slice, registry, compressed, maxPacketSize, packetReader);
+        final @Nullable T packet = readFramedPacket(slice, registry, compressed, maxPacketSize, packetReader, pool);
         if (packet == null) return skippedResult();
         final ConnectionState nextState = stateUpdater.apply(packet, state);
         return new Result.Success<>(new ParsedPacket<>(nextState, packet));
@@ -234,7 +258,7 @@ public final class PacketReading {
                                                     PacketRegistry<? extends T> registry,
                                                     boolean compressed,
                                                     int maxPacketSize,
-                                                    PacketReader<T> packetReader) throws DataFormatException {
+                                                    PacketReader<T> packetReader, @Nullable PacketBufferPool pool) throws DataFormatException {
         if (!compressed) {
             // No compression format
             return readPayload(buffer, registry, packetReader);
@@ -250,7 +274,7 @@ public final class PacketReading {
         }
 
         // Decompress the packet into the pooled buffer and read the uncompressed packet from it
-        NetworkBuffer poolBuffer = PacketVanilla.PACKET_POOL.get();
+        NetworkBuffer poolBuffer = pool != null ? pool.get() : NetworkBuffer.staticBuffer(dataLength);
         try {
             if (poolBuffer.capacity() < dataLength) poolBuffer.resize(dataLength);
             final NetworkBuffer slice = poolBuffer.slice(0, dataLength, 0, 0);
@@ -261,7 +285,7 @@ public final class PacketReading {
             }
             return readPayload(slice.readOnly(), registry, packetReader);
         } finally {
-            PacketVanilla.PACKET_POOL.add(poolBuffer);
+            if (pool != null) pool.add(poolBuffer);
         }
     }
 

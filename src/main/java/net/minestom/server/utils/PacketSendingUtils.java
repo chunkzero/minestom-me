@@ -10,7 +10,7 @@ import net.minestom.server.ServerFlag;
 import net.minestom.server.adventure.ComponentHolder;
 import net.minestom.server.adventure.audience.PacketGroupingAudience;
 import net.minestom.server.entity.Player;
-import net.minestom.server.network.ConnectionState;
+import net.minestom.server.network.packet.PacketEncodingContext;
 import net.minestom.server.network.packet.server.CachedPacket;
 import net.minestom.server.network.packet.server.SendablePacket;
 import net.minestom.server.network.packet.server.ServerPacket;
@@ -100,7 +100,7 @@ public final class PacketSendingUtils {
      * Checks if the {@link ServerPacket} is suitable to be wrapped into a {@link CachedPacket}.
      * Note: {@link ServerPacket.ComponentHolding}s are not translated inside a {@link CachedPacket}.
      *
-     * @see CachedPacket#body(ConnectionState)
+     * @see CachedPacket#body(PacketEncodingContext)
      */
     private static boolean shouldUseCachePacket(final ServerPacket packet) {
         if (!ServerFlag.AUTOMATIC_COMPONENT_TRANSLATION) return true;

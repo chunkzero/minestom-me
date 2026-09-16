@@ -11,6 +11,7 @@ import net.minestom.server.event.player.OutgoingTransferEvent;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.monitoring.EventsJFR;
 import net.minestom.server.network.ConnectionState;
+import net.minestom.server.network.packet.PacketEncodingContext;
 import net.minestom.server.network.packet.server.SendablePacket;
 import net.minestom.server.network.packet.server.ServerPacket;
 import net.minestom.server.network.packet.server.common.CookieRequestPacket;
@@ -69,6 +70,12 @@ public abstract class PlayerConnection {
     /** The process captured when this connection was constructed. */
     public ServerProcess process() {
         return process;
+    }
+
+    /** Encoding context for packets queued to this connection. */
+    @ApiStatus.Internal
+    public PacketEncodingContext packetContext() {
+        return process.packetBuffers().context(getServerState(), 0);
     }
 
     /**

@@ -17,6 +17,8 @@ import net.minestom.server.listener.manager.PacketListenerManager;
 import net.minestom.server.monitoring.EventsJFR;
 import net.minestom.server.monitoring.TickMonitor;
 import net.minestom.server.network.ConnectionManager;
+import net.minestom.server.network.packet.PacketBatcher;
+import net.minestom.server.network.packet.PacketBufferPool;
 import net.minestom.server.network.packet.PacketParser;
 import net.minestom.server.network.packet.PacketVanilla;
 import net.minestom.server.network.packet.server.common.PluginMessagePacket;
@@ -36,7 +38,6 @@ import net.minestom.server.thread.ThreadProvider;
 import net.minestom.server.thread.TickSchedulerThread;
 import net.minestom.server.thread.TickThread;
 import net.minestom.server.timer.SchedulerManager;
-import net.minestom.server.utils.PacketViewableUtils;
 import net.minestom.server.utils.collection.MappedCollection;
 import net.minestom.server.utils.time.Tick;
 import net.minestom.server.utils.validate.Check;
@@ -72,6 +73,8 @@ final class ServerProcessImpl implements ServerProcess {
     private final ConnectionManager connection;
     private final PacketListenerManager packetListener;
     private final PacketParser.Client packetParser;
+    private final PacketBufferPool packetBuffers;
+    private final PacketBatcher packetBatcher;
     private final InstanceManager instance;
     private final BlockManager block;
     private final CommandManager command;
@@ -98,6 +101,8 @@ final class ServerProcessImpl implements ServerProcess {
         this.auth = Objects.requireNonNull(auth);
         this.exception = new ExceptionManager(this::stop);
         this.registries = Registries.vanilla();
+        this.packetBuffers = new PacketBufferPool(registries);
+        this.packetBatcher = new PacketBatcher(this);
 
         this.connection = new ConnectionManager(this);
         this.packetListener = new PacketListenerManager();
@@ -241,6 +246,16 @@ final class ServerProcessImpl implements ServerProcess {
     }
 
     @Override
+    public PacketBufferPool packetBuffers() {
+        return packetBuffers;
+    }
+
+    @Override
+    public PacketBatcher packetBatcher() {
+        return packetBatcher;
+    }
+
+    @Override
     public Server server() {
         return server;
     }
@@ -336,9 +351,11 @@ final class ServerProcessImpl implements ServerProcess {
         }
         final String brand = brandName;
         LOGGER.info("Stopping {} server.", brand);
+        packetBatcher.close();
         scheduler.shutdown();
         connection.shutdown();
         server.stop();
+        packetBuffers.close();
         LOGGER.info("Shutting down all thread pools.");
         dispatcher.shutdown();
         // A tick worker can request shutdown while the scheduler is awaiting its tick.
@@ -394,7 +411,7 @@ final class ServerProcessImpl implements ServerProcess {
             scheduler().processTickEnd();
 
             // Flush all waiting packets
-            PacketViewableUtils.flush();
+            packetBatcher.flush();
 
             // Monitoring
             {

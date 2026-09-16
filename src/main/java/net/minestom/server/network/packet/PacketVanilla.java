@@ -1,9 +1,6 @@
 package net.minestom.server.network.packet;
 
-import net.minestom.server.MinecraftServer;
-import net.minestom.server.ServerFlag;
 import net.minestom.server.network.ConnectionState;
-import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.client.ClientPacket;
 import net.minestom.server.network.packet.client.common.ClientCookieResponsePacket;
 import net.minestom.server.network.packet.client.common.ClientCustomClickActionPacket;
@@ -237,7 +234,6 @@ import net.minestom.server.network.packet.server.play.WorldBorderWarningDelayPac
 import net.minestom.server.network.packet.server.play.WorldBorderWarningReachPacket;
 import net.minestom.server.network.packet.server.play.WorldEventPacket;
 import net.minestom.server.network.packet.server.status.ResponsePacket;
-import net.minestom.server.utils.ObjectPool;
 import org.jetbrains.annotations.ApiStatus;
 
 import static java.util.Map.entry;
@@ -248,16 +244,6 @@ import static net.minestom.server.network.packet.PacketRegistry.registry;
  */
 @ApiStatus.Internal
 public final class PacketVanilla {
-
-    /**
-     * Pool containing a buffer able to hold the largest packet.
-     * <p>
-     * Size starts with {@link ServerFlag#POOLED_BUFFER_SIZE} and doubles until {@link ServerFlag#MAX_PACKET_SIZE}.
-     */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    public static final ObjectPool<NetworkBuffer> PACKET_POOL = ObjectPool.pool(
-            () -> NetworkBuffer.staticBuffer(ServerFlag.POOLED_BUFFER_SIZE, MinecraftServer.getRegistries()),
-            NetworkBuffer::clear);
 
     public static ConnectionState nextClientState(ClientPacket packet, ConnectionState currentState) {
         return switch (packet) {

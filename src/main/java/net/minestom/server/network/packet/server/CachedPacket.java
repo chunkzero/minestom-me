@@ -1,10 +1,8 @@
 package net.minestom.server.network.packet.server;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
-import net.minestom.server.network.ConnectionState;
 import net.minestom.server.network.NetworkBuffer;
-import net.minestom.server.network.packet.PacketWriting;
+import net.minestom.server.network.packet.PacketEncodingContext;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,14 +24,15 @@ import java.util.function.Supplier;
  * thread invokes the packet supplier and computes a replacement value at a
  * time. Cache reads and publication use acquire and release memory semantics.
  *
- * <p>When caching is disabled, calls to {@link #packet(ConnectionState)} invoke
+ * <p>When caching is disabled, calls to {@link #packet(PacketEncodingContext)} invoke
  * the packet supplier directly. The supplier must therefore be thread safe if
  * this object may be accessed concurrently while caching is disabled.
  *
- * <p>The supplied packet and its serialized representation must remain valid
- * for the {@link ConnectionState} used to populate the cache. A
- * {@code CachedPacket} should not be shared across connection states when the
- * resulting framed representation differs between those states.
+ * <p>One representation is retained, for the most recently used encoding context.
+ * Sharing this object across owners, connection states, or compression settings is safe:
+ * a different context replaces the cached representation. Registry definitions must
+ * remain stable while the representation is cached; call {@link #invalidate()} after
+ * changing definitions or the supplied packet.
  */
 @ApiStatus.Internal
 public final class CachedPacket implements SendablePacket {
@@ -106,11 +105,11 @@ public final class CachedPacket implements SendablePacket {
      * <p>When caching is disabled, the packet supplier is invoked directly and
      * may be invoked concurrently by multiple callers.
      *
-     * @param state the connection state used when framing the packet
+     * @param context the owner, connection state, and negotiated compression used when framing
      * @return the packet value
      */
-    public ServerPacket packet(ConnectionState state) {
-        final FramedPacket cache = updatedCache(state);
+    public ServerPacket packet(PacketEncodingContext context) {
+        final FramedPacket cache = framed(context);
         return cache != null ? cache.packet() : packetSupplier.get();
     }
 
@@ -123,25 +122,25 @@ public final class CachedPacket implements SendablePacket {
      * <p>If caching is disabled, no framed body is created and {@code null} is
      * returned.
      *
-     * @param state the connection state used when framing the packet
+     * @param context the owner, connection state, and negotiated compression used when framing
      * @return the framed packet body, or {@code null} when caching is disabled
      */
-    public @Nullable NetworkBuffer body(ConnectionState state) {
-        final FramedPacket cache = updatedCache(state);
+    public @Nullable NetworkBuffer body(PacketEncodingContext context) {
+        final FramedPacket cache = framed(context);
         return cache != null ? cache.body() : null;
     }
 
     /**
      * Returns the current cached value, computing it when absent.
      *
-     * @param state the connection state used when framing the packet
+     * @param context the owner, connection state, and negotiated compression used when framing
      * @return the cached framed packet, or {@code null} when caching is disabled
      */
-    private @Nullable FramedPacket updatedCache(ConnectionState state) {
+    public @Nullable FramedPacket framed(PacketEncodingContext context) {
         if (!ServerFlag.CACHED_PACKET) return null;
 
         final FramedPacket cache = cachedPacket();
-        return cache != null ? cache : computeCache(state);
+        return cache != null && cache.context().equals(context) ? cache : computeCache(context);
     }
 
     /**
@@ -156,18 +155,17 @@ public final class CachedPacket implements SendablePacket {
      * during computation may therefore be followed by publication of the
      * in progress result.
      *
-     * @param state the connection state used when framing the packet
+     * @param context the owner, connection state, and negotiated compression used when framing
      * @return the existing or newly computed framed packet
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    private synchronized FramedPacket computeCache(ConnectionState state) {
+    private synchronized FramedPacket computeCache(PacketEncodingContext context) {
         final FramedPacket cache = cachedPacket();
-        if (cache != null) return cache;
+        if (cache != null && cache.context().equals(context)) return cache;
 
         final ServerPacket packet = packetSupplier.get();
-        final NetworkBuffer buffer = PacketWriting.allocateTrimmedPacket(state, packet, MinecraftServer.getCompressionThreshold());
+        final NetworkBuffer buffer = context.frame(packet);
 
-        final FramedPacket updated = new FramedPacket(packet, buffer);
+        final FramedPacket updated = new FramedPacket(context, packet, buffer);
         PACKET.setRelease(this, new SoftReference<>(updated));
         return updated;
     }
