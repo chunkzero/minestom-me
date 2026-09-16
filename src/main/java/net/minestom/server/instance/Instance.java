@@ -178,7 +178,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
     public Instance(ServerProcess process, UUID uuid, RegistryKey<DimensionType> dimensionType, Key dimensionName) {
         this.process = Objects.requireNonNull(process);
         this.registries = process.registries();
-        this.entityTracker = EntityTracker.newTracker(process);
+        this.entityTracker = process.entity().newTracker();
         this.uuid = uuid;
         this.dimensionType = dimensionType;
         this.cachedDimensionType = registries.dimensionType().get(dimensionType);

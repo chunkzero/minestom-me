@@ -2,6 +2,7 @@ package net.minestom.server.event;
 
 import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Entity;
+import net.minestom.server.entity.EntityManager;
 import net.minestom.server.event.entity.EntityAttackEvent;
 import net.minestom.server.event.entity.EntityDamageEvent;
 import net.minestom.server.event.entity.EntityItemMergeEvent;
@@ -39,6 +40,7 @@ final class EventOwnership {
         final ServerProcess owner = switch (value) {
             case ServerProcess target -> target;
             case Entity entity -> entity.process();
+            case EntityManager manager -> manager.process();
             case Instance instance -> instance.process();
             case Chunk chunk -> chunk.getInstance().process();
             case PlayerConnection connection -> connection.process();

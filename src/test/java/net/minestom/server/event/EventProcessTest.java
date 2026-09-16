@@ -5,19 +5,29 @@ import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
+import net.minestom.server.entity.LivingEntity;
 import net.minestom.server.event.entity.EntityAttackEvent;
+import net.minestom.server.event.entity.EntityPotionAddEvent;
+import net.minestom.server.event.entity.EntityPotionRemoveEvent;
 import net.minestom.server.event.entity.EntityShootEvent;
 import net.minestom.server.event.entity.EntitySpawnEvent;
 import net.minestom.server.event.entity.EntityTickEvent;
 import net.minestom.server.event.entity.EntityVelocityEvent;
 import net.minestom.server.event.instance.InstanceChunkLoadEvent;
+import net.minestom.server.event.item.EntityEquipEvent;
 import net.minestom.server.event.server.ClientPingServerEvent;
+import net.minestom.server.event.trait.EntityEvent;
 import net.minestom.server.event.trait.EntityInstanceEvent;
+import net.minestom.server.event.trait.InstanceEvent;
 import net.minestom.server.instance.ChunkLoader;
 import net.minestom.server.instance.DynamicChunk;
 import net.minestom.server.instance.Instance;
+import net.minestom.server.item.ItemStack;
+import net.minestom.server.item.Material;
 import net.minestom.server.network.packet.server.SendablePacket;
 import net.minestom.server.network.player.PlayerConnection;
+import net.minestom.server.potion.Potion;
+import net.minestom.server.potion.PotionEffect;
 import net.minestom.testing.ServerProcessPair;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -52,7 +63,7 @@ class EventProcessTest {
             var second = pair.second();
             var instance = second.instance().createInstanceContainer(ChunkLoader.noop());
             var filter = EventFilter.from(TargetEvent.class, Object.class, TargetEvent::target);
-            for (var target : List.of(second, second.eventHandler(), second.instance(), second.connection(), second.server(),
+            for (var target : List.of(second, second.eventHandler(), second.entity(), second.instance(), second.connection(), second.server(),
                     instance, instance.getEntityTracker(), new DynamicChunk(instance, 0, 0),
                     new Entity(second, EntityType.ZOMBIE), connection(second))) {
                 assertThrows(IllegalArgumentException.class, () -> first.eventHandler().map(target, filter));
@@ -67,6 +78,53 @@ class EventProcessTest {
                 assertEquals(1, calls.get());
                 second.eventHandler().removeChild(node);
             }
+        }
+    }
+
+    @Test
+    void configurationEventsFireBeforePlacementWithoutClaimingAnInstance() {
+        try (var pair = new ServerProcessPair()) {
+            var process = pair.first();
+            var errors = new ArrayList<Throwable>();
+            process.exception().setExceptionHandler(errors::add);
+            var entity = new LivingEntity(process, EntityType.ZOMBIE);
+            entity.setAutoViewable(false);
+            var calls = new ArrayList<Class<?>>();
+            var foreignCalls = new AtomicInteger();
+            List<Class<? extends EntityEvent>> types = List.of(EntityVelocityEvent.class,
+                    EntityEquipEvent.class, EntityPotionAddEvent.class, EntityPotionRemoveEvent.class);
+            for (var type : types) {
+                entity.eventNode().addListener(type, (owner, event) -> {
+                    assertSame(process, owner);
+                    assertSame(entity, event.getEntity());
+                    assertFalse(event instanceof InstanceEvent);
+                    calls.add(event.getClass());
+                });
+                pair.second().eventHandler().addListener(type, _ -> foreignCalls.incrementAndGet());
+            }
+            entity.setVelocity(new Vec(1, 0, 0));
+            entity.setItemInMainHand(ItemStack.of(Material.STONE));
+            entity.addEffect(new Potion(PotionEffect.SPEED, 0, 20));
+            entity.removeEffect(PotionEffect.SPEED);
+            assertEquals(types, calls);
+            assertNull(entity.getInstance());
+            assertThrows(NullPointerException.class, () -> new EntityTickEvent(entity).getInstance());
+
+            var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
+            var instanceCalls = new AtomicInteger();
+            instance.eventNode().addListener(EntitySpawnEvent.class, event -> {
+                assertSame(instance, event.getInstance());
+                instanceCalls.incrementAndGet();
+            });
+            instance.eventNode().addListener(EntityTickEvent.class, event -> {
+                assertSame(instance, event.getInstance());
+                instanceCalls.incrementAndGet();
+            });
+            entity.setInstance(instance).join();
+            process.eventHandler().call(new EntityTickEvent(entity));
+            assertEquals(2, instanceCalls.get());
+            assertEquals(0, foreignCalls.get());
+            assertTrue(errors.isEmpty(), errors::toString);
         }
     }
 
@@ -126,7 +184,7 @@ class EventProcessTest {
             assertEquals(0, calls.get());
 
             first.eventHandler().addListener(EntityVelocityEvent.class, event -> {
-                assertNull(event.getInstance());
+                assertNull(event.getEntity().getInstance());
                 calls.incrementAndGet();
             });
             local.setVelocity(Vec.ZERO);
@@ -151,10 +209,10 @@ class EventProcessTest {
     void contextReachesFiltersListenersMappingsBindingsAndCachedHandles() {
         var calls = new ArrayList<ServerProcess>();
         var expectedProcess = new AtomicReference<ServerProcess>();
-        var filter = EventFilter.from(TestEvent.class, ServerProcess.class, (process, _) -> process);
-        var node = EventNode.type("standalone", filter, (process, _, value) -> process == value);
+        var filter = EventFilter.fromContextual(TestEvent.class, ServerProcess.class, (process, _) -> process);
+        var node = EventNode.contextual("standalone", filter, (process, _, value) -> process == value);
         node.addListener(TestEvent.class, (process, _) -> calls.add(process));
-        var child = EventNode.event("child", filter, (process, _) -> process == expectedProcess.get());
+        var child = EventNode.contextual("child", filter, (process, _, _) -> process == expectedProcess.get());
         child.addListener(EventListener.builder(TestEvent.class)
                 .filter((process, _) -> process == expectedProcess.get())
                 .expireWhen((process, _) -> process != expectedProcess.get())
@@ -227,18 +285,18 @@ class EventProcessTest {
             var entity = new Entity(first, EntityType.ZOMBIE);
             var calls = new AtomicInteger();
             var node = EventNode.all("subtree");
-            node.map(entity, EventFilter.ENTITY).addListener(EntityTickEvent.class, _ -> calls.incrementAndGet());
-            var handle = first.eventHandler().getHandle(EntityTickEvent.class);
+            node.map(entity, EventFilter.ENTITY).addListener(EntityVelocityEvent.class, _ -> calls.incrementAndGet());
+            var handle = first.eventHandler().getHandle(EntityVelocityEvent.class);
             assertFalse(handle.hasListener());
             assertThrows(IllegalArgumentException.class, () -> second.eventHandler().addChild(node));
             assertThrows(IllegalArgumentException.class, () -> second.eventHandler().map(entity, EventFilter.ENTITY));
             first.eventHandler().addChild(node);
-            handle.call(new EntityTickEvent(entity));
+            handle.call(new EntityVelocityEvent(entity, Vec.ZERO));
             assertEquals(1, calls.get());
             first.eventHandler().removeChild(node);
-            handle.call(new EntityTickEvent(entity));
+            handle.call(new EntityVelocityEvent(entity, Vec.ZERO));
             assertEquals(1, calls.get());
-            assertThrows(IllegalArgumentException.class, () -> second.eventHandler().call(new EntityTickEvent(entity)));
+            assertThrows(IllegalArgumentException.class, () -> second.eventHandler().call(new EntityVelocityEvent(entity, Vec.ZERO)));
         }
     }
 
@@ -262,7 +320,7 @@ class EventProcessTest {
     void recursiveBindingsReceiveDispatchContext() {
         try (var pair = new ServerProcessPair()) {
             var calls = new ArrayList<ServerProcess>();
-            var filter = EventFilter.from(EventNodeTest.Recursive1.class, ServerProcess.class, (process, _) -> process);
+            var filter = EventFilter.fromContextual(EventNodeTest.Recursive1.class, ServerProcess.class, (process, _) -> process);
             var binding = EventBinding.filtered(filter, _ -> true)
                     .map(EventNodeTest.Recursive1.class, (process, _) -> calls.add(process)).build();
             var node = EventNode.all("recursive");

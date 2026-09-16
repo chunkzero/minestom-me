@@ -184,20 +184,11 @@ public sealed interface EventNode<T extends Event> permits EventNodeImpl {
         boolean test(ServerProcess process, E event, V handler);
     }
 
+    /** Creates a node whose condition receives the dispatching process, event, and handler. */
     @SuppressWarnings("unchecked")
-    static <E extends Event, V> EventNode<E> type(String name, EventFilter<E, V> filter,
+    static <E extends Event, V> EventNode<E> contextual(String name, EventFilter<E, V> filter,
                                                 ContextualPredicate<E, V> predicate) {
         return new EventNodeImpl<>(name, filter, (process, event, value) -> predicate.test(process, event, (V) value));
-    }
-
-    static <E extends Event, V> EventNode<E> event(String name, EventFilter<E, V> filter,
-                                                 BiPredicate<ServerProcess, E> predicate) {
-        return type(name, filter, (process, event, _) -> predicate.test(process, event));
-    }
-
-    static <E extends Event, V> EventNode<E> value(String name, EventFilter<E, V> filter,
-                                                 BiPredicate<ServerProcess, V> predicate) {
-        return type(name, filter, (process, _, value) -> predicate.test(process, value));
     }
 
     @SuppressWarnings("unchecked")

@@ -28,6 +28,11 @@ public class ExperienceOrb extends Entity {
         this.experienceCount = experienceCount;
     }
 
+    /** Creates an ownerless builder for an experience orb. */
+    public static EntityBuilder<ExperienceOrb, ?> builder(short experienceCount) {
+        return Entity.builder(process -> new ExperienceOrb(process, experienceCount));
+    }
+
     @Override
     public void update(long time) {
 

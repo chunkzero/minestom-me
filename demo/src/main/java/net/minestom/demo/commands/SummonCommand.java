@@ -1,6 +1,5 @@
 package net.minestom.demo.commands;
 
-import net.minestom.server.ServerProcess;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
@@ -18,7 +17,7 @@ import net.minestom.server.entity.LivingEntity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.utils.location.RelativeVec;
 
-import java.util.function.BiFunction;
+import java.util.function.Function;
 
 public class SummonCommand extends Command {
 
@@ -52,18 +51,18 @@ public class SummonCommand extends Command {
 
     @SuppressWarnings("unused")
     enum EntityClass {
-        BASE(Entity::new),
-        LIVING(LivingEntity::new),
-        CREATURE(EntityCreature::new);
+        BASE(Entity::builder),
+        LIVING(LivingEntity::builder),
+        CREATURE(EntityCreature::builder);
 
-        private final BiFunction<ServerProcess, EntityType, ? extends Entity> factory;
+        private final Function<EntityType, EntityBuilder<? extends Entity, ?>> factory;
 
-        EntityClass(BiFunction<ServerProcess, EntityType, ? extends Entity> factory) {
+        EntityClass(Function<EntityType, EntityBuilder<? extends Entity, ?>> factory) {
             this.factory = factory;
         }
 
-        public EntityBuilder<? extends Entity> builder(EntityType type) {
-            return Entity.builder(type, factory);
+        public EntityBuilder<? extends Entity, ?> builder(EntityType type) {
+            return factory.apply(type);
         }
     }
 }

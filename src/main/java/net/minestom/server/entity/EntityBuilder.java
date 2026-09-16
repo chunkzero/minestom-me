@@ -29,59 +29,87 @@ import java.util.function.Function;
  * This builder is mutable and not thread-safe. Changes affect subsequent spawns only.
  *
  * @param <T> the constructed entity type
+ * @param <B> the concrete builder type, preserved by fluent configuration methods
  */
-public final class EntityBuilder<T extends Entity> {
+public abstract class EntityBuilder<T extends Entity, B extends EntityBuilder<T, B>> {
     private final Function<ServerProcess, T> factory;
+    private final List<Consumer<? super T>> settings = new ArrayList<>();
     private final List<EventListener<? extends EntityEvent>> listeners = new ArrayList<>();
-    private final List<BiConsumer<ServerProcess, T>> initializers = new ArrayList<>();
+    private final List<BiConsumer<ServerProcess, ? super T>> initializers = new ArrayList<>();
     private @Nullable Boolean noGravity;
     private @Nullable Boolean autoViewable;
     private @Nullable Vec velocity;
 
-    EntityBuilder(Function<ServerProcess, T> factory) {
+    protected EntityBuilder(Function<ServerProcess, T> factory) {
         this.factory = Objects.requireNonNull(factory);
+    }
+
+    /** Returns this builder with its concrete type. */
+    @Contract("-> this")
+    protected abstract B self();
+
+    /** Adds subtype configuration to apply after common settings and before initializers. */
+    @Contract("_ -> this")
+    protected final B configure(Consumer<? super T> setting) {
+        settings.add(Objects.requireNonNull(setting));
+        return self();
+    }
+
+    static <T extends Entity> EntityBuilder<T, ?> create(Function<ServerProcess, T> factory) {
+        return new Simple<>(factory);
+    }
+
+    private static final class Simple<T extends Entity> extends EntityBuilder<T, Simple<T>> {
+        private Simple(Function<ServerProcess, T> factory) {
+            super(factory);
+        }
+
+        @Override
+        protected Simple<T> self() {
+            return this;
+        }
     }
 
     /** Sets whether the entity is affected by gravity. */
     @Contract("_ -> this")
-    public EntityBuilder<T> noGravity(boolean noGravity) {
+    public B noGravity(boolean noGravity) {
         this.noGravity = noGravity;
-        return this;
+        return self();
     }
 
     /** Sets whether nearby players automatically become viewers. */
     @Contract("_ -> this")
-    public EntityBuilder<T> autoViewable(boolean autoViewable) {
+    public B autoViewable(boolean autoViewable) {
         this.autoViewable = autoViewable;
-        return this;
+        return self();
     }
 
     /** Sets the initial velocity through {@link Entity#setVelocity(Vec)}, including its event. */
     @Contract("_ -> this")
-    public EntityBuilder<T> velocity(Vec velocity) {
+    public B velocity(Vec velocity) {
         this.velocity = Objects.requireNonNull(velocity);
-        return this;
+        return self();
     }
 
     /** Registers a listener on each entity's event node, including its expiration policy. */
     @Contract("_ -> this")
-    public EntityBuilder<T> addListener(EventListener<? extends EntityEvent> listener) {
+    public B addListener(EventListener<? extends EntityEvent> listener) {
         listeners.add(Objects.requireNonNull(listener));
-        return this;
+        return self();
     }
 
     @Contract("_, _ -> this")
-    public <E extends EntityEvent> EntityBuilder<T> addListener(Class<E> eventType, Consumer<E> listener) {
+    public <E extends EntityEvent> B addListener(Class<E> eventType, Consumer<E> listener) {
         return addListener(EventListener.of(eventType, listener));
     }
 
     @Contract("_, _ -> this")
-    public <E extends EntityEvent> EntityBuilder<T> addListener(Class<E> eventType, BiConsumer<ServerProcess, E> listener) {
+    public <E extends EntityEvent> B addListener(Class<E> eventType, BiConsumer<ServerProcess, E> listener) {
         return addListener(EventListener.of(eventType, listener));
     }
 
     @Contract("_ -> this")
-    public EntityBuilder<T> initialize(Consumer<T> initializer) {
+    public B initialize(Consumer<? super T> initializer) {
         Objects.requireNonNull(initializer);
         return initialize((_, entity) -> initializer.accept(entity));
     }
@@ -93,9 +121,9 @@ public final class EntityBuilder<T extends Entity> {
      * or remove the entity. An initializer failure aborts spawning and removes the entity.
      */
     @Contract("_ -> this")
-    public EntityBuilder<T> initialize(BiConsumer<ServerProcess, T> initializer) {
+    public B initialize(BiConsumer<ServerProcess, ? super T> initializer) {
         initializers.add(Objects.requireNonNull(initializer));
-        return this;
+        return self();
     }
 
     /** Spawns a fresh entity at {@link Pos#ZERO}. */
@@ -115,6 +143,7 @@ public final class EntityBuilder<T extends Entity> {
     public CompletableFuture<T> spawn(Instance instance, Point position) {
         Objects.requireNonNull(position);
         final ServerProcess process = instance.process();
+        final var settings = List.copyOf(this.settings);
         final var listeners = List.copyOf(this.listeners);
         final var initializers = List.copyOf(this.initializers);
         final Boolean noGravity = this.noGravity;
@@ -138,6 +167,7 @@ public final class EntityBuilder<T extends Entity> {
             if (noGravity != null) entity.setNoGravity(noGravity);
             if (autoViewable != null) entity.setAutoViewable(autoViewable);
             if (velocity != null) entity.setVelocity(velocity);
+            for (var setting : settings) setting.accept(entity);
             for (var initializer : initializers) {
                 initializer.accept(process, entity);
                 Check.stateCondition(entity.getInstance() != null || entity.isRemoved(), "Initializers must not place or remove the entity");

@@ -47,6 +47,11 @@ public class EntityCreature extends LivingEntity implements NavigableEntity, Ent
         heal();
     }
 
+    /** Creates an ownerless creature builder using the destination instance's process. */
+    public static EntityBuilder<? extends EntityCreature, ?> builder(EntityType entityType) {
+        return Entity.builder(entityType, EntityCreature::new);
+    }
+
     public EntityCreature(EntityType entityType) {
         this(entityType, UUID.randomUUID());
     }

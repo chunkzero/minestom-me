@@ -1,10 +1,10 @@
 package net.minestom.server.event.entity;
 
 import net.minestom.server.entity.Entity;
-import net.minestom.server.event.trait.EntityInstanceEvent;
+import net.minestom.server.event.trait.EntityEvent;
 import net.minestom.server.potion.Potion;
 
-public class EntityPotionRemoveEvent implements EntityInstanceEvent {
+public class EntityPotionRemoveEvent implements EntityEvent {
 
     private final Entity entity;
     private final Potion potion;

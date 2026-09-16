@@ -47,6 +47,16 @@ public class EntityProjectile extends Entity {
         setup();
     }
 
+    /** Creates an ownerless builder for a projectile without a shooter. */
+    public static EntityBuilder<? extends EntityProjectile, ?> builder(EntityType entityType) {
+        return builder(null, entityType);
+    }
+
+    /** The shooter, when present, must belong to the destination instance's process. */
+    public static EntityBuilder<EntityProjectile, ?> builder(@Nullable Entity shooter, EntityType entityType) {
+        return Entity.builder(entityType, (process, type) -> new EntityProjectile(process, shooter, type));
+    }
+
     @SuppressWarnings("this-escape") // deliberate self registration during construction
     private void setup() {
         super.hasPhysics = false;

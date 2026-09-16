@@ -49,7 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @RegistriesTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class DataComponentPredicateTest {
+public class DataComponentPredicateRegistriesTest {
     private Registries registries;
 
     @BeforeAll

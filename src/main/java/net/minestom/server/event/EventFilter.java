@@ -35,7 +35,7 @@ import java.util.function.Function;
  */
 public interface EventFilter<E extends Event, H> {
 
-    EventFilter<Event, ?> ALL = from(Event.class, null, _ -> null);
+    EventFilter<Event, ?> ALL = from(Event.class, null, null);
     EventFilter<EntityEvent, Entity> ENTITY = from(EntityEvent.class, Entity.class, EntityEvent::getEntity);
     EventFilter<PlayerEvent, Player> PLAYER = from(PlayerEvent.class, Player.class, PlayerEvent::getPlayer);
     EventFilter<ItemEvent, ItemStack> ITEM = from(ItemEvent.class, ItemStack.class, ItemEvent::getItemStack);
@@ -46,7 +46,7 @@ public interface EventFilter<E extends Event, H> {
     static <E extends Event, H> EventFilter<E, H> from(Class<E> eventType,
                                                        @Nullable Class<H> handlerType,
                                                        @Nullable Function<E, H> handlerGetter) {
-        return from(eventType, handlerType, (_, event) -> handlerGetter != null ? handlerGetter.apply(event) : null);
+        return fromContextual(eventType, handlerType, (_, event) -> handlerGetter != null ? handlerGetter.apply(event) : null);
     }
 
     /**
@@ -59,8 +59,9 @@ public interface EventFilter<E extends Event, H> {
      */
     @Nullable H getHandler(ServerProcess process, E event);
 
-    static <E extends Event, H> EventFilter<E, H> from(Class<E> eventType, @Nullable Class<H> handlerType,
-                                                      BiFunction<ServerProcess, E, H> handlerGetter) {
+    /** Creates a filter whose handler lookup receives the dispatching process. */
+    static <E extends Event, H> EventFilter<E, H> fromContextual(Class<E> eventType, @Nullable Class<H> handlerType,
+                                                                BiFunction<ServerProcess, E, H> handlerGetter) {
         return new EventFilter<>() {
             @Override
             public @Nullable H getHandler(ServerProcess process, E event) {

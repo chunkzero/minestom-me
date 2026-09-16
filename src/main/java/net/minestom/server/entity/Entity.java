@@ -7,8 +7,8 @@ import net.kyori.adventure.pointer.Pointers;
 import net.kyori.adventure.pointer.PointersSupplier;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.HoverEvent.ShowEntity;
 import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.event.HoverEvent.ShowEntity;
 import net.kyori.adventure.text.event.HoverEventSource;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
@@ -115,7 +115,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -133,8 +132,6 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     // overflow while working with a position at the max int (for example, looping over a bounding box)
     @ApiStatus.Internal
     public static final int MAX_COORDINATE = 2_000_000_000;
-
-    private static final AtomicInteger LAST_ENTITY_ID = new AtomicInteger();
 
     // Protected due to PointersSupplier.Builder#parent
     protected static final PointersSupplier<Entity> ENTITY_POINTERS_SUPPLIER = PointersSupplier.<Entity>builder()
@@ -248,7 +245,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     @SuppressWarnings("this-escape") // entities are not usable until spawned
     public Entity(ServerProcess process, EntityType entityType, UUID uuid) {
         this.process = Objects.requireNonNull(process);
-        this.id = generateId();
+        this.id = process.entity().generateId();
         this.entityType = entityType;
         this.uuid = uuid;
         this.position = Pos.ZERO;
@@ -279,7 +276,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
 
     /** Creates an ownerless builder which obtains its process from the destination instance. */
     @Contract("_ -> new")
-    public static EntityBuilder<Entity> builder(EntityType entityType) {
+    public static EntityBuilder<? extends Entity, ?> builder(EntityType entityType) {
         return builder(entityType, Entity::new);
     }
 
@@ -289,7 +286,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * The constructor receives the destination instance's process when spawning.
      */
     @Contract("_, _ -> new")
-    public static <T extends Entity> EntityBuilder<T> builder(EntityType entityType,
+    public static <T extends Entity> EntityBuilder<T, ?> builder(EntityType entityType,
                                                             BiFunction<ServerProcess, EntityType, T> factory) {
         Objects.requireNonNull(entityType);
         Objects.requireNonNull(factory);
@@ -301,8 +298,8 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * The factory must construct a fresh, unplaced entity owned by the supplied process.
      */
     @Contract("_ -> new")
-    public static <T extends Entity> EntityBuilder<T> builder(Function<ServerProcess, T> factory) {
-        return new EntityBuilder<>(factory);
+    public static <T extends Entity> EntityBuilder<T, ?> builder(Function<ServerProcess, T> factory) {
+        return EntityBuilder.create(factory);
     }
 
     /** The process that owns this object's lifetime and services. */
@@ -349,10 +346,13 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * <p>
      * Useful if you want to spawn entities using packet but don't risk to have duplicated id.
      *
-     * @return a newly generated entity id
+     * @return a newly generated entity id in the default process
+     * @deprecated use {@link EntityManager#generateId()} through {@link ServerProcess#entity()}
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal") // Temporary default-process bridge.
     public static int generateId() {
-        return LAST_ENTITY_ID.incrementAndGet();
+        return MinecraftServer.process().entity().generateId();
     }
 
     /**
@@ -829,9 +829,9 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     }
 
     /**
-     * Each entity has an unique id (server-wide) which will change after a restart.
+     * Each entity has an ID unique within its owning process. IDs may overlap across processes.
      *
-     * @return the unique entity id
+     * @return the entity ID within this process
      * @see Instance#getEntityById(int) to retrieve an entity based on its id
      */
     public int getEntityId() {

@@ -5,6 +5,7 @@ import net.minestom.server.adventure.ClickCallbackManager;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.entity.Entity;
+import net.minestom.server.entity.EntityManager;
 import net.minestom.server.event.ProcessEventHandler;
 import net.minestom.server.exception.ExceptionManager;
 import net.minestom.server.instance.Chunk;
@@ -90,6 +91,9 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
      * Handles registered instances.
      */
     InstanceManager instance();
+
+    /** Owns entity IDs across this process's instances. */
+    EntityManager entity();
 
     /**
      * Handles {@link net.minestom.server.instance.block.BlockHandler block handlers}

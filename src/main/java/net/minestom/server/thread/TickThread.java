@@ -66,8 +66,7 @@ public class TickThread extends MinestomThread {
             } finally {
                 lock.unlock();
                 // #acquire() callbacks
-                this.latchRef.set(null);
-                latch.countDown();
+                if (latchRef.compareAndSet(latch, null)) latch.countDown();
             }
             LockSupport.park(this);
         }
@@ -117,8 +116,7 @@ public class TickThread extends MinestomThread {
         }
         if (stop || entries.isEmpty()) {
             // Nothing to tick
-            latchRef.compareAndSet(latch, null);
-            latch.countDown();
+            if (latchRef.compareAndSet(latch, null)) latch.countDown();
             return;
         }
         this.tickTimeNanos = tickTimeNanos;
@@ -142,7 +140,7 @@ public class TickThread extends MinestomThread {
     void shutdown() {
         this.stop = true;
         final var latch = latchRef.get();
-        if (latch != null && !isAlive()) latch.countDown();
+        if (latch != null && !isAlive() && latchRef.compareAndSet(latch, null)) latch.countDown();
         LockSupport.unpark(this);
     }
 }

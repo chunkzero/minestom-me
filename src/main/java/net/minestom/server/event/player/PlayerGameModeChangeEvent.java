@@ -3,12 +3,12 @@ package net.minestom.server.event.player;
 import net.minestom.server.entity.GameMode;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.trait.CancellableEvent;
-import net.minestom.server.event.trait.PlayerInstanceEvent;
+import net.minestom.server.event.trait.PlayerEvent;
 
 /**
  * Called when the gamemode of a player is being modified.
  */
-public class PlayerGameModeChangeEvent implements PlayerInstanceEvent, CancellableEvent {
+public class PlayerGameModeChangeEvent implements PlayerEvent, CancellableEvent {
 
     private final Player player;
     private GameMode newGameMode;

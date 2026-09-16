@@ -7,7 +7,6 @@ import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.arguments.ArgumentType;
 import net.minestom.server.command.builder.condition.Conditions;
 import net.minestom.server.command.builder.exception.ArgumentSyntaxException;
-import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityProjectile;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.Player;
@@ -45,7 +44,7 @@ public class ShootCommand extends Command {
                 return;
             }
         }
-        var builder = Entity.builder(process -> new EntityProjectile(process, player, entityType));
+        var builder = EntityProjectile.builder(player, entityType);
         if (mode.equals("colored")) {
             builder.initialize(projectile -> projectile.editEntityMeta(ArrowMeta.class,
                     meta -> meta.setColor(ThreadLocalRandom.current().nextInt())));

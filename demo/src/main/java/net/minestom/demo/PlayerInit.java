@@ -144,8 +144,8 @@ public class PlayerInit {
                 ItemStack droppedItem = event.getItemStack();
 
                 Pos playerPos = player.getPosition();
-                var itemEntity = Entity.builder(process -> new ItemEntity(process, droppedItem))
-                        .initialize(item -> item.setPickupDelay(Duration.of(500, TimeUnit.MILLISECOND)))
+                var itemEntity = ItemEntity.builder(droppedItem)
+                        .pickupDelay(Duration.of(500, TimeUnit.MILLISECOND))
                         .spawn(player.getInstance(), playerPos.withY(y -> y + 1.5)).join();
                 Vec velocity = playerPos.direction().mul(6);
                 itemEntity.setVelocity(velocity);
@@ -226,13 +226,13 @@ public class PlayerInit {
 
                     player.playSound(Sound.sound(SoundEvent.ENTITY_EXPERIENCE_ORB_PICKUP, Sound.Source.PLAYER, 0.5f, 1f));
 
-                    var _ = Entity.builder(EntityType.HAPPY_GHAST, LivingEntity::new)
+                    var _ = LivingEntity.builder(EntityType.HAPPY_GHAST)
                             .noGravity(true)
                             .initialize(ghast -> ghast.setBodyEquipment(ItemStack.of(Material.GREEN_HARNESS)))
                             .addListener(EntitySpawnEvent.class, spawn -> trackWaypoint(player, spawn.getEntity()))
                             .spawn(player.getInstance(), new Pos(10, 43, 5, 45, 0));
 
-                    var _ = Entity.builder(EntityType.COPPER_GOLEM, LivingEntity::new)
+                    var _ = LivingEntity.builder(EntityType.COPPER_GOLEM)
                             .noGravity(true)
                             .initialize(golem -> {
                                 golem.setItemInMainHand(ItemStack.of(Material.STICK));
@@ -246,7 +246,7 @@ public class PlayerInit {
                             .addListener(EntitySpawnEvent.class, spawn -> trackWaypoint(player, spawn.getEntity()))
                             .spawn(player.getInstance(), new Pos(-2.5, 40, 6.7, -163, 0));
 
-                    var _ = Entity.builder(EntityType.MANNEQUIN, LivingEntity::new)
+                    var _ = LivingEntity.builder(EntityType.MANNEQUIN)
                             .noGravity(true)
                             .initialize(mannequin -> {
                                 mannequin.set(DataComponents.CUSTOM_NAME, Component.text("Minestom"));

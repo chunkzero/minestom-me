@@ -40,7 +40,61 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Timeout(15)
-class ProcessTickIntegrationTest {
+class ProcessTickTest {
+    @Test
+    void entityIdsAreSharedAcrossInstancesAndIndependentAcrossProcesses() {
+        try (var pair = new ServerProcessPair()) {
+            var first = pair.first();
+            var second = pair.second();
+            var firstEntity = entity(first);
+            var secondEntity = entity(second);
+            assertEquals(firstEntity.getEntityId(), secondEntity.getEntityId());
+            int packetOnlyId = first.entity().generateId();
+            var otherEntity = entity(first);
+            assertNotEquals(firstEntity.getEntityId(), packetOnlyId);
+            assertNotEquals(packetOnlyId, otherEntity.getEntityId());
+            assertNotEquals(firstEntity.getEntityId(), otherEntity.getEntityId());
+
+            var firstInstance = first.instance().createInstanceContainer(ChunkLoader.noop());
+            var otherInstance = first.instance().createInstanceContainer(ChunkLoader.noop());
+            var secondInstance = second.instance().createInstanceContainer(ChunkLoader.noop());
+            firstEntity.setInstance(firstInstance).join();
+            otherEntity.setInstance(otherInstance).join();
+            secondEntity.setInstance(secondInstance).join();
+            assertSame(firstEntity, firstInstance.getEntityById(firstEntity.getEntityId()));
+            assertSame(secondEntity, secondInstance.getEntityById(firstEntity.getEntityId()));
+            firstEntity.setInstance(otherInstance).join();
+            assertNull(firstInstance.getEntityById(firstEntity.getEntityId()));
+            assertSame(firstEntity, otherInstance.getEntityById(firstEntity.getEntityId()));
+            assertSame(otherEntity, otherInstance.getEntityById(otherEntity.getEntityId()));
+        }
+    }
+
+    @Test
+    void closingWhileSchedulerWaitsToEnterTickDoesNotReportAnError() throws InterruptedException {
+        try (var process = ServerProcess.create()) {
+            var errors = new CopyOnWriteArrayList<Throwable>();
+            process.exception().setExceptionHandler(errors::add);
+            Thread closer;
+            synchronized (process.ticker()) {
+                process.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+                var scheduler = Thread.getAllStackTraces().keySet().stream()
+                        .filter(thread -> thread.getName().equals("Ms-TickScheduler-" + process.id()))
+                        .findFirst().orElseThrow();
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                while (scheduler.getState() != Thread.State.BLOCKED && System.nanoTime() < deadline) Thread.sleep(1);
+                assertEquals(Thread.State.BLOCKED, scheduler.getState());
+                closer = Thread.startVirtualThread(process::close);
+                while (process.isAlive() && System.nanoTime() < deadline) Thread.sleep(1);
+                assertFalse(process.isAlive());
+            }
+            closer.join(5000);
+            assertFalse(closer.isAlive());
+            assertTrue(errors.isEmpty(), errors::toString);
+            assertThrows(IllegalStateException.class, () -> process.ticker().tick(System.nanoTime()));
+        }
+    }
+
     @Test
     void instancesEntitiesAndTickEventsUseTheirOwner() {
         try (var pair = new ServerProcessPair()) {

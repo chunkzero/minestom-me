@@ -11,10 +11,12 @@ import net.minestom.server.utils.MathUtils;
 import net.minestom.server.utils.time.Cooldown;
 import net.minestom.server.utils.time.TimeUnit;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.temporal.TemporalUnit;
+import java.util.Objects;
 
 /**
  * Represents an item on the ground.
@@ -53,6 +55,44 @@ public class ItemEntity extends Entity {
         super(process, EntityType.ITEM);
         setItemStack(itemStack);
         setBoundingBox(0.25f, 0.25f, 0.25f);
+    }
+
+    /** Creates an ownerless builder for an item on the ground. */
+    @Contract("_ -> new")
+    public static Builder builder(ItemStack itemStack) {
+        return new Builder(Objects.requireNonNull(itemStack));
+    }
+
+    public static final class Builder extends EntityBuilder<ItemEntity, Builder> {
+        private Builder(ItemStack itemStack) {
+            super(process -> new ItemEntity(process, itemStack));
+        }
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        @Contract("_ -> this")
+        public Builder pickupDelay(Duration delay) {
+            Objects.requireNonNull(delay);
+            return configure(item -> item.setPickupDelay(delay));
+        }
+
+        @Contract("_ -> this")
+        public Builder pickable(boolean pickable) {
+            return configure(item -> item.setPickable(pickable));
+        }
+
+        @Contract("_ -> this")
+        public Builder mergeable(boolean mergeable) {
+            return configure(item -> item.setMergeable(mergeable));
+        }
+
+        @Contract("_ -> this")
+        public Builder mergeRange(float mergeRange) {
+            return configure(item -> item.setMergeRange(mergeRange));
+        }
     }
 
     /**

@@ -407,12 +407,16 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
         @Override
         public void call(ServerProcess process, E event) {
             Objects.requireNonNull(process);
-            final var owner = EventNodeImpl.this.process();
-            Check.argCondition(owner != null && owner != process, "Event node belongs to another process");
-            if (EventNodeImpl.this instanceof EventNodeLazyImpl<?> mapped) mapped.checkOwner(process);
             EventOwnership.checkEvent(process, event);
             assert !(event instanceof AsyncEvent) || Thread.currentThread().isVirtual() :
                     "AsyncEvent must be called within a Virtual Thread, got " + Thread.currentThread();
+            dispatch(process, event);
+        }
+
+        void dispatch(ServerProcess process, E event) {
+            final var owner = EventNodeImpl.this.process();
+            Check.argCondition(owner != null && owner != process, "Event node belongs to another process");
+            if (EventNodeImpl.this instanceof EventNodeLazyImpl<?> mapped) mapped.checkOwner(process);
             final BiConsumer<ServerProcess, E> listener = updatedListener();
             if (listener == null) return;
             try {
@@ -560,7 +564,7 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
                     final Object handler = filter.castHandler(process, event);
                     final WeakReference<Handle<E>> handleRef = handlers.get(handler);
                     final Handle<E> handle = handleRef != null ? handleRef.get() : null;
-                    if (handle != null) handle.call(process, event);
+                    if (handle != null) handle.dispatch(process, event);
                 }
             };
         }

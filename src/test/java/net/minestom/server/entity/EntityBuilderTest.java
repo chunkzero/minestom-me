@@ -13,12 +13,15 @@ import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.ChunkLoader;
 import net.minestom.server.instance.DynamicChunk;
 import net.minestom.server.instance.InstanceContainer;
+import net.minestom.server.item.ItemStack;
+import net.minestom.server.item.Material;
 import net.minestom.server.world.DimensionType;
 import net.minestom.testing.ServerProcessPair;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -40,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Timeout(15)
-class EntityBuilderIntegrationTest {
+class EntityBuilderTest {
     @Test
     void listenersObserveSettingsInitializationAndSpawnInOrder() {
         var calls = new ArrayList<String>();
@@ -73,7 +76,7 @@ class EntityBuilderIntegrationTest {
             process.exception().setExceptionHandler(errors::add);
             var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
             var position = new Pos(1, 2, 3, 45, 10);
-            CompletableFuture<Entity> spawned = builder.spawn(instance, position);
+            CompletableFuture<? extends Entity> spawned = builder.spawn(instance, position);
             var entity = spawned.join();
             assertEquals(List.of("velocity", "initialize", "velocity", "initialize again", "spawn"), calls);
             assertEquals(List.of(process, process), owners);
@@ -128,7 +131,7 @@ class EntityBuilderIntegrationTest {
             assertEquals(List.of(first, first, second), allSpawns);
             assertSame(pair.first(), first.process());
             assertSame(pair.second(), second.process());
-            assertNotEquals(first.getEntityId(), second.getEntityId());
+            assertEquals(first.getEntityId(), second.getEntityId());
             assertNotEquals(first.getUuid(), second.getUuid());
             assertNotSame(first.getAIGroups().iterator().next(), second.getAIGroups().iterator().next());
             first.editEntityMeta(ZombieMeta.class, meta -> meta.setBaby(false));
@@ -240,9 +243,66 @@ class EntityBuilderIntegrationTest {
         }
     }
 
-    private static final class TestCreature extends EntityCreature {
+    @Test
+    void subtypeAndCustomBuildersPreserveTheirFluentTypes() {
+        var itemStack = ItemStack.of(Material.STONE);
+        var itemBuilder = ItemEntity.builder(itemStack)
+                .initialize(item -> assertEquals(500, item.getPickupDelay()))
+                .noGravity(true)
+                .pickupDelay(Duration.ofMillis(500))
+                .autoViewable(false)
+                .mergeable(false);
+        var customBuilder = TestCreature.builder(EntityType.ZOMBIE)
+                .noGravity(true)
+                .autoViewable(false)
+                .initialize(creature -> assertEquals(0, creature.getRemovalAnimationDelay()))
+                .removalDelay(0);
+        assertSame(customBuilder, customBuilder.noGravity(true));
+
+        try (var process = ServerProcess.create()) {
+            var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
+            CompletableFuture<ItemEntity> itemSpawn = itemBuilder.spawn(instance);
+            var item = itemSpawn.join();
+            assertEquals(itemStack, item.getItemStack());
+            assertFalse(item.isMergeable());
+            assertTrue(item.hasNoGravity());
+
+            CompletableFuture<TestCreature> customSpawn = customBuilder.spawn(instance);
+            assertTrue(customSpawn.join().hasNoGravity());
+            var living = LivingEntity.builder(EntityType.ZOMBIE)
+                    .autoViewable(false).initialize(entity -> entity.setHealth(10)).spawn(instance).join();
+            assertEquals(10, living.getHealth());
+            var creature = EntityCreature.builder(EntityType.ZOMBIE).autoViewable(false).spawn(instance).join();
+            assertSame(creature, creature.getNavigator().getEntity());
+            var projectile = EntityProjectile.builder(creature, EntityType.ARROW).autoViewable(false).spawn(instance).join();
+            assertSame(creature, projectile.getShooter());
+            var orb = ExperienceOrb.builder((short) 5).autoViewable(false).spawn(instance).join();
+            assertEquals(5, orb.getExperienceCount());
+        }
+    }
+
+    static final class TestCreature extends EntityCreature {
         TestCreature(ServerProcess process, EntityType type) {
             super(process, type);
+        }
+
+        public static TestCreatureBuilder builder(EntityType type) {
+            return new TestCreatureBuilder(type);
+        }
+    }
+
+    static final class TestCreatureBuilder extends EntityBuilder<TestCreature, TestCreatureBuilder> {
+        TestCreatureBuilder(EntityType type) {
+            super(process -> new TestCreature(process, type));
+        }
+
+        @Override
+        protected TestCreatureBuilder self() {
+            return this;
+        }
+
+        TestCreatureBuilder removalDelay(int delay) {
+            return configure(creature -> creature.setRemovalAnimationDelay(delay));
         }
     }
 

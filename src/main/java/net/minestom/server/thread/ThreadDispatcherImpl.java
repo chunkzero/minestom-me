@@ -163,7 +163,7 @@ final class ThreadDispatcherImpl<P, E extends Tickable> implements ThreadDispatc
             case Chunk chunk -> chunk.getInstance().process();
             default -> null;
         };
-        Check.argCondition(owner != null && owner != process, "Game object belongs to another process");
+        Check.argCondition(process != null && owner != null && owner != process, "Game object belongs to another process");
     }
 
     private void processLoadedPartition(P partition) {

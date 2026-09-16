@@ -6,6 +6,7 @@ import net.minestom.server.adventure.ClickCallbackManager;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.entity.Entity;
+import net.minestom.server.entity.EntityManager;
 import net.minestom.server.event.ProcessEventHandler;
 import net.minestom.server.event.server.ServerTickMonitorEvent;
 import net.minestom.server.exception.ExceptionManager;
@@ -72,6 +73,7 @@ final class ServerProcessImpl implements ServerProcess {
     private final PacketListenerManager packetListener;
     private final PacketParser.Client packetParser;
     private final InstanceManager instance;
+    private final EntityManager entity;
     private final BlockManager block;
     private final CommandManager command;
     private final RecipeManager recipe;
@@ -87,7 +89,7 @@ final class ServerProcessImpl implements ServerProcess {
     private final ThreadDispatcher<Chunk, Entity> dispatcher;
     private final Ticker ticker;
     private @Nullable TickSchedulerThread tickScheduler;
-    private boolean dispatcherStarted;
+    private volatile boolean dispatcherStarted;
 
     private final AtomicBoolean started = new AtomicBoolean();
     private final AtomicBoolean stopped = new AtomicBoolean();
@@ -102,6 +104,7 @@ final class ServerProcessImpl implements ServerProcess {
         this.packetListener = new PacketListenerManager();
         this.packetParser = PacketVanilla.CLIENT_PACKET_PARSER;
         this.instance = new InstanceManager(this);
+        this.entity = new EntityManager(this);
         this.block = new BlockManager();
         this.command = new CommandManager();
         this.recipe = new RecipeManager(registries);
@@ -182,6 +185,11 @@ final class ServerProcessImpl implements ServerProcess {
     @Override
     public InstanceManager instance() {
         return instance;
+    }
+
+    @Override
+    public EntityManager entity() {
+        return entity;
     }
 
     @Override
@@ -302,12 +310,17 @@ final class ServerProcessImpl implements ServerProcess {
         }
     }
 
-    private synchronized void startDispatcher() {
-        Check.stateCondition(stopped.get(), "Server is closed");
-        if (!dispatcherStarted) {
-            if (!dispatcher.isAlive()) dispatcher.start();
-            dispatcherStarted = true;
+    private boolean startDispatcher() {
+        if (stopped.get()) return false;
+        if (dispatcherStarted) return true;
+        synchronized (this) {
+            if (stopped.get()) return false;
+            if (!dispatcherStarted) {
+                if (!dispatcher.isAlive()) dispatcher.start();
+                dispatcherStarted = true;
+            }
         }
+        return true;
     }
 
     @Override
@@ -363,7 +376,10 @@ final class ServerProcessImpl implements ServerProcess {
     private final class TickerImpl implements Ticker {
         @Override
         public synchronized void tick(long nanoTime) {
-            startDispatcher();
+            if (!startDispatcher()) {
+                Check.stateCondition(Thread.currentThread() != tickScheduler, "Server is closed");
+                return;
+            }
             var serverTickEvent = EventsJFR.newServerTick();
             serverTickEvent.begin();
             scheduler().processTick();

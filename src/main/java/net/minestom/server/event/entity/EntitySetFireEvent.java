@@ -2,9 +2,9 @@ package net.minestom.server.event.entity;
 
 import net.minestom.server.entity.Entity;
 import net.minestom.server.event.trait.CancellableEvent;
-import net.minestom.server.event.trait.EntityInstanceEvent;
+import net.minestom.server.event.trait.EntityEvent;
 
-public class EntitySetFireEvent implements EntityInstanceEvent, CancellableEvent {
+public class EntitySetFireEvent implements EntityEvent, CancellableEvent {
 
     private final Entity entity;
     private int ticks;

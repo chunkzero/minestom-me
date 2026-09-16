@@ -1,8 +1,8 @@
 package net.minestom.server.entity;
 
 import net.kyori.adventure.key.Key;
-import net.kyori.adventure.sound.Sound.Source;
 import net.kyori.adventure.sound.Sound;
+import net.kyori.adventure.sound.Sound.Source;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.adventure.AdventurePacketConvertor;
@@ -118,6 +118,11 @@ public class LivingEntity extends Entity implements EquipmentHandler {
     @SuppressWarnings("this-escape") // Entity initialization.
     public LivingEntity(ServerProcess process, EntityType entityType, UUID uuid) {
         super(process, entityType, uuid);
+    }
+
+    /** Creates an ownerless living-entity builder using the destination instance's process. */
+    public static EntityBuilder<? extends LivingEntity, ?> builder(EntityType entityType) {
+        return Entity.builder(entityType, LivingEntity::new);
     }
 
     public LivingEntity(EntityType entityType) {
