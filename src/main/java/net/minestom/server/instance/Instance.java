@@ -176,9 +176,10 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
      */
     @SuppressWarnings("this-escape") // deliberate self registration during construction
     public Instance(ServerProcess process, UUID uuid, RegistryKey<DimensionType> dimensionType, Key dimensionName) {
-        this.process = Objects.requireNonNull(process);
+        this.process = Objects.requireNonNull(process,
+                "A ServerProcess is required; use an Instance constructor accepting ServerProcess or process.instance().createInstanceContainer()");
         this.registries = process.registries();
-        this.entityTracker = process.entity().newTracker();
+        this.entityTracker = EntityTracker.newTracker(process);
         this.uuid = uuid;
         this.dimensionType = dimensionType;
         this.cachedDimensionType = registries.dimensionType().get(dimensionType);

@@ -5,7 +5,6 @@ import net.minestom.server.adventure.ClickCallbackManager;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.entity.Entity;
-import net.minestom.server.entity.EntityManager;
 import net.minestom.server.event.ProcessEventHandler;
 import net.minestom.server.exception.ExceptionManager;
 import net.minestom.server.instance.Chunk;
@@ -92,8 +91,11 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
      */
     InstanceManager instance();
 
-    /** Owns entity IDs across this process's instances. */
-    EntityManager entity();
+    /**
+     * Allocates an entity ID shared by all instances in this process, including packet-only entities.
+     * IDs from different processes may overlap; identify an entity by its process and ID together.
+     */
+    int generateEntityId();
 
     /**
      * Handles {@link net.minestom.server.instance.block.BlockHandler block handlers}

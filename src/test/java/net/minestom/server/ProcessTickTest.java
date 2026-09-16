@@ -49,7 +49,7 @@ class ProcessTickTest {
             var firstEntity = entity(first);
             var secondEntity = entity(second);
             assertEquals(firstEntity.getEntityId(), secondEntity.getEntityId());
-            int packetOnlyId = first.entity().generateId();
+            int packetOnlyId = first.generateEntityId();
             var otherEntity = entity(first);
             assertNotEquals(firstEntity.getEntityId(), packetOnlyId);
             assertNotEquals(packetOnlyId, otherEntity.getEntityId());

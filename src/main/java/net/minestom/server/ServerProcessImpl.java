@@ -6,7 +6,6 @@ import net.minestom.server.adventure.ClickCallbackManager;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.entity.Entity;
-import net.minestom.server.entity.EntityManager;
 import net.minestom.server.event.ProcessEventHandler;
 import net.minestom.server.event.server.ServerTickMonitorEvent;
 import net.minestom.server.exception.ExceptionManager;
@@ -61,6 +60,7 @@ final class ServerProcessImpl implements ServerProcess {
     private static final AtomicInteger PROCESS_IDS = new AtomicInteger();
 
     private final int id = PROCESS_IDS.incrementAndGet();
+    private final AtomicInteger lastEntityId = new AtomicInteger();
     private final Auth auth;
     private volatile String brandName = "Minestom";
     private volatile Difficulty difficulty = Difficulty.NORMAL;
@@ -73,7 +73,6 @@ final class ServerProcessImpl implements ServerProcess {
     private final PacketListenerManager packetListener;
     private final PacketParser.Client packetParser;
     private final InstanceManager instance;
-    private final EntityManager entity;
     private final BlockManager block;
     private final CommandManager command;
     private final RecipeManager recipe;
@@ -104,7 +103,6 @@ final class ServerProcessImpl implements ServerProcess {
         this.packetListener = new PacketListenerManager();
         this.packetParser = PacketVanilla.CLIENT_PACKET_PARSER;
         this.instance = new InstanceManager(this);
-        this.entity = new EntityManager(this);
         this.block = new BlockManager();
         this.command = new CommandManager();
         this.recipe = new RecipeManager(registries);
@@ -188,8 +186,8 @@ final class ServerProcessImpl implements ServerProcess {
     }
 
     @Override
-    public EntityManager entity() {
-        return entity;
+    public int generateEntityId() {
+        return lastEntityId.incrementAndGet();
     }
 
     @Override

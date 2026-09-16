@@ -50,7 +50,8 @@ final class EntityTrackerImpl implements EntityTracker {
     private final ServerProcess process;
 
     EntityTrackerImpl(ServerProcess process) {
-        this.process = Objects.requireNonNull(process);
+        this.process = Objects.requireNonNull(process,
+                "A ServerProcess is required; use EntityTracker.newTracker(process)");
     }
 
     @Override

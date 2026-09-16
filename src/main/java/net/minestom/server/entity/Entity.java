@@ -244,8 +244,9 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
 
     @SuppressWarnings("this-escape") // entities are not usable until spawned
     public Entity(ServerProcess process, EntityType entityType, UUID uuid) {
-        this.process = Objects.requireNonNull(process);
-        this.id = process.entity().generateId();
+        this.process = Objects.requireNonNull(process,
+                "A ServerProcess is required; use an Entity constructor accepting ServerProcess or Entity.builder(type).spawn(instance)");
+        this.id = process.generateEntityId();
         this.entityType = entityType;
         this.uuid = uuid;
         this.position = Pos.ZERO;
@@ -347,12 +348,13 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * Useful if you want to spawn entities using packet but don't risk to have duplicated id.
      *
      * @return a newly generated entity id in the default process
-     * @deprecated use {@link EntityManager#generateId()} through {@link ServerProcess#entity()}
+     * @deprecated use {@link ServerProcess#generateEntityId()}
      */
     @Deprecated(forRemoval = true)
     @SuppressWarnings("removal") // Temporary default-process bridge.
     public static int generateId() {
-        return MinecraftServer.process().entity().generateId();
+        return Objects.requireNonNull(MinecraftServer.process(),
+                "No default process; use ServerProcess.generateEntityId()").generateEntityId();
     }
 
     /**

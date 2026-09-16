@@ -17,8 +17,6 @@ import net.minestom.server.entity.LivingEntity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.utils.location.RelativeVec;
 
-import java.util.function.Function;
-
 public class SummonCommand extends Command {
 
     private final ArgumentEntityType entity;
@@ -51,18 +49,16 @@ public class SummonCommand extends Command {
 
     @SuppressWarnings("unused")
     enum EntityClass {
-        BASE(Entity::builder),
-        LIVING(LivingEntity::builder),
-        CREATURE(EntityCreature::builder);
+        BASE,
+        LIVING,
+        CREATURE;
 
-        private final Function<EntityType, EntityBuilder<? extends Entity, ?>> factory;
-
-        EntityClass(Function<EntityType, EntityBuilder<? extends Entity, ?>> factory) {
-            this.factory = factory;
-        }
-
-        public EntityBuilder<? extends Entity, ?> builder(EntityType type) {
-            return factory.apply(type);
+        public EntityBuilder<?, ?> builder(EntityType type) {
+            return switch (this) {
+                case BASE -> Entity.builder(type);
+                case LIVING -> LivingEntity.builder(type);
+                case CREATURE -> EntityCreature.builder(type);
+            };
         }
     }
 }

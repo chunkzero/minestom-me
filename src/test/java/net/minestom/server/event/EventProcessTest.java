@@ -65,7 +65,7 @@ class EventProcessTest {
             var second = pair.second();
             var instance = second.instance().createInstanceContainer(ChunkLoader.noop());
             var filter = EventFilter.from(TargetEvent.class, Object.class, TargetEvent::target);
-            for (var target : List.of(second, second.eventHandler(), second.entity(), second.instance(), second.connection(), second.server(),
+            for (var target : List.of(second, second.eventHandler(), second.instance(), second.connection(), second.server(),
                     instance, instance.getEntityTracker(), new DynamicChunk(instance, 0, 0),
                     new Entity(second, EntityType.ZOMBIE), connection(second))) {
                 assertThrows(IllegalArgumentException.class, () -> first.eventHandler().map(target, filter));
