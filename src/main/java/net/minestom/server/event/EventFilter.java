@@ -46,10 +46,25 @@ public interface EventFilter<E extends Event, H> {
     static <E extends Event, H> EventFilter<E, H> from(Class<E> eventType,
                                                        @Nullable Class<H> handlerType,
                                                        @Nullable Function<E, H> handlerGetter) {
+        return from(eventType, handlerType, (_, event) -> handlerGetter != null ? handlerGetter.apply(event) : null);
+    }
+
+    /**
+     * Gets the handler for the given event instance, or null if the event
+     * type has no handler.
+     *
+     * @param process The dispatching process
+     * @param event The event instance
+     * @return The handler, if it exists for the given event
+     */
+    @Nullable H getHandler(ServerProcess process, E event);
+
+    static <E extends Event, H> EventFilter<E, H> from(Class<E> eventType, @Nullable Class<H> handlerType,
+                                                      BiFunction<ServerProcess, E, H> handlerGetter) {
         return new EventFilter<>() {
             @Override
-            public @Nullable H getHandler(E event) {
-                return handlerGetter != null ? handlerGetter.apply(event) : null;
+            public @Nullable H getHandler(ServerProcess process, E event) {
+                return handlerGetter.apply(process, event);
             }
 
             @Override
@@ -64,54 +79,10 @@ public interface EventFilter<E extends Event, H> {
         };
     }
 
-    /**
-     * Gets the handler for the given event instance, or null if the event
-     * type has no handler.
-     *
-     * @param event The event instance
-     * @return The handler, if it exists for the given event
-     */
-    @Nullable H getHandler(E event);
-
-    default @Nullable H getHandler(ServerProcess process, E event) {
-        return getHandler(event);
-    }
-
-    static <E extends Event, H> EventFilter<E, H> from(Class<E> eventType, Class<H> handlerType,
-                                                      BiFunction<ServerProcess, E, H> handlerGetter) {
-        return new EventFilter<>() {
-            @Override
-            public H getHandler(E event) {
-                throw new IllegalStateException("Filter requires a process");
-            }
-
-            @Override
-            public H getHandler(ServerProcess process, E event) {
-                return handlerGetter.apply(process, event);
-            }
-
-            @Override
-            public Class<E> eventType() {
-                return eventType;
-            }
-
-            @Override
-            public Class<H> handlerType() {
-                return handlerType;
-            }
-        };
-    }
-
     @ApiStatus.Internal
     @SuppressWarnings("unchecked")
     default @Nullable H castHandler(ServerProcess process, Object event) {
         return getHandler(process, (E) event);
-    }
-
-    @ApiStatus.Internal
-    @SuppressWarnings("unchecked")
-    default @Nullable H castHandler(Object event) {
-        return getHandler((E) event);
     }
 
     /**
@@ -122,7 +93,7 @@ public interface EventFilter<E extends Event, H> {
     Class<E> eventType();
 
     /**
-     * The type returned by {@link #getHandler(Event)}.
+     * The type returned by {@link #getHandler(ServerProcess, Event)}.
      *
      * @return the handler type, null if not any
      */

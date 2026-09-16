@@ -6,7 +6,7 @@ import net.minestom.server.adventure.ClickCallbackManager;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.entity.Entity;
-import net.minestom.server.event.GlobalEventHandler;
+import net.minestom.server.event.ProcessEventHandler;
 import net.minestom.server.event.server.ServerTickMonitorEvent;
 import net.minestom.server.exception.ExceptionManager;
 import net.minestom.server.instance.Chunk;
@@ -52,11 +52,14 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 final class ServerProcessImpl implements ServerProcess {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerProcessImpl.class);
+    private static final AtomicInteger PROCESS_IDS = new AtomicInteger();
 
+    private final int id = PROCESS_IDS.incrementAndGet();
     private final Auth auth;
     private volatile String brandName = "Minestom";
     private volatile Difficulty difficulty = Difficulty.NORMAL;
@@ -73,7 +76,7 @@ final class ServerProcessImpl implements ServerProcess {
     private final CommandManager command;
     private final RecipeManager recipe;
     private final TeamManager team;
-    private final GlobalEventHandler eventHandler;
+    private final ProcessEventHandler eventHandler;
     private final SchedulerManager scheduler;
     private final AdvancementManager advancement;
     private final BossBarManager bossBar;
@@ -103,7 +106,7 @@ final class ServerProcessImpl implements ServerProcess {
         this.command = new CommandManager();
         this.recipe = new RecipeManager(registries);
         this.team = new TeamManager();
-        this.eventHandler = new GlobalEventHandler(this);
+        this.eventHandler = new ProcessEventHandler(this);
         this.scheduler = new SchedulerManager();
         this.advancement = new AdvancementManager();
         this.bossBar = new BossBarManager();
@@ -113,6 +116,11 @@ final class ServerProcessImpl implements ServerProcess {
 
         this.dispatcher = ThreadDispatcher.dispatcher(this, ThreadProvider.counter(), ServerFlag.DISPATCHER_THREADS);
         this.ticker = new TickerImpl();
+    }
+
+    @Override
+    public int id() {
+        return id;
     }
 
     @Override
@@ -197,7 +205,7 @@ final class ServerProcessImpl implements ServerProcess {
     }
 
     @Override
-    public GlobalEventHandler eventHandler() {
+    public ProcessEventHandler eventHandler() {
         return eventHandler;
     }
 

@@ -5,13 +5,13 @@ import net.minestom.server.ServerProcess;
 import java.util.Objects;
 
 /**
- * Object containing all the global event listeners.
+ * Root event node owned by one server process. Dispatch supplies that process to all listeners.
  */
-public final class GlobalEventHandler extends EventNodeImpl<Event> {
+public final class ProcessEventHandler extends EventNodeImpl<Event> {
     private final ServerProcess process;
 
-    public GlobalEventHandler(ServerProcess process) {
-        super("global", EventFilter.ALL, null);
+    public ProcessEventHandler(ServerProcess process) {
+        super("process", EventFilter.ALL, null);
         this.process = Objects.requireNonNull(process);
     }
 

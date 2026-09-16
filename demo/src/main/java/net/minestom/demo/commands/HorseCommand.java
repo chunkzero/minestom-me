@@ -62,7 +62,7 @@ public class HorseCommand extends Command {
         HorseMeta.Marking marking = context.get("marking");
         HorseMeta.Variant variant = context.get("variant");
         //noinspection ConstantConditions - It should be impossible to execute a command without being in an instance
-        Entity.builder(process -> new EntityCreature(process, EntityType.HORSE))
+        Entity.builder(EntityType.HORSE, EntityCreature::new)
                 .initialize(horse -> horse.editEntityMeta(HorseMeta.class, meta -> {
                     meta.setBaby(baby);
                     meta.setVariantAndMarking(variant, marking);

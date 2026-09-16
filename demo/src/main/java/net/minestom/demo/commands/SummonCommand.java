@@ -1,5 +1,6 @@
 package net.minestom.demo.commands;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
@@ -16,6 +17,8 @@ import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.LivingEntity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.utils.location.RelativeVec;
+
+import java.util.function.BiFunction;
 
 public class SummonCommand extends Command {
 
@@ -41,7 +44,7 @@ public class SummonCommand extends Command {
     }
 
     private void execute(CommandSender commandSender, CommandContext commandContext) {
-        final Player player = (Player) commandSender;
+        if (!(commandSender instanceof Player player)) return;
         //noinspection ConstantConditions - One couldn't possibly execute a command without being in an instance
         commandContext.get(entityClass).builder(commandContext.get(entity))
                 .spawn(player.getInstance(), commandContext.get(pos).fromSender(player)).join();
@@ -49,16 +52,18 @@ public class SummonCommand extends Command {
 
     @SuppressWarnings("unused")
     enum EntityClass {
-        BASE,
-        LIVING,
-        CREATURE;
+        BASE(Entity::new),
+        LIVING(LivingEntity::new),
+        CREATURE(EntityCreature::new);
+
+        private final BiFunction<ServerProcess, EntityType, ? extends Entity> factory;
+
+        EntityClass(BiFunction<ServerProcess, EntityType, ? extends Entity> factory) {
+            this.factory = factory;
+        }
 
         public EntityBuilder<? extends Entity> builder(EntityType type) {
-            return switch (this) {
-                case BASE -> Entity.builder(type);
-                case LIVING -> Entity.builder(process -> new LivingEntity(process, type));
-                case CREATURE -> Entity.builder(process -> new EntityCreature(process, type));
-            };
+            return Entity.builder(type, factory);
         }
     }
 }

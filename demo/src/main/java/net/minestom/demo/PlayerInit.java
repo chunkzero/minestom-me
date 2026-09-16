@@ -226,13 +226,13 @@ public class PlayerInit {
 
                     player.playSound(Sound.sound(SoundEvent.ENTITY_EXPERIENCE_ORB_PICKUP, Sound.Source.PLAYER, 0.5f, 1f));
 
-                    var _ = Entity.builder(process -> new LivingEntity(process, EntityType.HAPPY_GHAST))
+                    var _ = Entity.builder(EntityType.HAPPY_GHAST, LivingEntity::new)
                             .noGravity(true)
                             .initialize(ghast -> ghast.setBodyEquipment(ItemStack.of(Material.GREEN_HARNESS)))
                             .addListener(EntitySpawnEvent.class, spawn -> trackWaypoint(player, spawn.getEntity()))
                             .spawn(player.getInstance(), new Pos(10, 43, 5, 45, 0));
 
-                    var _ = Entity.builder(process -> new LivingEntity(process, EntityType.COPPER_GOLEM))
+                    var _ = Entity.builder(EntityType.COPPER_GOLEM, LivingEntity::new)
                             .noGravity(true)
                             .initialize(golem -> {
                                 golem.setItemInMainHand(ItemStack.of(Material.STICK));
@@ -246,7 +246,7 @@ public class PlayerInit {
                             .addListener(EntitySpawnEvent.class, spawn -> trackWaypoint(player, spawn.getEntity()))
                             .spawn(player.getInstance(), new Pos(-2.5, 40, 6.7, -163, 0));
 
-                    var _ = Entity.builder(process -> new LivingEntity(process, EntityType.MANNEQUIN))
+                    var _ = Entity.builder(EntityType.MANNEQUIN, LivingEntity::new)
                             .noGravity(true)
                             .initialize(mannequin -> {
                                 mannequin.set(DataComponents.CUSTOM_NAME, Component.text("Minestom"));

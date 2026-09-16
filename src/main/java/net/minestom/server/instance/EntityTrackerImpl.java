@@ -30,7 +30,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -39,8 +38,6 @@ import static net.minestom.server.instance.Chunk.CHUNK_SIZE_Z;
 
 final class EntityTrackerImpl implements EntityTracker {
     private static final Logger LOGGER = LoggerFactory.getLogger(EntityTrackerImpl.class);
-
-    static final AtomicInteger TARGET_COUNTER = new AtomicInteger();
 
     // Store all data associated to a Target
     // The array index is the Target enum ordinal

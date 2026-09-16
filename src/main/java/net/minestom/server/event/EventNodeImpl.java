@@ -1,13 +1,8 @@
 package net.minestom.server.event;
 
 import net.minestom.server.ServerProcess;
-import net.minestom.server.entity.Entity;
 import net.minestom.server.event.trait.AsyncEvent;
-import net.minestom.server.event.trait.EntityEvent;
-import net.minestom.server.event.trait.EntityInstanceEvent;
-import net.minestom.server.event.trait.InstanceEvent;
 import net.minestom.server.event.trait.RecursiveEvent;
-import net.minestom.server.instance.Instance;
 import net.minestom.server.utils.validate.Check;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
@@ -129,7 +124,7 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
         synchronized (GLOBAL_CHILD_LOCK) {
             final var childImpl = (EventNodeImpl<? extends T>) child;
             Check.stateCondition(childImpl.parent != null && childImpl.parent != this, "Node already has a parent");
-            Check.argCondition(child instanceof GlobalEventHandler, "An owned root cannot be attached as a child");
+            Check.argCondition(child instanceof ProcessEventHandler, "An owned root cannot be attached as a child");
             for (EventNodeImpl<?> ancestor = this; ancestor != null; ancestor = ancestor.parent) {
                 Check.argCondition(ancestor == childImpl, "Event graph cannot contain a cycle");
             }
@@ -188,7 +183,7 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
         EventNodeImpl<E> node;
         synchronized (GLOBAL_CHILD_LOCK) {
             final var process = process();
-            if (process != null) checkOwner(process, value);
+            if (process != null) EventOwnership.checkTarget(process, value);
             node = new EventNodeLazyImpl<>(this, value, filter);
             Check.stateCondition(node.parent != null, "Node already has a parent");
             Check.stateCondition(Objects.equals(parent, node), "Cannot map to self");
@@ -348,17 +343,8 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
         }
     }
 
-    private static void checkOwner(ServerProcess process, Object value) {
-        final ServerProcess owner = switch (value) {
-            case Entity entity -> entity.process();
-            case Instance instance -> instance.process();
-            default -> null;
-        };
-        Check.argCondition(owner != null && owner != process, "Event target belongs to another process");
-    }
-
     private void checkMappedOwners(ServerProcess process) {
-        for (var value : mappedNodeCache.keySet()) checkOwner(process, value);
+        for (var value : mappedNodeCache.keySet()) EventOwnership.checkTarget(process, value);
         for (var reference : mappedNodeCache.values()) {
             var node = reference.get();
             if (node != null) ((EventNodeImpl<?>) node).checkMappedOwners(process);
@@ -423,9 +409,8 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
             Objects.requireNonNull(process);
             final var owner = EventNodeImpl.this.process();
             Check.argCondition(owner != null && owner != process, "Event node belongs to another process");
-            if (event instanceof EntityEvent entityEvent) checkOwner(process, entityEvent.getEntity());
-            if (event instanceof InstanceEvent instanceEvent && !(event instanceof EntityInstanceEvent))
-                checkOwner(process, instanceEvent.getInstance());
+            if (EventNodeImpl.this instanceof EventNodeLazyImpl<?> mapped) mapped.checkOwner(process);
+            EventOwnership.checkEvent(process, event);
             assert !(event instanceof AsyncEvent) || Thread.currentThread().isVirtual() :
                     "AsyncEvent must be called within a Virtual Thread, got " + Thread.currentThread();
             final BiConsumer<ServerProcess, E> listener = updatedListener();
@@ -521,7 +506,7 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
          */
         private @Nullable BiConsumer<ServerProcess, E> listenersConsumer(ListenerEntry<E> entry, Class<?> type) {
             final RegisteredListener<E>[] listenersCopy = entry.listeners.toArray(RegisteredListener[]::new);
-            final BiConsumer<ServerProcess, E>[] bindingsCopy = entry.bindings.stream().map(binding -> binding.consumerWithContext(type.asSubclass(Event.class))).toArray(BiConsumer[]::new);
+            final BiConsumer<ServerProcess, E>[] bindingsCopy = entry.bindings.stream().map(binding -> binding.consumer(type.asSubclass(Event.class))).toArray(BiConsumer[]::new);
             final boolean listenersEmpty = listenersCopy.length == 0;
             final boolean bindingsEmpty = bindingsCopy.length == 0;
             if (listenersEmpty && bindingsEmpty) return null;

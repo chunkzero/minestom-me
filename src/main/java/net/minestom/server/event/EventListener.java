@@ -26,12 +26,8 @@ public interface EventListener<T extends Event> {
 
     Class<T> eventType();
 
-    /** Direct execution of a custom ordinary listener. Contextual listeners require {@link #run(ServerProcess, Event)}. */
-    Result run(T event);
-
-    default Result run(ServerProcess process, T event) {
-        return run(event);
-    }
+    /** Executes the listener with the dispatching process, including ordinary listener callbacks. */
+    Result run(ServerProcess process, T event);
 
     /**
      * Creates the state used by one node registration. Custom stateful listeners should override
@@ -107,11 +103,6 @@ public interface EventListener<T extends Event> {
                 if (result == Result.SUCCESS && expireCount > 0 && remaining.decrementAndGet() == 0)
                     return Result.EXPIRED;
                 return result;
-            }
-
-            @Override
-            public Result run(T event) {
-                throw new IllegalStateException("Listener execution requires a process");
             }
         }
 

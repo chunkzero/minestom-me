@@ -28,6 +28,11 @@ public class PlayerSpawnEvent implements PlayerInstanceEvent {
         return spawnInstance;
     }
 
+    @Override
+    public Instance getInstance() {
+        return spawnInstance;
+    }
+
     /**
      * 'true' if the player is spawning for the first time. 'false' if this spawn event was triggered by a dimension teleport
      *

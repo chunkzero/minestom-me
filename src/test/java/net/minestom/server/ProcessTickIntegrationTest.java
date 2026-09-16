@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -142,6 +143,10 @@ class ProcessTickIntegrationTest {
             assertTrue(entity.getPassengers().isEmpty());
             assertNull(foreign.getVehicle());
             assertThrows(IllegalArgumentException.class, () -> new EntityProjectile(first, foreign, EntityType.ARROW));
+            assertSame(entity, new EntityProjectile(first, entity, EntityType.ARROW).getShooter());
+            var shooterless = new EntityProjectile(second, null, EntityType.ARROW);
+            assertSame(second, shooterless.process());
+            assertNull(shooterless.getShooter());
             assertThrows(IllegalArgumentException.class, () -> second.dispatcher().createPartition(entity.getChunk()));
             assertThrows(IllegalArgumentException.class, () -> second.dispatcher().updateElement(entity, entity.getChunk()));
             assertThrows(IllegalArgumentException.class, () -> second.dispatcher().removeElement(entity));
@@ -198,12 +203,24 @@ class ProcessTickIntegrationTest {
             var second = pair.second();
             var firstTicks = new CountDownLatch(2);
             var secondTicks = new CountDownLatch(2);
+            var firstSchedulers = new CopyOnWriteArrayList<String>();
+            var secondSchedulers = new CopyOnWriteArrayList<String>();
+            first.eventHandler().addListener(ServerTickMonitorEvent.class, _ -> firstSchedulers.add(Thread.currentThread().getName()));
+            second.eventHandler().addListener(ServerTickMonitorEvent.class, _ -> secondSchedulers.add(Thread.currentThread().getName()));
             first.eventHandler().addListener(ServerTickMonitorEvent.class, _ -> firstTicks.countDown());
             second.eventHandler().addListener(ServerTickMonitorEvent.class, _ -> secondTicks.countDown());
             first.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             second.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             assertTrue(firstTicks.await(5, TimeUnit.SECONDS));
             assertTrue(secondTicks.await(5, TimeUnit.SECONDS));
+            assertNotEquals(first.id(), second.id());
+            assertNotEquals(firstSchedulers.getFirst(), secondSchedulers.getFirst());
+            assertTrue(firstSchedulers.getFirst().endsWith("-" + first.id()));
+            assertTrue(secondSchedulers.getFirst().endsWith("-" + second.id()));
+            for (var thread : first.dispatcher().threads()) {
+                assertTrue(thread.getName().startsWith("Ms-Tick-" + first.id() + "-"));
+                assertTrue(second.dispatcher().threads().stream().noneMatch(other -> other.getName().equals(thread.getName())));
+            }
             first.close();
             assertFalse(first.dispatcher().isAlive());
             var remainingTicks = new CountDownLatch(2);

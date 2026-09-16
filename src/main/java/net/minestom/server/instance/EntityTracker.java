@@ -112,10 +112,10 @@ public sealed interface EntityTracker permits EntityTrackerImpl {
      */
     @ApiStatus.NonExtendable
     interface Target<E extends Entity> {
-        Target<Entity> ENTITIES = create(Entity.class);
-        Target<Player> PLAYERS = create(Player.class);
-        Target<ItemEntity> ITEMS = create(ItemEntity.class);
-        Target<ExperienceOrb> EXPERIENCE_ORBS = create(ExperienceOrb.class);
+        Target<Entity> ENTITIES = create(Entity.class, 0);
+        Target<Player> PLAYERS = create(Player.class, 1);
+        Target<ItemEntity> ITEMS = create(ItemEntity.class, 2);
+        Target<ExperienceOrb> EXPERIENCE_ORBS = create(ExperienceOrb.class, 3);
 
         List<EntityTracker.Target<? extends Entity>> TARGETS = List.of(EntityTracker.Target.ENTITIES, EntityTracker.Target.PLAYERS, EntityTracker.Target.ITEMS, EntityTracker.Target.EXPERIENCE_ORBS);
 
@@ -123,8 +123,7 @@ public sealed interface EntityTracker permits EntityTrackerImpl {
 
         int ordinal();
 
-        private static <T extends Entity> EntityTracker.Target<T> create(Class<T> type) {
-            final int ordinal = EntityTrackerImpl.TARGET_COUNTER.getAndIncrement();
+        private static <T extends Entity> EntityTracker.Target<T> create(Class<T> type, int ordinal) {
             return new Target<>() {
                 @Override
                 public Class<T> type() {

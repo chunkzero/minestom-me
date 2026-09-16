@@ -19,7 +19,7 @@ import net.minestom.server.entity.metadata.animal.tameable.WolfSoundVariant;
 import net.minestom.server.entity.metadata.animal.tameable.WolfVariant;
 import net.minestom.server.entity.metadata.cube.SulfurCubeArchetype;
 import net.minestom.server.entity.metadata.other.PaintingVariant;
-import net.minestom.server.event.GlobalEventHandler;
+import net.minestom.server.event.ProcessEventHandler;
 import net.minestom.server.exception.ExceptionManager;
 import net.minestom.server.instance.InstanceManager;
 import net.minestom.server.instance.block.BlockManager;
@@ -191,7 +191,7 @@ public final class MinecraftServer implements MinecraftConstants {
      * @deprecated Scheduled for deletion. Use {@link ServerProcess#eventHandler()} on the owning process.
      */
     @Deprecated(forRemoval = true)
-    public static GlobalEventHandler getGlobalEventHandler() {
+    public static ProcessEventHandler getGlobalEventHandler() {
         return serverProcess.eventHandler();
     }
 

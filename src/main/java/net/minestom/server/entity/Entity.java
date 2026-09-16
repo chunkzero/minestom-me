@@ -116,6 +116,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -279,8 +280,20 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     /** Creates an ownerless builder which obtains its process from the destination instance. */
     @Contract("_ -> new")
     public static EntityBuilder<Entity> builder(EntityType entityType) {
+        return builder(entityType, Entity::new);
+    }
+
+    /**
+     * Creates a typed builder using an entity constructor, for example
+     * {@code Entity.builder(EntityType.ZOMBIE, EntityCreature::new)}.
+     * The constructor receives the destination instance's process when spawning.
+     */
+    @Contract("_, _ -> new")
+    public static <T extends Entity> EntityBuilder<T> builder(EntityType entityType,
+                                                            BiFunction<ServerProcess, EntityType, T> factory) {
         Objects.requireNonNull(entityType);
-        return builder(process -> new Entity(process, entityType));
+        Objects.requireNonNull(factory);
+        return builder(process -> factory.apply(process, entityType));
     }
 
     /**

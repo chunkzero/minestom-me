@@ -14,6 +14,7 @@ import net.kyori.adventure.nbt.CompoundBinaryTag;
 import net.kyori.adventure.nbt.ListBinaryTag;
 import net.kyori.adventure.nbt.StringBinaryTag;
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.adventure.MinestomAdventure;
 import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.ChunkLoader;
@@ -133,7 +134,7 @@ public class AnvilLoader implements ChunkLoader {
     }
 
     private @Nullable Chunk loadMCA(Instance instance, int chunkX, int chunkZ) throws IOException {
-        final RegionFile mcaFile = getMCAFile(instance, chunkX, chunkZ);
+        final RegionFile mcaFile = getMCAFile(instance.process(), chunkX, chunkZ);
         if (mcaFile == null) return null;
         final CompoundBinaryTag chunkData = mcaFile.readChunkData(chunkX, chunkZ);
         if (chunkData == null) return null;
@@ -179,7 +180,7 @@ public class AnvilLoader implements ChunkLoader {
         return chunk;
     }
 
-    private @Nullable RegionFile getMCAFile(Instance instance, int chunkX, int chunkZ) {
+    private @Nullable RegionFile getMCAFile(ServerProcess process, int chunkX, int chunkZ) {
         final int regionX = chunkToRegion(chunkX), regionZ = chunkToRegion(chunkZ);
         final String fileName = RegionFile.getFileName(regionX, regionZ);
 
@@ -200,7 +201,7 @@ public class AnvilLoader implements ChunkLoader {
                     assert previousVersion == null : "The AnvilLoader cache should not already have data for this region.";
                     return new RegionFile(regionPath);
                 } catch (IOException e) {
-                    instance.process().exception().handleException(e);
+                    process.exception().handleException(e);
                     return null;
                 }
             });
@@ -365,7 +366,7 @@ public class AnvilLoader implements ChunkLoader {
         RegionFile mcaFile;
         fileCreationLock.lock();
         try {
-            mcaFile = getMCAFile(chunk.getInstance(), chunkX, chunkZ);
+            mcaFile = getMCAFile(chunk.getInstance().process(), chunkX, chunkZ);
 
             if (mcaFile == null) {
                 final String regionFileName = RegionFile.getFileName(regionX, regionZ);

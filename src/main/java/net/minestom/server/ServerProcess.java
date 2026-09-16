@@ -5,7 +5,7 @@ import net.minestom.server.adventure.ClickCallbackManager;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.entity.Entity;
-import net.minestom.server.event.GlobalEventHandler;
+import net.minestom.server.event.ProcessEventHandler;
 import net.minestom.server.exception.ExceptionManager;
 import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.InstanceManager;
@@ -52,6 +52,9 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     static ServerProcess create() {
         return create(new Auth.Offline());
     }
+
+    /** Identifier unique to this process within the JVM, used to distinguish its threads and diagnostics. */
+    int id();
 
     String brandName();
 
@@ -110,11 +113,11 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     TeamManager team();
 
     /**
-     * Gets the global event handler.
+     * Gets the event root owned by this process.
      * <p>
-     * Used to register event callback at a global scale.
+     * Used to register event callbacks for this process.
      */
-    GlobalEventHandler eventHandler();
+    ProcessEventHandler eventHandler();
 
     /**
      * Main scheduler ticked at the server rate.

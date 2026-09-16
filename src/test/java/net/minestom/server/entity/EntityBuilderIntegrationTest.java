@@ -94,7 +94,7 @@ class EntityBuilderIntegrationTest {
         var initialized = new ArrayList<TestCreature>();
         var firstSpawns = new ArrayList<ServerProcess>();
         var allSpawns = new ArrayList<Entity>();
-        var builder = Entity.builder(TestCreature::new)
+        var builder = Entity.builder(EntityType.ZOMBIE, TestCreature::new)
                 .noGravity(true)
                 .autoViewable(false)
                 .initialize((process, creature) -> {
@@ -241,8 +241,8 @@ class EntityBuilderIntegrationTest {
     }
 
     private static final class TestCreature extends EntityCreature {
-        TestCreature(ServerProcess process) {
-            super(process, EntityType.ZOMBIE);
+        TestCreature(ServerProcess process, EntityType type) {
+            super(process, type);
         }
     }
 

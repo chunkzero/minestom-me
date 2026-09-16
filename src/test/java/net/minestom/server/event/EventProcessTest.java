@@ -1,12 +1,28 @@
 package net.minestom.server.event;
 
 import net.minestom.server.ServerProcess;
+import net.minestom.server.coordinate.Pos;
+import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
+import net.minestom.server.event.entity.EntityAttackEvent;
+import net.minestom.server.event.entity.EntityShootEvent;
+import net.minestom.server.event.entity.EntitySpawnEvent;
 import net.minestom.server.event.entity.EntityTickEvent;
+import net.minestom.server.event.entity.EntityVelocityEvent;
+import net.minestom.server.event.instance.InstanceChunkLoadEvent;
+import net.minestom.server.event.server.ClientPingServerEvent;
+import net.minestom.server.event.trait.EntityInstanceEvent;
+import net.minestom.server.instance.ChunkLoader;
+import net.minestom.server.instance.DynamicChunk;
+import net.minestom.server.instance.Instance;
+import net.minestom.server.network.packet.server.SendablePacket;
+import net.minestom.server.network.player.PlayerConnection;
 import net.minestom.testing.ServerProcessPair;
 import org.junit.jupiter.api.Test;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -14,11 +30,121 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EventProcessTest {
     record TestEvent() implements Event {
+    }
+
+    record TargetEvent(Object target) implements Event {
+    }
+
+    record InstanceTargetEvent(Entity getEntity, Instance getInstance) implements EntityInstanceEvent {
+    }
+
+    @Test
+    void mappingsRejectForeignProcessOwnedTargetsBeforeAttachment() {
+        try (var pair = new ServerProcessPair()) {
+            var first = pair.first();
+            var second = pair.second();
+            var instance = second.instance().createInstanceContainer(ChunkLoader.noop());
+            var filter = EventFilter.from(TargetEvent.class, Object.class, TargetEvent::target);
+            for (var target : List.of(second, second.eventHandler(), second.instance(), second.connection(), second.server(),
+                    instance, instance.getEntityTracker(), new DynamicChunk(instance, 0, 0),
+                    new Entity(second, EntityType.ZOMBIE), connection(second))) {
+                assertThrows(IllegalArgumentException.class, () -> first.eventHandler().map(target, filter));
+                var node = EventNode.all("mapped-before-attachment");
+                var mapped = node.map(target, filter);
+                assertThrows(IllegalArgumentException.class, () -> first.eventHandler().addChild(node));
+                assertNull(node.getParent());
+                second.eventHandler().addChild(node);
+                var calls = new AtomicInteger();
+                mapped.addListener(TargetEvent.class, _ -> calls.incrementAndGet());
+                second.eventHandler().call(new TargetEvent(target));
+                assertEquals(1, calls.get());
+                second.eventHandler().removeChild(node);
+            }
+        }
+    }
+
+    @Test
+    void cachedMappingsValidateTheirTargetsCurrentOwner() {
+        try (var pair = new ServerProcessPair()) {
+            var first = pair.first();
+            var second = pair.second();
+            var target = EventNode.all("target");
+            var filter = EventFilter.from(TargetEvent.class, Object.class, TargetEvent::target);
+            var mapped = first.eventHandler().map(target, filter);
+            var calls = new AtomicInteger();
+            var errors = new ArrayList<Throwable>();
+            first.exception().setExceptionHandler(errors::add);
+            mapped.addListener(TargetEvent.class, _ -> calls.incrementAndGet());
+            var handle = first.eventHandler().getHandle(TargetEvent.class);
+            var mappedHandle = mapped.getHandle(TargetEvent.class);
+            var event = new TargetEvent(target);
+            handle.call(event);
+            assertEquals(1, calls.get());
+
+            second.eventHandler().addChild(target);
+            handle.call(event);
+            assertEquals(1, calls.get());
+            assertEquals(1, errors.size());
+            assertInstanceOf(IllegalArgumentException.class, errors.getFirst());
+            assertThrows(IllegalArgumentException.class, () -> mappedHandle.call(event));
+
+            second.eventHandler().removeChild(target);
+            first.eventHandler().addChild(target);
+            handle.call(event);
+            assertEquals(2, calls.get());
+        }
+    }
+
+    @Test
+    void dispatchValidatesExplicitInstancesAndSecondaryTargetsBeforeListeners() {
+        try (var pair = new ServerProcessPair()) {
+            var first = pair.first();
+            var second = pair.second();
+            var local = new Entity(first, EntityType.ZOMBIE);
+            var foreign = new Entity(second, EntityType.ZOMBIE);
+            var localInstance = first.instance().createInstanceContainer(ChunkLoader.noop());
+            var foreignInstance = second.instance().createInstanceContainer(ChunkLoader.noop());
+            List<Event> invalid = List.of(
+                    new InstanceTargetEvent(local, foreignInstance),
+                    new EntitySpawnEvent(local, foreignInstance),
+                    new EntityAttackEvent(local, foreign),
+                    new EntityShootEvent(local, foreign, Pos.ZERO, 1, 0),
+                    new InstanceChunkLoadEvent(localInstance, new DynamicChunk(foreignInstance, 0, 0)),
+                    new ClientPingServerEvent(connection(second), 0));
+            var calls = new AtomicInteger();
+            for (var event : invalid) {
+                first.eventHandler().addListener(event.getClass(), _ -> calls.incrementAndGet());
+                assertThrows(IllegalArgumentException.class, () -> first.eventHandler().call(event));
+            }
+            assertEquals(0, calls.get());
+
+            first.eventHandler().addListener(EntityVelocityEvent.class, event -> {
+                assertNull(event.getInstance());
+                calls.incrementAndGet();
+            });
+            local.setVelocity(Vec.ZERO);
+            assertEquals(1, calls.get());
+        }
+    }
+
+    private static PlayerConnection connection(ServerProcess process) {
+        return new PlayerConnection(process) {
+            @Override
+            public void sendPacket(SendablePacket packet) {
+            }
+
+            @Override
+            public SocketAddress getRemoteAddress() {
+                return new InetSocketAddress(0);
+            }
+        };
     }
 
     @Test

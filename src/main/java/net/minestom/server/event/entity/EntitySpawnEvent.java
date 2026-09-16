@@ -27,6 +27,11 @@ public class EntitySpawnEvent implements EntityInstanceEvent {
         return entity;
     }
 
+    @Override
+    public Instance getInstance() {
+        return spawnInstance;
+    }
+
     /**
      * Gets the entity new instance.
      *
