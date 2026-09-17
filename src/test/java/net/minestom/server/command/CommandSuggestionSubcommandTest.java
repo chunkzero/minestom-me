@@ -1,12 +1,17 @@
 package net.minestom.server.command;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.Command;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import static net.minestom.server.command.builder.arguments.ArgumentType.Word;
 import static org.junit.jupiter.api.Assertions.fail;
 
 public class CommandSuggestionSubcommandTest {
+    @AutoClose
+    private static final ServerProcess process = ServerProcess.create();
+
 
     /**
      * Make sure that when we have a {@code /foo bar} and {@code /foo baz}, we use the correct default executor within
@@ -14,7 +19,7 @@ public class CommandSuggestionSubcommandTest {
      */
     @Test
     public void useProperDefaultExecutor() {
-        var manager = new CommandManager();
+        var manager = new CommandManager(process);
         var command = new Command("foo");
         var barCommand = new Command("bar");
         var bazCommand = new Command("baz");
@@ -52,7 +57,7 @@ public class CommandSuggestionSubcommandTest {
      */
     @Test
     public void useCorrectDefaultExecutor() {
-        var manager = new CommandManager();
+        var manager = new CommandManager(process);
         var command = new Command("foo");
         var barCommand = new Command("bar");
         var bazCommand = new Command("baz", "qux");

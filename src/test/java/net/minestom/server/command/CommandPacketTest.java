@@ -1,9 +1,11 @@
 package net.minestom.server.command;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.arguments.ArgumentType;
 import net.minestom.server.network.packet.server.play.DeclareCommandsPacket;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -11,13 +13,16 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CommandPacketTest {
+    @AutoClose
+    private static final ServerProcess process = ServerProcess.create();
+
 
     @Test
     public void singleCommandWithOneSyntax() {
         final Command foo = new Command("foo");
         foo.addSyntax(CommandPacketTest::dummyExecutor, ArgumentType.Integer("bar"));
 
-        final DeclareCommandsPacket packet = GraphConverter.createPacket(new CommandManager(), Graph.merge(Graph.fromCommand(foo)), null);
+        final DeclareCommandsPacket packet = GraphConverter.createPacket(new CommandManager(process), Graph.merge(Graph.fromCommand(foo)), null);
         assertEquals(3, packet.nodes().size());
         final DeclareCommandsPacket.Node root = packet.nodes().get(packet.rootIndex());
         assertNotNull(root);
@@ -231,7 +236,7 @@ public class CommandPacketTest {
     }
 
     static void assertPacketGraph(String expected, Graph... graphs) {
-        var packet = GraphConverter.createPacket(new CommandManager(), Graph.merge(graphs), null);
+        var packet = GraphConverter.createPacket(new CommandManager(process), Graph.merge(graphs), null);
         CommandTestUtils.assertPacket(packet, expected);
     }
 

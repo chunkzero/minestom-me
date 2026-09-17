@@ -1,8 +1,8 @@
 package net.minestom.server.command.builder.arguments;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.command.ArgumentParserType;
 import net.minestom.server.command.CommandSender;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.CommandDispatcher;
 import net.minestom.server.command.builder.CommandResult;
 import net.minestom.server.command.builder.exception.ArgumentSyntaxException;
@@ -20,13 +20,12 @@ public class ArgumentCommand extends Argument<CommandResult> {
         super(id, true, true);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
-    public CommandResult parse(CommandSender sender, String input) throws ArgumentSyntaxException {
+    public CommandResult parse(CommandSender sender, CommandContext context, String input) throws ArgumentSyntaxException {
         final String commandString = !shortcut.isEmpty() ?
                 shortcut + StringUtils.SPACE + input
                 : input;
-        CommandDispatcher dispatcher = MinecraftServer.getCommandManager().getDispatcher();
+        CommandDispatcher dispatcher = context.commandManager().getDispatcher();
         CommandResult result = dispatcher.parse(sender, commandString);
 
         if (onlyCorrect && result.getType() != CommandResult.Type.SUCCESS)

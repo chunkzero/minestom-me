@@ -1,8 +1,10 @@
 package net.minestom.server.command;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.arguments.Argument;
 import org.jetbrains.annotations.Nullable;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -17,6 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 public class CommandSyntaxMultiTest {
+    @AutoClose
+    private static final ServerProcess process = ServerProcess.create();
+
 
     @Test
     public void integerFloat() {
@@ -50,7 +55,7 @@ public class CommandSyntaxMultiTest {
     private static void assertSyntax(List<List<Argument<?>>> args, String input, ExpectedExecution expectedExecution, @Nullable Map<String, Object> expectedValues) {
         final String commandName = "name";
 
-        var manager = new CommandManager();
+        var manager = new CommandManager(process);
         var command = new Command(commandName);
         manager.register(command);
 

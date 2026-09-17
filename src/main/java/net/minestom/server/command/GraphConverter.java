@@ -1,5 +1,6 @@
 package net.minestom.server.command;
 
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.arguments.Argument;
 import net.minestom.server.command.builder.arguments.ArgumentCommand;
 import net.minestom.server.command.builder.arguments.ArgumentEnum;
@@ -43,7 +44,7 @@ final class GraphConverter {
                                 @Nullable Player player, Map<Argument<?>, Integer> argToPacketId) {
         final Graph.Execution execution = graphNode.execution();
         if (player != null && execution != null) {
-            if (!execution.test(player)) return new int[0];
+            if (!execution.test(player, new CommandContext(manager, ""))) return new int[0];
         }
 
         final Argument<?> argument = graphNode.argument();
@@ -91,7 +92,7 @@ final class GraphConverter {
                 } else {
                     redirects.add((graph, _) -> {
                         var sender = player == null ? manager.getConsoleSender() : player;
-                        final List<Argument<?>> args = CommandParser.parser().parse(sender, graph, shortcut).args();
+                        final List<Argument<?>> args = CommandParser.parser().parse(manager, sender, graph, shortcut).args();
                         final Argument<?> last = args.getLast();
                         if (last.allowSpace()) {
                             node.redirectedNode = argToPacketId.get(args.get(args.size() - 2));

@@ -1,10 +1,12 @@
 package net.minestom.server.command;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.arguments.Argument;
 import net.minestom.server.command.builder.arguments.ArgumentType;
 import net.minestom.server.command.builder.suggestion.Suggestion;
 import net.minestom.server.command.builder.suggestion.SuggestionEntry;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -14,6 +16,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ArgumentTest {
+    @AutoClose
+    private static final ServerProcess process = ServerProcess.create();
+
 
     @Test
     public void testParseSelf() {
@@ -26,7 +31,7 @@ public class ArgumentTest {
         var arg = ArgumentType.String("id");
 
         assertFalse(arg.hasErrorCallback());
-        arg.setCallback((_, _) -> {
+        arg.setCallback((_, _, _) -> {
         });
         assertTrue(arg.hasErrorCallback());
     }
@@ -38,7 +43,7 @@ public class ArgumentTest {
         assertFalse(arg.isOptional());
         arg.setDefaultValue("default value");
         assertTrue(arg.isOptional());
-        assertEquals("default value", arg.getDefaultValue().apply(new ServerSender()));
+        assertEquals("default value", arg.getDefaultValue().apply(new ServerSender(), new CommandContext(process.command(), "")));
     }
 
     @Test
@@ -51,7 +56,7 @@ public class ArgumentTest {
         assertTrue(arg.hasSuggestion());
 
         Suggestion suggestion = new Suggestion("input", 2, 4);
-        arg.getSuggestionCallback().apply(new ServerSender(), new CommandContext("input"), suggestion);
+        arg.getSuggestionCallback().apply(new ServerSender(), new CommandContext(process.command(), "input"), suggestion);
 
         assertEquals(suggestion.getEntries(), List.of(new SuggestionEntry("entry")));
     }

@@ -21,12 +21,10 @@ import net.kyori.adventure.text.event.HoverEventSource;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.title.TitlePart;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
 import net.minestom.server.advancements.AdvancementTab;
 import net.minestom.server.advancements.Notification;
 import net.minestom.server.adventure.AdventurePacketConvertor;
-import net.minestom.server.adventure.audience.Audiences;
 import net.minestom.server.collision.BoundingBox;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.component.DataComponents;
@@ -223,7 +221,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         // Load new chunks
         var _ = this.instance.loadOptionalChunk(chunkX, chunkZ).thenAccept(this::sendChunk);
     };
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     final ChunkRange.ChunkConsumer chunkRemover = (chunkX, chunkZ) -> {
         // Unload old chunks
         sendPacket(new UnloadChunkPacket(chunkX, chunkZ));
@@ -300,7 +297,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
 
         setRespawnPoint(Pos.ZERO);
 
-        this.inventory = new PlayerInventory();
+        this.inventory = new PlayerInventory(process());
 
         setCanPickupItem(true); // By default
 
@@ -433,7 +430,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         if (connection != null) connection.setPlayer(this);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void update(long time) {
         // Process received packets
@@ -491,7 +487,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         process().eventHandler().call(new PlayerTickEvent(this));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void kill() {
         if (!isDead()) {
@@ -531,7 +526,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
 
             // #buildDeathMessage can return null, check here
             if (chatMessage != null) {
-                Audiences.players().sendMessage(chatMessage);
+                process().audiences().players().sendMessage(chatMessage);
             }
 
             // Set death location
@@ -545,7 +540,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * Respawns the player by sending a {@link RespawnPacket} to the player and teleporting him
      * to {@link #getRespawnPoint()}. It also resets fire and health.
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void respawn() {
         if (!isDead())
             return;
@@ -681,7 +675,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @param spawnPosition the new position of the player
      * @return a future called once the player instance changed
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public CompletableFuture<Void> setInstance(Instance instance, Pos spawnPosition) {
         Check.argCondition(instance.process() != process(), "Instance belongs to another process");
@@ -771,7 +764,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @param updateChunks  true if chunks should be refreshed, false if the new instance shares the same
      *                      chunks
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void spawnPlayer(Instance instance, Pos spawnPosition,
                              boolean firstSpawn, boolean dimensionChange, boolean updateChunks) {
         if (!firstSpawn && !dimensionChange) {
@@ -868,7 +860,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private void sendPendingChunks() {
         // If we have nothing to send or have sent the max # of batches without reply, do nothing
         if (chunkQueue.isEmpty() || chunkBatchLead >= maxChunkBatchLead) return;
@@ -1036,6 +1027,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
 
     @Override
     public void playSound(Sound sound, Sound.Emitter emitter) {
+        Check.argCondition(emitter instanceof Entity entity && entity.process() != process(), "Sound emitter belongs to another process");
         final ServerPacket packet;
         if (emitter == Sound.Emitter.self()) {
             packet = AdventurePacketConvertor.createSoundPacket(sound, this);
@@ -1089,16 +1081,14 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         sendPacket(new ClearTitlesPacket(false));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void showBossBar(BossBar bar) {
-        MinecraftServer.getBossBarManager().addBossBar(this, bar);
+        process().bossBar().addBossBar(this, bar);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public void hideBossBar(BossBar bar) {
-        MinecraftServer.getBossBarManager().removeBossBar(this, bar);
+        process().bossBar().removeBossBar(this, bar);
     }
 
     @Override
@@ -1445,7 +1435,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @param item the item to drop
      * @return true if player can drop the item (event not cancelled), false otherwise
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public boolean dropItem(ItemStack item) {
         if (item.isAir()) return false;
         ItemDropEvent itemDropEvent = new ItemDropEvent(this, item);
@@ -1922,11 +1911,12 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @param inventory the inventory to open
      * @return true if the inventory has been opened/sent to the player, false otherwise (cancelled by event)
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public boolean openInventory(Inventory inventory) {
+        Check.argCondition(inventory.process() != process(), "Inventory belongs to another process");
         InventoryOpenEvent inventoryOpenEvent = new InventoryOpenEvent(inventory, this);
 
         process().eventHandler().callCancellable(inventoryOpenEvent, () -> {
+            Check.argCondition(inventoryOpenEvent.getInventory().process() != process(), "Inventory belongs to another process");
             AbstractInventory openInventory = getOpenInventory();
             if (openInventory != null) {
                 openInventory.removeViewer(this);
@@ -1951,7 +1941,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         closeInventory(false, id);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Internal
     public void closeInventory(boolean fromClient, byte windowId) {
         AbstractInventory openInventory = windowId == 0 ? getInventory() : getOpenInventory();
@@ -2322,7 +2311,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void refreshOnGround(boolean onGround) {
         this.onGround = onGround;
         if (this.onGround && this.isFlyingWithElytra()) {
@@ -2381,7 +2369,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         refreshItemUse(null, 0);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void refreshInput(boolean forward, boolean backward, boolean left, boolean right, boolean jump, boolean shift, boolean sprint) {
         boolean oldForward = this.inputs.forward();
         boolean oldBackward = this.inputs.backward();

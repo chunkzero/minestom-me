@@ -1,5 +1,7 @@
 package net.minestom.server.command.builder;
 
+import net.minestom.server.ServerProcess;
+import net.minestom.server.command.CommandManager;
 import net.minestom.server.command.builder.arguments.Argument;
 import net.minestom.server.utils.StringUtils;
 import org.jetbrains.annotations.NotNull;
@@ -21,15 +23,31 @@ import java.util.function.Supplier;
  */
 public class CommandContext {
 
+    private final CommandManager commandManager;
     private final String input;
     private final String commandName;
     protected Map<String, Object> args = new HashMap<>();
     protected Map<String, String> rawArgs = new HashMap<>();
     private CommandData returnData;
 
-    public CommandContext(String input) {
+    public CommandContext(CommandManager commandManager, String input) {
+        this.commandManager = Objects.requireNonNull(commandManager);
         this.input = input;
         this.commandName = input.split(StringUtils.SPACE, 0)[0];
+    }
+
+    public ServerProcess process() {
+        return commandManager.process();
+    }
+
+    public CommandManager commandManager() {
+        return commandManager;
+    }
+
+    public CommandContext fork() {
+        var copy = new CommandContext(commandManager, input);
+        copy.copy(this);
+        return copy;
     }
 
     public String getInput() {
@@ -79,8 +97,10 @@ public class CommandContext {
     }
 
     public void copy(CommandContext context) {
-        this.args = context.args;
-        this.rawArgs = context.rawArgs;
+        if (commandManager != context.commandManager)
+            throw new IllegalArgumentException("Command context belongs to another manager");
+        this.args = new HashMap<>(context.args);
+        this.rawArgs = new HashMap<>(context.rawArgs);
     }
 
     public String getRaw(Argument<?> argument) {
@@ -115,7 +135,7 @@ public class CommandContext {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof CommandContext that)) return false;
-        return Objects.equals(input, that.input) &&
+        return commandManager == that.commandManager && Objects.equals(input, that.input) &&
                 Objects.equals(commandName, that.commandName) &&
                 Objects.equals(args, that.args) &&
                 Objects.equals(rawArgs, that.rawArgs) &&
@@ -124,6 +144,6 @@ public class CommandContext {
 
     @Override
     public int hashCode() {
-        return Objects.hash(input, commandName, args, rawArgs, returnData);
+        return Objects.hash(commandManager, input, commandName, args, rawArgs, returnData);
     }
 }

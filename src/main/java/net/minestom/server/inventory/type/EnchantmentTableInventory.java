@@ -1,30 +1,27 @@
 package net.minestom.server.inventory.type;
 
 import net.kyori.adventure.text.Component;
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.inventory.Inventory;
 import net.minestom.server.inventory.InventoryProperty;
 import net.minestom.server.inventory.InventoryType;
 import net.minestom.server.item.enchant.Enchantment;
-import net.minestom.server.registry.DynamicRegistry;
 import net.minestom.server.registry.RegistryKey;
 import org.jetbrains.annotations.Nullable;
 
 public class EnchantmentTableInventory extends Inventory {
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    private static final DynamicRegistry<Enchantment> ENCHANTMENT_REGISTRY = MinecraftServer.getEnchantmentRegistry();
 
     private final short[] levelRequirements = new short[EnchantmentSlot.values().length];
     private short seed;
     private final short[] enchantmentShown = new short[EnchantmentSlot.values().length];
     private final short[] enchantmentLevel = new short[EnchantmentSlot.values().length];
 
-    public EnchantmentTableInventory(Component title) {
-        super(InventoryType.ENCHANTMENT, title);
+    public EnchantmentTableInventory(ServerProcess process, Component title) {
+        super(process, InventoryType.ENCHANTMENT, title);
     }
 
-    public EnchantmentTableInventory(String title) {
-        super(InventoryType.ENCHANTMENT, title);
+    public EnchantmentTableInventory(ServerProcess process, String title) {
+        super(process, InventoryType.ENCHANTMENT, title);
     }
 
     /**
@@ -80,7 +77,7 @@ public class EnchantmentTableInventory extends Inventory {
     public @Nullable RegistryKey<Enchantment> getEnchantmentShown(EnchantmentSlot enchantmentSlot) {
         final int id = enchantmentShown[enchantmentSlot.ordinal()];
         if (id == -1) return null;
-        return ENCHANTMENT_REGISTRY.getKey(id);
+        return process().registries().enchantment().getKey(id);
     }
 
     /**
@@ -92,7 +89,7 @@ public class EnchantmentTableInventory extends Inventory {
      * @param enchantment     the enchantment
      */
     public void setEnchantmentShown(EnchantmentSlot enchantmentSlot, @Nullable RegistryKey<Enchantment> enchantment) {
-        final short id = enchantment == null ? -1 : (short) ENCHANTMENT_REGISTRY.getId(enchantment);
+        final short id = enchantment == null ? -1 : (short) process().registries().enchantment().getId(enchantment);
         switch (enchantmentSlot) {
             case TOP -> sendProperty(InventoryProperty.ENCHANTMENT_TABLE_ENCH_ID_TOP, id);
             case MIDDLE -> sendProperty(InventoryProperty.ENCHANTMENT_TABLE_ENCH_ID_MIDDLE, id);

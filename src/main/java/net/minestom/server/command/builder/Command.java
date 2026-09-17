@@ -27,7 +27,6 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
@@ -180,14 +179,14 @@ public class Command {
 
             // the 'args' array starts by all the required arguments, followed by the optional ones
             List<Argument<?>> requiredArguments = new ArrayList<>();
-            Map<String, Function<CommandSender, Object>> defaultValuesMap = new HashMap<>();
+            Map<String, BiFunction<CommandSender, CommandContext, Object>> defaultValuesMap = new HashMap<>();
             boolean optionalBranch = false;
             int i = 0;
             for (Argument<?> argument : args) {
                 final boolean isLast = ++i == args.length;
                 if (argument.isOptional()) {
                     // Set default value
-                    defaultValuesMap.put(argument.getId(), (Function<CommandSender, Object>) argument.getDefaultValue());
+                    defaultValuesMap.put(argument.getId(), (BiFunction<CommandSender, CommandContext, Object>) argument.getDefaultValue());
 
                     if (!optionalBranch && !requiredArguments.isEmpty()) {
                         // First optional argument, create a syntax with current cached arguments

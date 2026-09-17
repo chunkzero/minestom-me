@@ -22,7 +22,7 @@ public class BelowNameCommand extends Command {
 
         addSyntax((sender, context) -> {
             if (!(sender instanceof Player player)) return;
-            Player targetPlayer = context.get(target).findFirstPlayer(player);
+            Player targetPlayer = context.get(target).findFirstPlayer(context.process(), player);
             if (targetPlayer == null) return;
             belowNameTag.addViewer(player);
             Integer targetValue = context.get(value);

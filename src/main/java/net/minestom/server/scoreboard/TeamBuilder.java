@@ -31,7 +31,7 @@ public class TeamBuilder {
      * @param teamManager The manager for the team
      */
     public TeamBuilder(String name, TeamManager teamManager) {
-        this(teamManager.exists(name) ? teamManager.getTeam(name) : new Team(name), teamManager);
+        this(teamManager.exists(name) ? teamManager.getTeam(name) : new Team(teamManager.process(), name), teamManager);
     }
 
     /**

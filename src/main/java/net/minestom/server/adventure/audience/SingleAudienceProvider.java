@@ -2,7 +2,7 @@ package net.minestom.server.adventure.audience;
 
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.key.Key;
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Player;
 
 import java.util.function.Predicate;
@@ -13,13 +13,16 @@ import java.util.function.Predicate;
  */
 class SingleAudienceProvider implements AudienceProvider<Audience> {
 
-    protected final IterableAudienceProvider collection = new IterableAudienceProvider();
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    protected final Audience players = PacketGroupingAudience.of(MinecraftServer.getConnectionManager().getOnlinePlayers());
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    protected final Audience server = Audience.audience(this.players, MinecraftServer.getCommandManager().getConsoleSender());
+    private final ServerProcess process;
+    protected final IterableAudienceProvider collection;
+    protected final Audience players;
+    protected final Audience server;
 
-    protected SingleAudienceProvider() {
+    protected SingleAudienceProvider(ServerProcess process) {
+        this.process = process;
+        this.collection = new IterableAudienceProvider(process);
+        this.players = PacketGroupingAudience.of(process.connection().getOnlinePlayers());
+        this.server = Audience.audience(players, process.command().getConsoleSender());
     }
 
     /**
@@ -41,16 +44,14 @@ class SingleAudienceProvider implements AudienceProvider<Audience> {
         return this.players;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public Audience players(Predicate<? super Player> filter) {
-        return PacketGroupingAudience.of(MinecraftServer.getConnectionManager().getOnlinePlayers().stream().filter(filter).toList());
+        return PacketGroupingAudience.of(process.connection().getOnlinePlayers().stream().filter(filter).toList());
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public Audience console() {
-        return MinecraftServer.getCommandManager().getConsoleSender();
+        return process.command().getConsoleSender();
     }
 
     @Override

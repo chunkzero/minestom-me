@@ -1,6 +1,8 @@
 package net.minestom.server.command;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.arguments.ArgumentType;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -13,6 +15,9 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CommandParseTest {
+    @AutoClose
+    private static final ServerProcess process = ServerProcess.create();
+
 
     @Test
     public void emptyCommand() {
@@ -154,7 +159,7 @@ public class CommandParseTest {
     }
 
     private static CommandParser.Result parseCommand(Graph graph, String input) {
-        return CommandParser.parser().parse(new ServerSender(), graph, input);
+        return CommandParser.parser().parse(process.command(), new ServerSender(), graph, input);
     }
 
     private static Graph.Execution createExecutor(AtomicBoolean atomicBoolean) {

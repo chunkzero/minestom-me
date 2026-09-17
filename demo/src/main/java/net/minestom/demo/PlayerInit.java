@@ -420,7 +420,7 @@ public class PlayerInit {
                 }
 
                 if (block.id() == Block.CRAFTING_TABLE.id()) {
-                    event.getPlayer().openInventory(new Inventory(InventoryType.CRAFTING, "Crafting"));
+                    event.getPlayer().openInventory(new Inventory(event.getPlayer().process(), InventoryType.CRAFTING, "Crafting"));
                 }
             })
             .addListener(CreativeInventoryActionEvent.class, event -> {
@@ -475,7 +475,7 @@ public class PlayerInit {
         var defaultClock = instanceContainer.defaultClock();
         defaultClock.rate(4f);
 
-        inventory = new Inventory(InventoryType.CHEST_1_ROW, Component.text("Test inventory"));
+        inventory = new Inventory(process, InventoryType.CHEST_1_ROW, Component.text("Test inventory"));
         inventory.setItemStack(3, ItemStack.of(Material.DIAMOND, 34));
     }
 

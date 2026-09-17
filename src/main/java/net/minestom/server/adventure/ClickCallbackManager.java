@@ -5,10 +5,12 @@ import net.kyori.adventure.key.Key;
 import net.kyori.adventure.nbt.IntArrayBinaryTag;
 import net.kyori.adventure.text.event.ClickCallback;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.Tickable;
 import net.minestom.server.entity.Player;
 import net.minestom.server.network.packet.client.common.ClientCustomClickActionPacket;
 import net.minestom.server.utils.UUIDUtils;
+import net.minestom.server.utils.validate.Check;
 
 import java.util.Map;
 import java.util.Objects;
@@ -20,6 +22,17 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Manager for Adventure click callbacks.
  */
 public final class ClickCallbackManager implements Tickable {
+    private final ServerProcess process;
+
+    public ClickCallbackManager(ServerProcess process) {
+        this.process = Objects.requireNonNull(process);
+    }
+
+    public void clear() {
+        permanent.clear();
+        temporary.clear();
+    }
+
     private static final Key KEY = Key.key("minestom", "click_callback");
 
     private final Map<UUID, ClickCallback<Audience>> permanent = new ConcurrentHashMap<>(0);
@@ -56,7 +69,7 @@ public final class ClickCallbackManager implements Tickable {
      * @param packet the packet
      */
     public void consumeCustomClick(final Player player, final ClientCustomClickActionPacket packet) {
-        Objects.requireNonNull(player, "player");
+        Check.argCondition(player.process() != process, "Click callback player belongs to another process");
         Objects.requireNonNull(packet, "packet");
         if (!packet.key().equals(KEY)) return;
 

@@ -3,12 +3,12 @@ package net.minestom.server.command.builder.arguments.minecraft;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.nbt.BinaryTag;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.adventure.MinestomAdventure;
 import net.minestom.server.codec.Result;
 import net.minestom.server.codec.Transcoder;
 import net.minestom.server.command.ArgumentParserType;
 import net.minestom.server.command.CommandSender;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.arguments.Argument;
 import net.minestom.server.command.builder.exception.ArgumentSyntaxException;
 import net.minestom.server.component.DataComponent;
@@ -17,6 +17,7 @@ import net.minestom.server.component.DataComponents;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.item.component.CustomData;
+import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.RegistryTranscoder;
 
 import java.io.IOException;
@@ -40,8 +41,8 @@ public class ArgumentItemStack extends Argument<ItemStack> {
     }
 
     @Override
-    public ItemStack parse(CommandSender sender, String input) throws ArgumentSyntaxException {
-        return staticParse(input);
+    public ItemStack parse(CommandSender sender, CommandContext context, String input) throws ArgumentSyntaxException {
+        return staticParse(input, context.process().registries());
     }
 
     @Override
@@ -50,10 +51,10 @@ public class ArgumentItemStack extends Argument<ItemStack> {
     }
 
     /**
-     * @deprecated use {@link Argument#parse(CommandSender, Argument)}
+     * Parses an item using the supplied registries.
      */
-    @SuppressWarnings({"removal", "unchecked"}) @Deprecated
-    public static ItemStack staticParse(String input) throws ArgumentSyntaxException {
+    @SuppressWarnings("unchecked")
+    public static ItemStack staticParse(String input, Registries registries) throws ArgumentSyntaxException {
         var reader = new StringReader(input);
 
         final Material material = Material.fromKey(reader.readKey());
@@ -69,7 +70,7 @@ public class ArgumentItemStack extends Argument<ItemStack> {
         if (reader.peek() == '[') {
             reader.consume('[');
             final Transcoder<BinaryTag> coder = new RegistryTranscoder<>(
-                    Transcoder.NBT, MinecraftServer.getRegistries());
+                    Transcoder.NBT, registries);
             do {
                 final Key componentId = reader.readKey();
                 final DataComponent<?> component = DataComponent.fromKey(componentId);
@@ -79,6 +80,8 @@ public class ArgumentItemStack extends Argument<ItemStack> {
                 reader.consume('=');
 
                 final Result<Object> componentValueResult = (Result<Object>) component.decode(coder, reader.readTag());
+                if (componentValueResult instanceof Result.Error<Object>(String message))
+                    throw new ArgumentSyntaxException(message, input, INVALID_COMPONENT);
                 components.set((DataComponent<Object>) component, componentValueResult.orElseThrow());
 
                 if (reader.peek() != ']')

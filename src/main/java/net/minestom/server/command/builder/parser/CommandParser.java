@@ -57,11 +57,12 @@ public final class CommandParser {
         return recursiveCommandQuery(dispatcher, parents, null, commandName, args);
     }
 
-    public static void parse(CommandSender sender, @Nullable CommandSyntax syntax,
+    public static void parse(CommandSender sender, CommandContext context, @Nullable CommandSyntax syntax,
                              Argument<?>[] commandArguments, String[] inputArguments,
                              String commandString,
                              @Nullable List<ValidSyntaxHolder> validSyntaxes,
                              @Nullable Int2ObjectRBTreeMap<CommandSuggestionHolder> syntaxesSuggestions) {
+        context = context.fork();
         final Map<Argument<?>, ArgumentParser.ArgumentResult> argumentValueMap = new HashMap<>();
 
         boolean syntaxCorrect = true;
@@ -72,7 +73,7 @@ public final class CommandParser {
         // Check the validity of the arguments...
         for (int argIndex = 0; argIndex < commandArguments.length; argIndex++) {
             final Argument<?> argument = commandArguments[argIndex];
-            ArgumentParser.ArgumentResult argumentResult = validate(sender, argument, commandArguments, argIndex, inputArguments, inputIndex);
+            ArgumentParser.ArgumentResult argumentResult = validate(sender, context, argument, commandArguments, argIndex, inputArguments, inputIndex);
             if (argumentResult == null) {
                 break;
             }
@@ -83,6 +84,7 @@ public final class CommandParser {
 
             if (argumentResult.correct) {
                 argumentValueMap.put(argumentResult.argument, argumentResult);
+                context.setArg(argument.getId(), argumentResult.parsedValue, argumentResult.rawArg);
             } else {
                 // Argument is not correct, add it to the syntax suggestion with the number
                 // of correct argument(s) and do not check the next syntax argument
@@ -134,7 +136,7 @@ public final class CommandParser {
                 maxArguments = argsSize;
 
                 // Fill arguments map
-                finalContext = new CommandContext(validSyntaxHolder.commandString());
+                finalContext = new CommandContext(context.commandManager(), validSyntaxHolder.commandString());
                 for (var entry : argsValues.entrySet()) {
                     final Argument<?> argument = entry.getKey();
                     final ArgumentParser.ArgumentResult argumentResult = entry.getValue();
@@ -152,7 +154,7 @@ public final class CommandParser {
     }
 
     @Nullable
-    public static ArgumentQueryResult findEligibleArgument(CommandSender sender,
+    public static ArgumentQueryResult findEligibleArgument(CommandSender sender, CommandContext parentContext,
                                                            Command command, String[] args, String commandString,
                                                            boolean trailingSpace, boolean forceCorrect,
                                                            Predicate<CommandSyntax> syntaxPredicate,
@@ -166,7 +168,7 @@ public final class CommandParser {
                 continue;
             }
 
-            final CommandContext context = new CommandContext(commandString);
+            final CommandContext context = new CommandContext(parentContext.commandManager(), commandString);
 
             final Argument<?>[] commandArguments = syntax.getArguments();
             int inputIndex = 0;
@@ -175,7 +177,7 @@ public final class CommandParser {
             int maxArgIndex = 0;
             for (int argIndex = 0; argIndex < commandArguments.length; argIndex++) {
                 Argument<?> argument = commandArguments[argIndex];
-                ArgumentParser.ArgumentResult argumentResult = validate(sender, argument, commandArguments, argIndex, args, inputIndex);
+                ArgumentParser.ArgumentResult argumentResult = validate(sender, context, argument, commandArguments, argIndex, args, inputIndex);
                 if (argumentResult == null) {
                     // Nothing to analyze, create a dummy object
                     argumentResult = new ArgumentParser.ArgumentResult();

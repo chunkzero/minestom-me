@@ -19,7 +19,7 @@ public class EntitySelectorCommand extends Command {
 
         ArgumentEntity argumentEntity = ArgumentType.Entity("entities").onlyPlayers(true);
 
-        setArgumentCallback((_, exception) -> exception.printStackTrace(), argumentEntity);
+        setArgumentCallback((_, _, exception) -> exception.printStackTrace(), argumentEntity);
 
         addSyntax(EntitySelectorCommand::executor, argumentEntity);
 
@@ -27,7 +27,7 @@ public class EntitySelectorCommand extends Command {
 
     private static void executor(CommandSender commandSender, CommandContext context) {
         EntityFinder entityFinder = context.get("entities");
-        List<Entity> entities = entityFinder.find(commandSender);
+        List<Entity> entities = entityFinder.find(context.process(), commandSender);
         System.out.println("found " + entities.size() + " entities");
     }
 }

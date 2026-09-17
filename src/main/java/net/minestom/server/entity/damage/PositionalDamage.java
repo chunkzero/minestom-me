@@ -1,5 +1,6 @@
 package net.minestom.server.entity.damage;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.registry.RegistryKey;
 
@@ -8,8 +9,8 @@ import net.minestom.server.registry.RegistryKey;
  */
 public class PositionalDamage extends Damage {
 
-    public PositionalDamage(RegistryKey<DamageType> type, Point sourcePosition, float amount) {
-        super(type, null, null, sourcePosition, amount);
+    public PositionalDamage(ServerProcess process, RegistryKey<DamageType> type, Point sourcePosition, float amount) {
+        super(process, type, null, null, sourcePosition, amount);
     }
 
 }

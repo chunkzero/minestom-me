@@ -12,11 +12,11 @@ public abstract class SimpleCommand extends Command {
         setCondition(this::hasAccess);
 
         setDefaultExecutor((sender, context) ->
-                process(sender, context.getCommandName(), new String[0]));
+                process(sender, context, context.getCommandName(), new String[0]));
 
         final var params = ArgumentType.StringArray("params");
         addSyntax((sender, context) ->
-                process(sender, context.getCommandName(), context.get(params)), params);
+                process(sender, context, context.getCommandName(), context.get(params)), params);
     }
 
     /**
@@ -27,16 +27,15 @@ public abstract class SimpleCommand extends Command {
      * @param args    an array containing all the args (split by space char)
      * @return true when the command is successful, false otherwise
      */
-    public abstract boolean process(CommandSender sender, String command, String[] args);
+    public abstract boolean process(CommandSender sender, CommandContext context, String command, String[] args);
 
     /**
      * Called to know if a player has access to the command.
      *
      * @param sender        the command sender to check the access
-     * @param commandString the raw command string,
-     *                      null if this is an access request
+     * @param context the command context, with empty input for a declaration request
      * @return true if the player has access to the command, false otherwise
      */
-    public abstract boolean hasAccess(CommandSender sender, @Nullable String commandString);
+    public abstract boolean hasAccess(CommandSender sender, CommandContext context);
 
 }

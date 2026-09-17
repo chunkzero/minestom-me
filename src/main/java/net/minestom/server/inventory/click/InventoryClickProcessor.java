@@ -4,7 +4,6 @@ import net.minestom.server.component.DataComponents;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.EquipmentSlot;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.inventory.InventoryClickEvent;
 import net.minestom.server.inventory.AbstractInventory;
 import net.minestom.server.inventory.PlayerInventory;
@@ -326,9 +325,8 @@ public final class InventoryClickProcessor {
         return clickResult;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void callClickEvent(Player player, AbstractInventory inventory, int slot,
                                 ClickType clickType, ItemStack clicked, ItemStack cursor) {
-        EventDispatcher.call(new InventoryClickEvent(inventory, player, slot, clickType, clicked, cursor));
+        player.process().eventHandler().call(new InventoryClickEvent(inventory, player, slot, clickType, clicked, cursor));
     }
 }

@@ -14,7 +14,8 @@ public interface ArgumentCallback {
      * Executed when an error is found.
      *
      * @param sender    the sender which executed the command
+     * @param context   the executing manager's context and successfully parsed arguments
      * @param exception the exception containing the message, input and error code related to the issue
      */
-    void apply(CommandSender sender, ArgumentSyntaxException exception);
+    void apply(CommandSender sender, CommandContext context, ArgumentSyntaxException exception);
 }

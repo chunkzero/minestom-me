@@ -1,6 +1,7 @@
 package net.minestom.server.command;
 
 import net.minestom.server.command.builder.Command;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.CommandExecutor;
 import net.minestom.server.command.builder.CommandSyntax;
 import net.minestom.server.command.builder.arguments.Argument;
@@ -15,8 +16,8 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 import static net.minestom.server.command.builder.arguments.ArgumentType.Literal;
 import static net.minestom.server.command.builder.arguments.ArgumentType.Word;
@@ -105,15 +106,15 @@ record GraphImpl(NodeImpl root) implements Graph {
     }
 
     record ExecutionImpl(
-            @UnknownNullability Predicate<CommandSender> predicate,
+            @UnknownNullability BiPredicate<CommandSender, CommandContext> predicate,
             @Nullable CommandExecutor defaultExecutor,
             @Nullable CommandExecutor globalListener,
             @Nullable CommandExecutor executor,
             @Nullable CommandCondition condition
     ) implements Execution {
         @Override
-        public boolean test(CommandSender commandSender) {
-            return predicate.test(commandSender);
+        public boolean test(CommandSender commandSender, CommandContext context) {
+            return predicate.test(commandSender, context);
         }
 
         static ExecutionImpl fromCommand(Command command) {
@@ -139,14 +140,14 @@ record GraphImpl(NodeImpl root) implements Graph {
                                                                                                context.getInput());
 
             return new ExecutionImpl(
-                    commandSender -> defaultCondition == null || defaultCondition.canUse(commandSender, null),
+                    (sender, context) -> defaultCondition == null || defaultCondition.canUse(sender, context),
                     defaultExecutor, globalListener, executor, condition);
         }
 
         static ExecutionImpl fromSyntax(CommandSyntax syntax) {
             final CommandExecutor executor = syntax.getExecutor();
             final CommandCondition condition = syntax.getCommandCondition();
-            return new ExecutionImpl(commandSender -> condition == null || condition.canUse(commandSender, null),
+            return new ExecutionImpl((sender, context) -> condition == null || condition.canUse(sender, context),
                                      null, null, executor, condition);
         }
     }

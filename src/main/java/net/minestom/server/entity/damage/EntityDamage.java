@@ -8,7 +8,7 @@ import net.minestom.server.entity.Entity;
 public class EntityDamage extends Damage {
 
     public EntityDamage(Entity source, float amount) {
-        super(DamageType.MOB_ATTACK, source, source, null, amount);
+        super(source.process(), DamageType.MOB_ATTACK, source, source, null, amount);
     }
 
     /**

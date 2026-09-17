@@ -1,6 +1,7 @@
 package net.minestom.server.command;
 
 import net.minestom.server.command.builder.Command;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.CommandExecutor;
 import net.minestom.server.command.builder.arguments.Argument;
 import net.minestom.server.command.builder.condition.CommandCondition;
@@ -9,8 +10,8 @@ import org.jetbrains.annotations.UnknownNullability;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 sealed interface Graph permits GraphImpl {
     static Builder builder(Argument<?> argument, @Nullable Execution execution) {
@@ -49,7 +50,7 @@ sealed interface Graph permits GraphImpl {
         List<Node> next();
     }
 
-    sealed interface Execution extends Predicate<CommandSender> permits GraphImpl.ExecutionImpl {
+    sealed interface Execution extends BiPredicate<CommandSender, CommandContext> permits GraphImpl.ExecutionImpl {
         @UnknownNullability CommandExecutor defaultExecutor();
 
         @UnknownNullability CommandExecutor globalListener();

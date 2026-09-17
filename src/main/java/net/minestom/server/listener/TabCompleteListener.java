@@ -1,6 +1,5 @@
 package net.minestom.server.listener;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.suggestion.Suggestion;
@@ -24,13 +23,6 @@ public class TabCompleteListener {
                             .toList())
             );
         }
-    }
-
-    /** @deprecated Supply the executing command manager explicitly. */
-    @Deprecated(forRemoval = true)
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    public static @Nullable Suggestion getSuggestion(CommandSender commandSender, String text) {
-        return getSuggestion(MinecraftServer.getCommandManager(), commandSender, text);
     }
 
     public static @Nullable Suggestion getSuggestion(CommandManager commandManager, CommandSender commandSender, String text) {

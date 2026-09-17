@@ -38,7 +38,7 @@ public class InventoryIntegrationTest {
         var player = connection.connect(instance, new Pos(0, 42, 0));
         assertEquals(instance, player.getInstance());
 
-        Inventory inventory = new Inventory(InventoryType.CHEST_6_ROW, Component.empty());
+        Inventory inventory = new Inventory(env.process(), InventoryType.CHEST_6_ROW, Component.empty());
         player.openInventory(inventory);
         assertEquals(inventory, player.getOpenInventory());
 
@@ -62,7 +62,7 @@ public class InventoryIntegrationTest {
         var player = connection.connect(instance, new Pos(0, 42, 0));
         assertEquals(instance, player.getInstance());
 
-        Inventory inventory = new Inventory(InventoryType.CHEST_6_ROW, Component.empty());
+        Inventory inventory = new Inventory(env.process(), InventoryType.CHEST_6_ROW, Component.empty());
         player.openInventory(inventory);
         assertEquals(inventory, player.getOpenInventory());
 
@@ -86,7 +86,7 @@ public class InventoryIntegrationTest {
         var player = connection.connect(instance, new Pos(0, 42, 0));
         assertEquals(instance, player.getInstance());
 
-        Inventory inventory = new Inventory(InventoryType.CHEST_6_ROW, Component.empty());
+        Inventory inventory = new Inventory(env.process(), InventoryType.CHEST_6_ROW, Component.empty());
         player.openInventory(inventory);
         assertEquals(inventory, player.getOpenInventory());
 
@@ -161,7 +161,7 @@ public class InventoryIntegrationTest {
         var instance = env.createFlatInstance();
         var connection = env.createConnection();
         var player = connection.connect(instance, new Pos(0, 42, 0));
-        final var inventory = new Inventory(InventoryType.CHEST_1_ROW, "title");
+        final var inventory = new Inventory(env.process(), InventoryType.CHEST_1_ROW, "title");
         player.openInventory(inventory);
         assertSame(inventory, player.getOpenInventory());
         player.closeInventory();
@@ -174,7 +174,7 @@ public class InventoryIntegrationTest {
         var connection = env.createConnection();
         var player = connection.connect(instance, new Pos(0, 42, 0));
         var listener = env.listen(ItemDropEvent.class);
-        final var firstInventory = new Inventory(InventoryType.CHEST_1_ROW, "title");
+        final var firstInventory = new Inventory(env.process(), InventoryType.CHEST_1_ROW, "title");
         player.openInventory(firstInventory);
         assertSame(firstInventory, player.getOpenInventory());
         player.getInventory().setCursorItem(ItemStack.of(Material.STONE));
@@ -185,7 +185,7 @@ public class InventoryIntegrationTest {
 
         player.openInventory(firstInventory);
         player.getInventory().setCursorItem(ItemStack.of(Material.STONE));
-        final var secondInventory = new Inventory(InventoryType.CHEST_1_ROW, "title");
+        final var secondInventory = new Inventory(env.process(), InventoryType.CHEST_1_ROW, "title");
         listener.followup(event -> event.getPlayer().openInventory(secondInventory));
         player.closeInventory();
         assertSame(secondInventory, player.getOpenInventory());
@@ -201,7 +201,7 @@ public class InventoryIntegrationTest {
         var player = connection.connect(instance, new Pos(0, 42, 0));
         assertEquals(instance, player.getInstance());
 
-        Inventory inventory = new Inventory(InventoryType.CHEST_6_ROW, Component.empty());
+        Inventory inventory = new Inventory(env.process(), InventoryType.CHEST_6_ROW, Component.empty());
         player.openInventory(inventory);
         assertEquals(inventory, player.getOpenInventory());
 
@@ -237,7 +237,7 @@ public class InventoryIntegrationTest {
         var player = connection.connect(instance, new Pos(0, 42, 0));
         assertEquals(instance, player.getInstance());
 
-        Inventory inventory = new Inventory(InventoryType.CHEST_6_ROW, Component.empty());
+        Inventory inventory = new Inventory(env.process(), InventoryType.CHEST_6_ROW, Component.empty());
         AtomicBoolean called = new AtomicBoolean(false);
         inventory.eventNode().addListener(
                 InventoryOpenEvent.class,
@@ -256,7 +256,7 @@ public class InventoryIntegrationTest {
         var instance = env.createFlatInstance();
         var connection = env.createConnection();
         var player = connection.connect(instance, new Pos(0, 42, 0));
-        final var inventory = new Inventory(InventoryType.CHEST_6_ROW, "title");
+        final var inventory = new Inventory(env.process(), InventoryType.CHEST_6_ROW, "title");
         player.openInventory(inventory);
         // No bundles are set - they might not exist serverside and be sent directly to the client
 
@@ -274,7 +274,7 @@ public class InventoryIntegrationTest {
         var instance = env.createFlatInstance();
         var connection = env.createConnection();
         var player = connection.connect(instance, new Pos(0, 42, 0));
-        final var inventory = new Inventory(InventoryType.CHEST_3_ROW, "title"); // size = 27
+        final var inventory = new Inventory(env.process(), InventoryType.CHEST_3_ROW, "title"); // size = 27
         player.openInventory(inventory);
 
         var listener = env.trackEvent(InventoryBundleItemSelectEvent.class, EventFilter.PLAYER, player);
@@ -327,7 +327,7 @@ public class InventoryIntegrationTest {
         var instance = env.createFlatInstance();
         var connection = env.createConnection();
         var player = connection.connect(instance, new Pos(0, 42, 0));
-        final var inventory = new Inventory(InventoryType.CHEST_3_ROW, "title");
+        final var inventory = new Inventory(env.process(), InventoryType.CHEST_3_ROW, "title");
         player.openInventory(inventory);
 
         var listener = env.trackEvent(InventoryBundleItemSelectEvent.class, EventFilter.PLAYER, player);

@@ -9,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
 public class EntityProjectileDamage extends Damage {
 
     public EntityProjectileDamage(@Nullable Entity shooter, Entity projectile, float amount) {
-        super(DamageType.MOB_PROJECTILE, projectile, shooter, null, amount);
+        super(projectile.process(), DamageType.MOB_PROJECTILE, projectile, shooter, null, amount);
     }
 
     /**

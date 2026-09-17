@@ -1,10 +1,8 @@
 package net.minestom.server.inventory;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Viewable;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.EventFilter;
 import net.minestom.server.event.EventHandler;
 import net.minestom.server.event.EventNode;
@@ -19,7 +17,6 @@ import net.minestom.server.tag.TagHandler;
 import net.minestom.server.tag.Taggable;
 import net.minestom.server.utils.MathUtils;
 import net.minestom.server.utils.validate.Check;
-import org.jetbrains.annotations.Nullable;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -40,6 +37,7 @@ public sealed abstract class AbstractInventory implements InventoryClickHandler,
 
     private static final VarHandle ITEM_UPDATER = MethodHandles.arrayElementVarHandle(ItemStack[].class);
 
+    private final ServerProcess process;
     private final int size;
     protected final ItemStack[] itemStacks;
 
@@ -53,21 +51,22 @@ public sealed abstract class AbstractInventory implements InventoryClickHandler,
     protected final Set<Player> unmodifiableViewers = Collections.unmodifiableSet(viewers);
 
     // the local event node filtered to this inventory
-    private final @Nullable EventNode<InventoryEvent> eventNode;
+    private final EventNode<InventoryEvent> eventNode;
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    protected AbstractInventory(int size) {
+    protected AbstractInventory(ServerProcess process, int size) {
+        this.process = Objects.requireNonNull(process);
         this.size = size;
         this.itemStacks = new ItemStack[getSize()];
         Arrays.fill(itemStacks, ItemStack.AIR);
-        // Setup event node
-        final ServerProcess process = MinecraftServer.process();
-        if (process != null) {
-            this.eventNode = process.eventHandler().map(this, EventFilter.INVENTORY);
-        } else {
-            // Local nodes require a server process
-            this.eventNode = null;
-        }
+        this.eventNode = process.eventHandler().map(this, EventFilter.INVENTORY);
+    }
+
+    protected final void checkViewer(Player player) {
+        Check.argCondition(player.process() != process, "Inventory player belongs to another process");
+    }
+
+    public final ServerProcess process() {
+        return process;
     }
 
     /**
@@ -86,6 +85,7 @@ public sealed abstract class AbstractInventory implements InventoryClickHandler,
 
     @Override
     public boolean addViewer(Player player) {
+        checkViewer(player);
         if (!this.viewers.add(player)) return false;
 
         update(player);
@@ -94,6 +94,7 @@ public sealed abstract class AbstractInventory implements InventoryClickHandler,
 
     @Override
     public boolean removeViewer(Player player) {
+        checkViewer(player);
         if (!this.viewers.remove(player)) return false;
 
         // Drop cursor item when closing inventory
@@ -130,7 +131,6 @@ public sealed abstract class AbstractInventory implements InventoryClickHandler,
      * @param itemStack  the item to set
      * @param sendPacket whether to send packets
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void setItemStack(int slot, ItemStack itemStack, boolean sendPacket) {
         Check.argCondition(!MathUtils.isBetween(slot, 0, getSize() - 1), // Subtract 1 because MathUtils is <= max, instead of strictly less than
                 "Inventory does not have the slot " + slot);
@@ -141,7 +141,7 @@ public sealed abstract class AbstractInventory implements InventoryClickHandler,
             if (itemStack.equals(previous)) return; // Avoid sending updates if the item has not changed
             UNSAFE_itemInsert(slot, itemStack, previous, sendPacket);
         }
-        EventDispatcher.call(new InventoryItemChangeEvent(this, slot, previous, itemStack));
+        process.eventHandler().call(new InventoryItemChangeEvent(this, slot, previous, itemStack));
     }
 
     protected void UNSAFE_itemInsert(int slot, ItemStack item, ItemStack previous, boolean sendPacket) {
@@ -248,6 +248,7 @@ public sealed abstract class AbstractInventory implements InventoryClickHandler,
      * @param player the player to update the inventory for
      */
     public void update(Player player) {
+        checkViewer(player);
         player.sendPacket(new WindowItemsPacket(getWindowId(), 0, List.of(itemStacks), player.getInventory().getCursorItem()));
     }
 

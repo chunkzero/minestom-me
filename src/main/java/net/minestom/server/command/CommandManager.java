@@ -1,11 +1,12 @@
 package net.minestom.server.command;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.Command;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.CommandDispatcher;
 import net.minestom.server.command.builder.CommandResult;
 import net.minestom.server.command.builder.ParsedCommand;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.PlayerCommandEvent;
 import net.minestom.server.network.packet.server.play.DeclareCommandsPacket;
 import net.minestom.server.utils.callback.CommandCallback;
@@ -17,6 +18,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -28,6 +30,7 @@ public final class CommandManager {
 
     public static final String COMMAND_PREFIX = "/";
 
+    private final ServerProcess process;
     private final ServerSender serverSender = new ServerSender();
     private final ConsoleSender consoleSender = new ConsoleSender();
     private final CommandParser parser = CommandParser.parser();
@@ -38,7 +41,17 @@ public final class CommandManager {
     private CommandCallback unknownCommandCallback;
     private volatile @Nullable Graph cachedGraph;
 
-    public CommandManager() {
+    public CommandManager(ServerProcess process) {
+        this.process = Objects.requireNonNull(process);
+    }
+
+    public ServerProcess process() {
+        return process;
+    }
+
+    void checkSender(CommandSender sender) {
+        Check.argCondition(sender instanceof Player player && player.process() != process,
+                "Command sender belongs to another process");
     }
 
     /**
@@ -118,13 +131,13 @@ public final class CommandManager {
      * @param command the raw command string (without the command prefix)
      * @return the execution result
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public CommandResult execute(CommandSender sender, String command) {
+        checkSender(sender);
         command = command.trim();
         // Command event
         if (sender instanceof Player player) {
             PlayerCommandEvent playerCommandEvent = new PlayerCommandEvent(player, command);
-            EventDispatcher.call(playerCommandEvent);
+            process.eventHandler().call(playerCommandEvent);
             if (playerCommandEvent.isCancelled())
                 return CommandResult.of(CommandResult.Type.CANCELLED, command);
             command = playerCommandEvent.getCommand();
@@ -136,7 +149,7 @@ public final class CommandManager {
         final CommandResult result = resultConverter(executable, executeResult, command);
         if (result.getType() == CommandResult.Type.UNKNOWN) {
             if (unknownCommandCallback != null) {
-                this.unknownCommandCallback.apply(sender, command);
+                this.unknownCommandCallback.apply(sender, new CommandContext(this, command));
             }
         }
         return result;
@@ -193,6 +206,7 @@ public final class CommandManager {
      * @return the {@link DeclareCommandsPacket} for {@code player}
      */
     public DeclareCommandsPacket createDeclareCommandsPacket(Player player) {
+        checkSender(player);
         return GraphConverter.createPacket(this, getGraph(), player);
     }
 
@@ -207,7 +221,8 @@ public final class CommandManager {
      * @return the parsing result
      */
     public CommandParser.Result parseCommand(CommandSender sender, String input) {
-        return parser.parse(sender, getGraph(), input);
+        checkSender(sender);
+        return parser.parse(this, sender, getGraph(), input);
     }
 
     private Graph getGraph() {

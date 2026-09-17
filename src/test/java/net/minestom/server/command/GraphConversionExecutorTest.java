@@ -1,8 +1,10 @@
 package net.minestom.server.command;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.condition.CommandCondition;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import static net.minestom.server.command.builder.arguments.ArgumentType.Literal;
@@ -13,6 +15,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class GraphConversionExecutorTest {
+    @AutoClose
+    private static final ServerProcess process = ServerProcess.create();
+
     @Test
     public void defaultCondition() {
         final Command foo = new Command("foo");
@@ -22,7 +27,7 @@ public class GraphConversionExecutorTest {
             var graph = Graph.fromCommand(foo);
             var execution = graph.root().execution();
             assertNotNull(execution);
-            assertTrue(execution.test(null));
+            assertTrue(execution.test(new ServerSender(), new CommandContext(process.command(), "")));
         }
         // Constant false
         {
@@ -30,7 +35,7 @@ public class GraphConversionExecutorTest {
             var graph = Graph.fromCommand(foo);
             var execution = graph.root().execution();
             assertNotNull(execution);
-            assertFalse(execution.test(null));
+            assertFalse(execution.test(new ServerSender(), new CommandContext(process.command(), "")));
         }
     }
 
@@ -57,7 +62,7 @@ public class GraphConversionExecutorTest {
         assertEquals(1, graph.root().next().size());
         var execution = graph.root().next().getFirst().execution();
         assertNotNull(execution);
-        assertTrue(execution.test(null));
+        assertTrue(execution.test(new ServerSender(), new CommandContext(process.command(), "")));
     }
 
     @Test
@@ -70,7 +75,7 @@ public class GraphConversionExecutorTest {
         assertEquals(1, graph.root().next().size());
         var execution = graph.root().next().getFirst().execution();
         assertNotNull(execution);
-        assertFalse(execution.test(null));
+        assertFalse(execution.test(new ServerSender(), new CommandContext(process.command(), "")));
     }
 
     @Test

@@ -17,10 +17,6 @@ public class CommandDispatcher {
         this.manager = manager;
     }
 
-    public CommandDispatcher() {
-        this(new CommandManager());
-    }
-
     /**
      * Registers a command,
      * be aware that registering a command name or alias will override the previous entry.

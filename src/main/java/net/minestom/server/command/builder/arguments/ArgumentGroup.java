@@ -23,17 +23,16 @@ public class ArgumentGroup extends Argument<CommandContext> {
     }
 
     @Override
-    public CommandContext parse(CommandSender sender, String input) throws ArgumentSyntaxException {
+    public CommandContext parse(CommandSender sender, CommandContext context, String input) throws ArgumentSyntaxException {
         List<ValidSyntaxHolder> validSyntaxes = new ArrayList<>();
-        CommandParser.parse(sender, null, group, input.split(StringUtils.SPACE), input, validSyntaxes, null);
-
-        CommandContext context = new CommandContext(input);
-        CommandParser.findMostCorrectSyntax(validSyntaxes, context);
+        CommandContext result = new CommandContext(context.commandManager(), input);
+        CommandParser.parse(sender, result, null, group, input.split(StringUtils.SPACE), input, validSyntaxes, null);
+        CommandParser.findMostCorrectSyntax(validSyntaxes, result);
         if (validSyntaxes.isEmpty()) {
             throw new ArgumentSyntaxException("Invalid arguments", input, INVALID_ARGUMENTS_ERROR);
         }
 
-        return context;
+        return result;
     }
 
     @Override
