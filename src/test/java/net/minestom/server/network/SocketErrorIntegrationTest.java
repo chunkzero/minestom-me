@@ -1,9 +1,9 @@
 package net.minestom.server.network;
 
-import net.minestom.server.ServerFlag;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.network.packet.client.status.StatusRequestPacket;
 import net.minestom.server.network.player.PlayerSocketConnection;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.testing.Env;
 import net.minestom.testing.EnvTest;
 import org.junit.jupiter.api.Timeout;
@@ -50,7 +50,7 @@ class SocketErrorIntegrationTest {
                 });
 
                 byte[] bytes = malformed
-                        ? NetworkBuffer.makeArray(buffer -> buffer.write(NetworkBuffer.VAR_INT, ServerFlag.MAX_PACKET_SIZE_PRE_AUTH + 1))
+                        ? NetworkBuffer.makeArray(buffer -> buffer.write(NetworkBuffer.VAR_INT, ServerProperties.MAX_PACKET_SIZE_PRE_AUTH.get() + 1))
                         : new byte[]{1, 0}; // Framed status request: one byte payload, packet ID zero.
                 var buffer = ByteBuffer.wrap(bytes);
                 while (buffer.hasRemaining()) client.write(buffer);

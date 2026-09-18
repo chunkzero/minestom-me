@@ -25,6 +25,7 @@ import net.minestom.server.network.packet.PacketVanilla;
 import net.minestom.server.network.packet.server.common.PluginMessagePacket;
 import net.minestom.server.network.packet.server.play.ServerDifficultyPacket;
 import net.minestom.server.network.socket.Server;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.recipe.RecipeManager;
 import net.minestom.server.registry.Registries;
 import net.minestom.server.scoreboard.TeamManager;
@@ -123,7 +124,7 @@ final class ServerProcessImpl implements ServerProcess {
 
         this.server = new Server(this, packetParser);
 
-        this.dispatcher = ThreadDispatcher.dispatcher(this, ThreadProvider.counter(), ServerFlag.DISPATCHER_THREADS);
+        this.dispatcher = ThreadDispatcher.dispatcher(this, ThreadProvider.counter(), ServerProperties.DISPATCHER_THREADS.get());
         this.ticker = new TickerImpl();
     }
 
@@ -325,7 +326,7 @@ final class ServerProcessImpl implements ServerProcess {
         LOGGER.info("{} server started successfully.", brand);
 
         // Stop the server on SIGINT
-        if (ServerFlag.SHUTDOWN_ON_SIGNAL) {
+        if (ServerProperties.SHUTDOWN_ON_SIGNAL.get()) {
             shutdownHook = new Thread(this::stop, "Minestom shutdown");
             Runtime.getRuntime().addShutdownHook(shutdownHook);
         }

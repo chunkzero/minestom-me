@@ -1,8 +1,8 @@
 package net.minestom.server.network.packet.server;
 
-import net.minestom.server.ServerFlag;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.PacketEncodingContext;
+import net.minestom.server.property.ServerProperties;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
@@ -84,15 +84,14 @@ public final class CachedPacket implements SendablePacket {
     /**
      * Invalidates the currently cached packet, if any.
      *
-     * <p>The next cache access recomputes the packet unless caching is disabled.
-     * This method has no effect when caching is disabled.
+     * <p>The next cache access recomputes the packet. The reference is cleared even while
+     * caching is disabled, so a retained value cannot resurface once caching is re-enabled.
      *
      * @implSpec This method clears the cached reference using release semantics.
      * Cache computation is not synchronized with invalidation, so an in progress
      * computation may publish a value after this method returns.
      */
     public void invalidate() {
-        if (!ServerFlag.CACHED_PACKET) return;
         PACKET.setRelease(this, null);
     }
 
@@ -137,7 +136,7 @@ public final class CachedPacket implements SendablePacket {
      * @return the cached framed packet, or {@code null} when caching is disabled
      */
     public @Nullable FramedPacket framed(PacketEncodingContext context) {
-        if (!ServerFlag.CACHED_PACKET) return null;
+        if (!ServerProperties.CACHED_PACKET.get()) return null;
 
         final FramedPacket cache = cachedPacket();
         return cache != null && cache.context().equals(context) ? cache : computeCache(context);
@@ -196,7 +195,7 @@ public final class CachedPacket implements SendablePacket {
      * available
      */
     public boolean isValid() {
-        return ServerFlag.CACHED_PACKET && cachedPacket() != null;
+        return ServerProperties.CACHED_PACKET.get() && cachedPacket() != null;
     }
 
     /**

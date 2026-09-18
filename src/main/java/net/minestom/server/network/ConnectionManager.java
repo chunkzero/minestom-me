@@ -2,7 +2,6 @@ package net.minestom.server.network;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.minestom.server.ServerFlag;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
@@ -23,6 +22,7 @@ import net.minestom.server.network.player.GameProfile;
 import net.minestom.server.network.player.PlayerConnection;
 import net.minestom.server.network.player.PlayerSocketConnection;
 import net.minestom.server.network.plugin.LoginPluginMessageProcessor;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.StaticProtocolObject;
 import net.minestom.server.utils.StringUtils;
@@ -200,7 +200,7 @@ public final class ConnectionManager {
     @ApiStatus.Internal
     public Player createPlayer(PlayerConnection connection, GameProfile gameProfile) {
         Check.argCondition(connection.process() != process, "Connection belongs to another process");
-        assert ServerFlag.INSIDE_TEST || Thread.currentThread().isVirtual();
+        assert ServerProperties.INSIDE_TEST.get() || Thread.currentThread().isVirtual();
         final Player player = playerProvider.createPlayer(connection, gameProfile);
         Check.argCondition(player.process() != process || player.getPlayerConnection() != connection,
                 "Player provider returned a player for another connection");
@@ -224,7 +224,7 @@ public final class ConnectionManager {
 
     public GameProfile transitionLoginToConfig(PlayerConnection connection, GameProfile gameProfile) {
         Check.argCondition(connection.process() != process, "Connection belongs to another process");
-        assert ServerFlag.INSIDE_TEST || Thread.currentThread().isVirtual();
+        assert ServerProperties.INSIDE_TEST.get() || Thread.currentThread().isVirtual();
         // Compression
         if (connection instanceof PlayerSocketConnection socketConnection) {
             final int threshold = process().compressionThreshold();
@@ -239,7 +239,7 @@ public final class ConnectionManager {
         gameProfile = asyncPlayerPreLoginEvent.getGameProfile();
         // Wait for pending login plugin messages
         try {
-            pluginMessageProcessor.awaitReplies(ServerFlag.LOGIN_PLUGIN_MESSAGE_TIMEOUT, TimeUnit.MILLISECONDS);
+            pluginMessageProcessor.awaitReplies(ServerProperties.LOGIN_PLUGIN_MESSAGE_TIMEOUT.get(), TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
             connection.kick(LoginListener.INVALID_PROXY_RESPONSE);
             throw new RuntimeException("Error getting replies for login plugin messages", t);
@@ -265,7 +265,7 @@ public final class ConnectionManager {
     @ApiStatus.Internal
     public void doConfiguration(Player player, boolean isFirstConfig) {
         Check.argCondition(player.process() != process, "Player belongs to another process");
-        assert ServerFlag.INSIDE_TEST || Thread.currentThread().isVirtual();
+        assert ServerProperties.INSIDE_TEST.get() || Thread.currentThread().isVirtual();
         if (isFirstConfig) {
             configurationPlayers.add(player);
             keepAlivePlayers.add(player);
@@ -291,7 +291,7 @@ public final class ConnectionManager {
         if (event.willSendRegistryData()) {
             List<SelectKnownPacksPacket.Entry> knownPacks;
             try {
-                knownPacks = knownPacksFuture.get(ServerFlag.KNOWN_PACKS_RESPONSE_TIMEOUT, TimeUnit.MILLISECONDS);
+                knownPacks = knownPacksFuture.get(ServerProperties.KNOWN_PACKS_RESPONSE_TIMEOUT.get(), TimeUnit.MILLISECONDS);
             } catch (InterruptedException | TimeoutException _) {
                 LOGGER.warn("Player {} failed to respond to known packs query", player.getUsername());
                 player.getPlayerConnection().disconnect();
@@ -427,7 +427,7 @@ public final class ConnectionManager {
             CompletableFuture<Void> spawnFuture = player.UNSAFE_init();
 
             // Required to get the exact moment the player spawns
-            if (ServerFlag.INSIDE_TEST) spawnFuture.join();
+            if (ServerProperties.INSIDE_TEST.get()) spawnFuture.join();
         });
     }
 
@@ -440,10 +440,10 @@ public final class ConnectionManager {
         final KeepAlivePacket keepAlivePacket = new KeepAlivePacket(tickStart);
         for (Player player : playerGroup) {
             final long lastKeepAlive = tickStart - player.getLastKeepAlive();
-            if (lastKeepAlive > TimeUnit.MILLISECONDS.toNanos(ServerFlag.KEEP_ALIVE_DELAY) && player.didAnswerKeepAlive()) {
+            if (lastKeepAlive > TimeUnit.MILLISECONDS.toNanos(ServerProperties.KEEP_ALIVE_DELAY.get()) && player.didAnswerKeepAlive()) {
                 player.refreshKeepAlive(tickStart);
                 player.sendPacket(keepAlivePacket);
-            } else if (lastKeepAlive >= TimeUnit.MILLISECONDS.toNanos(ServerFlag.KEEP_ALIVE_KICK)) {
+            } else if (lastKeepAlive >= TimeUnit.MILLISECONDS.toNanos(ServerProperties.KEEP_ALIVE_KICK.get())) {
                 player.kick(TIMEOUT_TEXT);
             }
         }

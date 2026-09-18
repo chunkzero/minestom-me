@@ -5,7 +5,6 @@ import net.kyori.adventure.audience.ForwardingAudience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TranslatableComponent;
 import net.kyori.adventure.text.event.HoverEvent;
-import net.minestom.server.ServerFlag;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.adventure.ComponentHolder;
 import net.minestom.server.adventure.audience.PacketGroupingAudience;
@@ -14,6 +13,7 @@ import net.minestom.server.network.packet.PacketEncodingContext;
 import net.minestom.server.network.packet.server.CachedPacket;
 import net.minestom.server.network.packet.server.SendablePacket;
 import net.minestom.server.network.packet.server.ServerPacket;
+import net.minestom.server.property.ServerProperties;
 
 import java.util.Collection;
 import java.util.List;
@@ -90,7 +90,7 @@ public final class PacketSendingUtils {
     }
 
     private static SendablePacket groupedPacket(ServerPacket packet) {
-        return ServerFlag.GROUPED_PACKET && shouldUseCachePacket(packet) ? new CachedPacket(packet) : packet;
+        return ServerProperties.GROUPED_PACKET.get() && shouldUseCachePacket(packet) ? new CachedPacket(packet) : packet;
     }
 
     /**
@@ -100,7 +100,7 @@ public final class PacketSendingUtils {
      * @see CachedPacket#body(PacketEncodingContext)
      */
     private static boolean shouldUseCachePacket(final ServerPacket packet) {
-        if (!ServerFlag.AUTOMATIC_COMPONENT_TRANSLATION) return true;
+        if (!ServerProperties.AUTOMATIC_COMPONENT_TRANSLATION.get()) return true;
         if (!(packet instanceof ServerPacket.ComponentHolding holder)) return true;
         return !containsTranslatableComponents(holder);
     }
