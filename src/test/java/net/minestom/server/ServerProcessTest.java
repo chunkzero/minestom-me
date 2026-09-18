@@ -75,7 +75,7 @@ class ServerProcessTest {
             first.scheduler().buildShutdownTask(() -> { throw new IllegalArgumentException("shutdown failed"); });
             first.scheduler().buildShutdownTask(laterCallback::incrementAndGet);
             first.start(loopback());
-            var address = first.server().socketAddress();
+            var address = new InetSocketAddress(InetAddress.getLoopbackAddress(), first.server().getPort());
             assertSame(handlerFailure, assertThrows(IllegalStateException.class, first::close));
             assertEquals(1, laterCallback.get());
             assertTrue(first.scheduler().isClosed());

@@ -84,7 +84,7 @@ public final class Server {
             throw failure;
         }
         this.serverSocket = server;
-        this.socketAddress = server.getLocalAddress();
+        this.socketAddress = address;
 
         if (address instanceof InetSocketAddress && port == 0) {
             port = server.socket().getLocalPort();
