@@ -2,17 +2,15 @@ package net.minestom.server.listener;
 
 import net.minestom.server.entity.Player;
 import net.minestom.server.entity.PlayerHand;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.PlayerHandAnimationEvent;
 import net.minestom.server.network.packet.client.play.ClientAnimationPacket;
 
 public class AnimationListener {
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void animationListener(ClientAnimationPacket packet, Player player) {
         final PlayerHand hand = packet.hand();
         PlayerHandAnimationEvent handAnimationEvent = new PlayerHandAnimationEvent(player, hand);
-        EventDispatcher.callCancellable(handAnimationEvent, () -> {
+        player.process().eventHandler().callCancellable(handAnimationEvent, () -> {
             switch (hand) {
                 case MAIN -> player.swingMainHand(true);
                 case OFF -> player.swingOffHand(true);

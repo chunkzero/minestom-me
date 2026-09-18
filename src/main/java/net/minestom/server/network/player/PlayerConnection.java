@@ -6,7 +6,6 @@ import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.crypto.PlayerPublicKey;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.OutgoingTransferEvent;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.monitoring.EventsJFR;
@@ -56,7 +55,7 @@ public abstract class PlayerConnection {
     @SuppressWarnings("this-escape") // deliberate self registration during construction
     private @Nullable LoginPluginMessageProcessor loginPluginMessageProcessor = new LoginPluginMessageProcessor(this);
 
-    private @Nullable CompletableFuture<List<SelectKnownPacksPacket.Entry>> knownPacksFuture = null; // Present only when waiting for a response from the client.
+    private volatile @Nullable CompletableFuture<List<SelectKnownPacksPacket.Entry>> knownPacksFuture = null; // Present only when waiting for a response from the client.
 
     private final Map<Key, CompletableFuture<byte @Nullable []>> pendingCookieRequests = new ConcurrentHashMap<>();
 
@@ -198,6 +197,8 @@ public abstract class PlayerConnection {
      * @param player the player
      */
     public void setPlayer(Player player) {
+        Check.argCondition(player.process() != process || player.getPlayerConnection() != this,
+                "Player belongs to another connection");
         this.player = player;
     }
 
@@ -300,9 +301,9 @@ public abstract class PlayerConnection {
     @ApiStatus.Internal
     public CompletableFuture<List<SelectKnownPacksPacket.Entry>> requestKnownPacks(List<SelectKnownPacksPacket.Entry> serverPacks) {
         Check.stateCondition(knownPacksFuture != null, "Known packs already pending");
-        sendPacket(new SelectKnownPacksPacket(serverPacks));
         final CompletableFuture<List<SelectKnownPacksPacket.Entry>> future = new CompletableFuture<>();
         this.knownPacksFuture = future;
+        sendPacket(new SelectKnownPacksPacket(serverPacks));
         return future;
     }
 
@@ -310,8 +311,8 @@ public abstract class PlayerConnection {
     public void receiveKnownPacksResponse(List<SelectKnownPacksPacket.Entry> clientPacks) {
         final var future = knownPacksFuture;
         if (future != null) {
-            future.complete(clientPacks);
             knownPacksFuture = null;
+            future.complete(clientPacks);
         }
     }
 
@@ -321,10 +322,9 @@ public abstract class PlayerConnection {
      * @param host the host, usually an IP or domain name.
      * @param port the port, usually 25565.
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void transfer(String host, int port) {
         OutgoingTransferEvent event = new OutgoingTransferEvent(this.player, host, port);
-        EventDispatcher.callCancellable(event, () -> this.sendPacket(new TransferPacket(event.getHost(), event.getPort())));
+        process().eventHandler().callCancellable(event, () -> this.sendPacket(new TransferPacket(event.getHost(), event.getPort())));
     }
 
     /**

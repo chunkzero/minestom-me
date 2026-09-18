@@ -2,7 +2,6 @@ package net.minestom.server.listener;
 
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.PlayerPickBlockEvent;
 import net.minestom.server.event.player.PlayerPickEntityEvent;
 import net.minestom.server.instance.Instance;
@@ -12,7 +11,6 @@ import net.minestom.server.network.packet.client.play.ClientPickItemFromEntityPa
 
 public class PlayerPickListener {
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void playerPickBlockListener(ClientPickItemFromBlockPacket packet, Player player) {
         final Instance instance = player.getInstance();
         if (instance == null) return;
@@ -20,10 +18,9 @@ public class PlayerPickListener {
         final boolean includeData = packet.includeData();
 
         PlayerPickBlockEvent playerPickBlockEvent = new PlayerPickBlockEvent(player, instance, block, packet.pos().asBlockVec(), includeData);
-        EventDispatcher.call(playerPickBlockEvent);
+        player.process().eventHandler().call(playerPickBlockEvent);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void playerPickEntityListener(ClientPickItemFromEntityPacket packet, Player player) {
         final Instance instance = player.getInstance();
         if (instance == null) return;
@@ -31,6 +28,6 @@ public class PlayerPickListener {
         final boolean includeData = packet.includeData();
 
         PlayerPickEntityEvent playerPickEntityEvent = new PlayerPickEntityEvent(player, entity, includeData);
-        EventDispatcher.call(playerPickEntityEvent);
+        player.process().eventHandler().call(playerPickEntityEvent);
     }
 }

@@ -1,10 +1,5 @@
 package net.minestom.server.extras.mojangAuth;
 
-import net.minestom.server.MinecraftServer;
-import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -24,27 +19,22 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 
 public final class MojangCrypt {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MojangCrypt.class);
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    public static @Nullable KeyPair generateKeyPair() {
+    public static KeyPair generateKeyPair() {
         try {
             KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
             keyGen.initialize(1024);
             return keyGen.generateKeyPair();
         } catch (NoSuchAlgorithmException e) {
-            MinecraftServer.getExceptionManager().handleException(e);
-            LOGGER.error("Key pair generation failed!");
-            return null;
+            throw new IllegalStateException("Key pair generation failed", e);
         }
     }
 
-    public static byte @Nullable [] digestData(String data, PublicKey publicKey, SecretKey secretKey) {
+    public static byte[] digestData(String data, PublicKey publicKey, SecretKey secretKey) {
         return digestData("SHA-1", data.getBytes(StandardCharsets.ISO_8859_1), secretKey.getEncoded(), publicKey.getEncoded());
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    private static byte @Nullable [] digestData(String algorithm, byte[]... data) {
+    private static byte[] digestData(String algorithm, byte[]... data) {
         try {
             MessageDigest digest = MessageDigest.getInstance(algorithm);
             for (byte[] bytes : data) {
@@ -52,8 +42,7 @@ public final class MojangCrypt {
             }
             return digest.digest();
         } catch (NoSuchAlgorithmException e) {
-            MinecraftServer.getExceptionManager().handleException(e);
-            return null;
+            throw new IllegalStateException("Digest creation failed", e);
         }
     }
 
@@ -65,28 +54,22 @@ public final class MojangCrypt {
         return cipherData(2, key, bytes);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static byte[] cipherData(int mode, Key key, byte[] data) {
         try {
             return setupCipher(mode, key.getAlgorithm(), key).doFinal(data);
-        } catch (IllegalBlockSizeException | BadPaddingException var4) {
-            MinecraftServer.getExceptionManager().handleException(var4);
+        } catch (IllegalBlockSizeException | BadPaddingException e) {
+            throw new IllegalStateException("Cipher data failed", e);
         }
-        LOGGER.error("Cipher data failed!");
-        return null;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static Cipher setupCipher(int mode, String transformation, Key key) {
         try {
             Cipher cipher4 = Cipher.getInstance(transformation);
             cipher4.init(mode, key);
             return cipher4;
-        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException var4) {
-            MinecraftServer.getExceptionManager().handleException(var4);
+        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+            throw new IllegalStateException("Cipher creation failed", e);
         }
-        LOGGER.error("Cipher creation failed!");
-        return null;
     }
 
     public static Cipher getCipher(int mode, Key key) {

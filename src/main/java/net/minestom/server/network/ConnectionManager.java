@@ -6,7 +6,6 @@ import net.minestom.server.ServerFlag;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.AsyncPlayerConfigurationEvent;
 import net.minestom.server.event.player.AsyncPlayerPreLoginEvent;
 import net.minestom.server.instance.Instance;
@@ -200,13 +199,17 @@ public final class ConnectionManager {
 
     @ApiStatus.Internal
     public Player createPlayer(PlayerConnection connection, GameProfile gameProfile) {
+        Check.argCondition(connection.process() != process, "Connection belongs to another process");
         assert ServerFlag.INSIDE_TEST || Thread.currentThread().isVirtual();
         final Player player = playerProvider.createPlayer(connection, gameProfile);
+        Check.argCondition(player.process() != process || player.getPlayerConnection() != connection,
+                "Player provider returned a player for another connection");
         this.connectionPlayerMap.put(connection, player);
         return player;
     }
 
     public void sendRegistryTags(Player player) {
+        Check.argCondition(player.process() != process, "Player belongs to another process");
         player.sendPacket(tagsPacket());
     }
 
@@ -219,8 +222,8 @@ public final class ConnectionManager {
         return cachedTagsPacket;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public GameProfile transitionLoginToConfig(PlayerConnection connection, GameProfile gameProfile) {
+        Check.argCondition(connection.process() != process, "Connection belongs to another process");
         assert ServerFlag.INSIDE_TEST || Thread.currentThread().isVirtual();
         // Compression
         if (connection instanceof PlayerSocketConnection socketConnection) {
@@ -252,15 +255,16 @@ public final class ConnectionManager {
 
     @ApiStatus.Internal
     public void transitionPlayToConfig(Player player) {
+        Check.argCondition(player.process() != process, "Player belongs to another process");
         configWaitingPlayers.relaxedOffer(player);
     }
 
     /**
      * Return value exposed for testing
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Internal
     public void doConfiguration(Player player, boolean isFirstConfig) {
+        Check.argCondition(player.process() != process, "Player belongs to another process");
         assert ServerFlag.INSIDE_TEST || Thread.currentThread().isVirtual();
         if (isFirstConfig) {
             configurationPlayers.add(player);
@@ -271,7 +275,7 @@ public final class ConnectionManager {
         final var knownPacksFuture = player.getPlayerConnection().requestKnownPacks(List.of(SelectKnownPacksPacket.MINECRAFT_CORE));
 
         var event = new AsyncPlayerConfigurationEvent(player, isFirstConfig);
-        EventDispatcher.call(event);
+        process.eventHandler().call(event);
         if (!player.isOnline()) return; // Player was kicked during config.
 
         // send player features that were enabled or disabled during async config event
@@ -279,6 +283,7 @@ public final class ConnectionManager {
 
         final Instance spawningInstance = event.getSpawningInstance();
         Objects.requireNonNull(spawningInstance, "You need to specify a spawning instance in the AsyncPlayerConfigurationEvent");
+        Check.argCondition(spawningInstance.process() != process, "Spawning instance belongs to another process");
 
         if (event.willClearChat()) player.sendPacket(new ResetChatPacket());
 
@@ -314,6 +319,7 @@ public final class ConnectionManager {
 
     @ApiStatus.Internal
     public void transitionConfigToPlay(Player player) {
+        Check.argCondition(player.process() != process, "Player belongs to another process");
         this.playWaitingPlayers.relaxedOffer(player);
     }
 
@@ -327,6 +333,7 @@ public final class ConnectionManager {
      */
     @ApiStatus.Internal
     public synchronized void removePlayer(PlayerConnection connection) {
+        Check.argCondition(connection.process() != process, "Connection belongs to another process");
         final Player player = this.connectionPlayerMap.remove(connection);
         if (player == null) return;
         this.configurationPlayers.remove(player);

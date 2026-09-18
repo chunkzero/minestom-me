@@ -105,7 +105,7 @@ final class ServerProcessImpl implements ServerProcess {
         this.packetBatcher = new PacketBatcher(this);
 
         this.connection = new ConnectionManager(this);
-        this.packetListener = new PacketListenerManager();
+        this.packetListener = new PacketListenerManager(this);
         this.packetParser = PacketVanilla.CLIENT_PACKET_PARSER;
         this.instance = new InstanceManager(this);
         this.block = new BlockManager();

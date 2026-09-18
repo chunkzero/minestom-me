@@ -2,7 +2,6 @@ package net.minestom.server.listener;
 
 import net.minestom.server.entity.GameMode;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.inventory.CreativeInventoryActionEvent;
 import net.minestom.server.inventory.PlayerInventory;
 import net.minestom.server.item.ItemStack;
@@ -12,7 +11,6 @@ import net.minestom.server.utils.inventory.PlayerInventoryUtils;
 import java.util.Objects;
 
 public final class CreativeInventoryActionListener {
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientCreativeInventoryActionPacket packet, Player player) {
         if (player.getGameMode() != GameMode.CREATIVE) return;
         short slot = packet.slot();
@@ -20,7 +18,7 @@ public final class CreativeInventoryActionListener {
         if (slot == -1) {
             // Drop item
             CreativeInventoryActionEvent event = new CreativeInventoryActionEvent(player, slot, sentItem);
-            EventDispatcher.call(event);
+            player.process().eventHandler().call(event);
             if (event.isCancelled()) return;
             player.dropItem(event.getClickedItem());
             return;
@@ -35,7 +33,7 @@ public final class CreativeInventoryActionListener {
         PlayerInventory inventory = player.getInventory();
 
         CreativeInventoryActionEvent event = new CreativeInventoryActionEvent(player, slot, sentItem);
-        EventDispatcher.call(event);
+        player.process().eventHandler().call(event);
         final ItemStack setItem = event.getClickedItem();
         final ItemStack previousItem = inventory.getItemStack(slot);
 

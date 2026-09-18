@@ -1,14 +1,10 @@
 package net.minestom.server.listener;
 
-import net.minestom.server.MinecraftServer;
-import net.minestom.server.command.CommandManager;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.PlayerChatEvent;
 import net.minestom.server.message.ChatPosition;
 import net.minestom.server.message.Messenger;
 import net.minestom.server.monitoring.EventsJFR;
-import net.minestom.server.network.ConnectionManager;
 import net.minestom.server.network.packet.client.play.ClientChatMessagePacket;
 import net.minestom.server.network.packet.client.play.ClientCommandChatPacket;
 import net.minestom.server.network.packet.client.play.ClientSignedCommandChatPacket;
@@ -17,16 +13,12 @@ import java.util.List;
 import java.util.Set;
 
 public class ChatMessageListener {
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    private static final CommandManager COMMAND_MANAGER = MinecraftServer.getCommandManager();
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    private static final ConnectionManager CONNECTION_MANAGER = MinecraftServer.getConnectionManager();
 
     public static void commandChatListener(ClientCommandChatPacket packet, Player player) {
         final String command = packet.message();
         EventsJFR.newPlayerCommand(player.getUuid(), command).commit();
         if (Messenger.canReceiveCommand(player)) {
-            COMMAND_MANAGER.execute(player, command);
+            player.process().command().execute(player, command);
         } else {
             Messenger.sendRejectionMessage(player);
         }
@@ -38,13 +30,12 @@ public class ChatMessageListener {
         final String command = packet.message();
         EventsJFR.newPlayerCommand(player.getUuid(), command).commit();
         if (Messenger.canReceiveCommand(player)) {
-            COMMAND_MANAGER.execute(player, command);
+            player.process().command().execute(player, command);
         } else {
             Messenger.sendRejectionMessage(player);
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void chatMessageListener(ClientChatMessagePacket packet, Player player) {
         final String message = packet.message();
         EventsJFR.newPlayerChat(player.getUuid(), message).commit();
@@ -53,11 +44,11 @@ public class ChatMessageListener {
             return;
         }
 
-        final Set<Player> players = CONNECTION_MANAGER.getOnlinePlayers();
+        final Set<Player> players = player.process().connection().getOnlinePlayers();
         PlayerChatEvent playerChatEvent = new PlayerChatEvent(player, players, message);
 
         // Call the event
-        EventDispatcher.callCancellable(playerChatEvent, () -> {
+        player.process().eventHandler().callCancellable(playerChatEvent, () -> {
             final List<Player> recipients = playerChatEvent.getRecipients();
 
             if (!recipients.isEmpty()) {

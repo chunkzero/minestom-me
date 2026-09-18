@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @ApiStatus.Internal
 public class LoginPluginMessageProcessor {
-    private static final AtomicInteger REQUEST_ID = new AtomicInteger(0);
+    private final AtomicInteger requestId = new AtomicInteger(0);
 
     private final Map<Integer, LoginPlugin.Request> requestByMsgId = new ConcurrentHashMap<>();
     private final PlayerConnection connection;
@@ -55,7 +55,7 @@ public class LoginPluginMessageProcessor {
         CompletableFuture.allOf(futures).get(timeout, timeUnit);
     }
 
-    private static int nextMessageId() {
-        return REQUEST_ID.getAndIncrement();
+    private int nextMessageId() {
+        return requestId.getAndIncrement();
     }
 }

@@ -322,6 +322,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     public void setPendingOptions(Instance pendingInstance, boolean hardcore) {
         // I(mattw) am not a big fan of this function, but somehow we need to store
         // the instance and i didn't like a record in ConnectionManager either.
+        Check.argCondition(pendingInstance.process() != process(), "Spawning instance belongs to another process");
         this.pendingInstance = pendingInstance;
         this.hardcore = hardcore;
     }
@@ -333,7 +334,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * WARNING: executed in the main update thread
      * UNSAFE: Only meant to be used when a socket player connects through the server.
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Internal
     public CompletableFuture<Void> UNSAFE_init() {
         final Instance spawnInstance = this.pendingInstance;
@@ -381,9 +381,9 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         process().eventHandler().call(skinInitEvent);
         this.skin = skinInitEvent.getSkin();
         // FIXME: when using Geyser, this line remove the skin of the client
-        PacketSendingUtils.broadcastPlayPacket(getAddPlayerToList());
+        PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), getAddPlayerToList());
 
-        var connectionManager = MinecraftServer.getConnectionManager();
+        var connectionManager = process().connection();
         for (var player : connectionManager.getOnlinePlayers()) {
             if (player != this) {
                 sendPacket(player.getAddPlayerToList());
@@ -391,7 +391,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         }
 
         //Teams
-        for (Team team : MinecraftServer.getTeamManager().getTeams()) {
+        for (Team team : process().team().getTeams()) {
             sendPacket(team.createTeamsCreationPacket());
         }
 
@@ -418,12 +418,11 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      *
      * <p>This will result in them being removed from the current instance, player list, etc.</p>
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void startConfigurationPhase() {
         Check.stateCondition(playerConnection.getServerState() != ConnectionState.PLAY,
                 "Player must be in the play state for reconfiguration.");
 
-        MinecraftServer.getConnectionManager().transitionPlayToConfig(this);
+        process().connection().transitionPlayToConfig(this);
     }
 
     /**
@@ -599,17 +598,15 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * {@link net.minestom.server.command.builder.condition.CommandCondition}s
      * again, and any changes will be visible to the player.
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void refreshCommands() {
-        sendPacket(MinecraftServer.getCommandManager().createDeclareCommandsPacket(this));
+        sendPacket(process().command().createDeclareCommandsPacket(this));
     }
 
     /**
      * Refreshes the recipes and recipe book for this player, testing recipe predicates again.
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void refreshRecipes() {
-        RecipeManager recipeManager = MinecraftServer.getRecipeManager();
+        RecipeManager recipeManager = process().recipe();
         sendPackets(
                 recipeManager.getDeclareRecipesPacket(),
                 recipeManager.createRecipeBookResetPacket(this)
@@ -1281,11 +1278,10 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      *
      * @param displayName the display name, null to display the username
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void setDisplayName(@Nullable Component displayName) {
         this.displayName = displayName;
         if (isActive()) {
-            PacketSendingUtils.broadcastPlayPacket(new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME, infoEntry()));
+            PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME, infoEntry()));
         }
     }
 
@@ -1303,11 +1299,10 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      *
      * @param listed whether the player should be displayed in the tab-list
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void setListed(boolean listed) {
         this.listed = listed;
         if (isActive()) {
-            PacketSendingUtils.broadcastPlayPacket(new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_LISTED, infoEntry()));
+            PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_LISTED, infoEntry()));
         }
     }
 
@@ -1331,11 +1326,10 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @param listOrder the order in which the player should be displayed in the tab-list. A higher number means
      *                  the player will appear higher in the tab-list.
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void setListOrder(int listOrder) {
         this.listOrder = listOrder;
         if (isActive()) {
-            PacketSendingUtils.broadcastPlayPacket(new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_LIST_ORDER, infoEntry()));
+            PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_LIST_ORDER, infoEntry()));
         }
     }
 
@@ -1357,7 +1351,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @param skin the player skin, null to reset it to his {@link #getUuid()} default skin
      * @see PlayerSkinInitEvent if you want to apply the skin at connection
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public synchronized void setSkin(@Nullable PlayerSkin skin) {
         this.skin = skin;
         if (instance == null)
@@ -1381,11 +1374,11 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
 
         {
             // Remove player
-            PacketSendingUtils.broadcastPlayPacket(removePlayerPacket);
+            PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), removePlayerPacket);
             sendPacketToViewers(destroyEntitiesPacket);
 
             // Show player again
-            PacketSendingUtils.broadcastPlayPacket(addPlayerPacket);
+            PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), addPlayerPacket);
             getViewers().forEach(player -> showPlayer(player.getPlayerConnection()));
         }
 
@@ -1800,7 +1793,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * @param gameMode the new player GameMode
      * @return true if the gamemode was changed successfully, false otherwise (cancelled by event)
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public boolean setGameMode(GameMode gameMode) {
         PlayerGameModeChangeEvent playerGameModeChangeEvent = new PlayerGameModeChangeEvent(this, gameMode);
         process().eventHandler().call(playerGameModeChangeEvent);
@@ -1815,7 +1807,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         // Condition to prevent sending the packets before spawning the player
         if (isActive()) {
             sendPacket(new ChangeGameStatePacket(ChangeGameStatePacket.Reason.CHANGE_GAMEMODE, gameMode.ordinal()));
-            PacketSendingUtils.broadcastPlayPacket(new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_GAME_MODE, infoEntry()));
+            PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_GAME_MODE, infoEntry()));
         }
 
         // The client updates their abilities based on the GameMode as follows
@@ -2323,11 +2315,10 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      *
      * @param latency the new player latency
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void refreshLatency(int latency) {
         this.latency = latency;
         if (getPlayerConnection().getServerState() == ConnectionState.PLAY) {
-            PacketSendingUtils.broadcastPlayPacket(new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_LATENCY, infoEntry()));
+            PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_LATENCY, infoEntry()));
         }
     }
 

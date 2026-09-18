@@ -34,8 +34,8 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
      * Creates a process with its own managers, configuration, and registries, without changing
      * {@link MinecraftServer#process()}.
      * <p>Events, instances, entities, schedulers, packet encoding, and tick dispatch use their owning process.
-     * Authentication, player initialization, commands, and contextual serialization are still being migrated;
-     * independent client sessions are not yet complete.</p>
+     * Handshake, authentication, configuration, and player initialization also use their owner.
+     * Commands, gameplay utilities, audiences, and contextual serialization are still being migrated.</p>
      * {@snippet :
      * try (var first = ServerProcess.create(); var second = ServerProcess.create()) {
      *     first.setBrandName("First");

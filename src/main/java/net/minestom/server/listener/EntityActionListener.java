@@ -1,7 +1,6 @@
 package net.minestom.server.listener;
 
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.PlayerLeaveBedEvent;
 import net.minestom.server.event.player.PlayerStartFlyingWithElytraEvent;
 import net.minestom.server.event.player.PlayerStartSprintingEvent;
@@ -22,7 +21,6 @@ public class EntityActionListener {
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void setSprinting(Player player, boolean sprinting) {
         boolean oldState = player.isSprinting();
 
@@ -30,23 +28,21 @@ public class EntityActionListener {
 
         if (oldState != sprinting) {
             if (sprinting) {
-                EventDispatcher.call(new PlayerStartSprintingEvent(player));
+                player.process().eventHandler().call(new PlayerStartSprintingEvent(player));
             } else {
-                EventDispatcher.call(new PlayerStopSprintingEvent(player));
+                player.process().eventHandler().call(new PlayerStopSprintingEvent(player));
             }
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void startFlyingElytra(Player player) {
         player.setFlyingWithElytra(true);
-        EventDispatcher.call(new PlayerStartFlyingWithElytraEvent(player));
+        player.process().eventHandler().call(new PlayerStartFlyingWithElytraEvent(player));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static void onLeaveBed(Player player) {
         var event = new PlayerLeaveBedEvent(player);
-        EventDispatcher.callCancellable(event, () -> {
+        player.process().eventHandler().callCancellable(event, () -> {
             player.getLivingEntityMeta().setBedInWhichSleepingPosition(null);
             player.leaveBed();
         });

@@ -1,6 +1,5 @@
 package net.minestom.server.listener;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.collision.CollisionUtils;
 import net.minestom.server.component.DataComponents;
 import net.minestom.server.coordinate.Point;
@@ -9,7 +8,6 @@ import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.GameMode;
 import net.minestom.server.entity.Player;
 import net.minestom.server.entity.PlayerHand;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.PlayerBlockInteractEvent;
 import net.minestom.server.event.player.PlayerBlockPlaceEvent;
 import net.minestom.server.event.player.PlayerUseItemOnBlockEvent;
@@ -18,7 +16,6 @@ import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.BlockFace;
 import net.minestom.server.instance.block.BlockHandler;
-import net.minestom.server.instance.block.BlockManager;
 import net.minestom.server.instance.block.rule.BlockPlacementRule;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
@@ -32,10 +29,7 @@ import net.minestom.server.utils.inventory.PlayerInventoryUtils;
 import net.minestom.server.world.DimensionType;
 
 public class BlockPlacementListener {
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    private static final BlockManager BLOCK_MANAGER = MinecraftServer.getBlockManager();
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientPlayerBlockPlacementPacket packet, Player player) {
         final PlayerHand hand = packet.hand();
         final BlockFace blockFace = packet.blockFace();
@@ -76,7 +70,7 @@ public class BlockPlacementListener {
         // Interact at block
         // FIXME: onUseOnBlock
         PlayerBlockInteractEvent playerBlockInteractEvent = new PlayerBlockInteractEvent(player, hand, instance, interactedBlock, blockPosition.asBlockVec(), cursorPosition, blockFace);
-        EventDispatcher.call(playerBlockInteractEvent);
+        player.process().eventHandler().call(playerBlockInteractEvent);
         boolean blockUse = playerBlockInteractEvent.isBlockingItemUse();
         if (!playerBlockInteractEvent.isCancelled()) {
             final var handler = interactedBlock.handler();
@@ -96,7 +90,7 @@ public class BlockPlacementListener {
         if (useMaterial.block() == null) {
             // Player didn't try to place a block but interacted with one
             PlayerUseItemOnBlockEvent event = new PlayerUseItemOnBlockEvent(player, hand, usedItem, blockPosition, cursorPosition, blockFace);
-            EventDispatcher.call(event);
+            player.process().eventHandler().call(event);
             // Ack the block change. This is required to reset the client prediction to the server state.
             player.sendPacket(new AcknowledgeBlockChangePacket(packet.sequence()));
             return;
@@ -117,7 +111,7 @@ public class BlockPlacementListener {
         // Get the newly placed block position
         //todo it feels like it should be possible to have better replacement rules than this, feels pretty scuffed.
         Point placementPosition = blockPosition;
-        var interactedPlacementRule = BLOCK_MANAGER.getBlockPlacementRule(interactedBlock);
+        var interactedPlacementRule = player.process().block().getBlockPlacementRule(interactedBlock);
         final boolean placeAdjacent = !interactedBlock.air() && (interactedPlacementRule == null || !interactedPlacementRule.isSelfReplaceable(
                 new BlockPlacementRule.Replacement(interactedBlock, blockFace, cursorPosition, false, useMaterial)));
         // If the block is not replaceable, try to place next to it.
@@ -133,7 +127,7 @@ public class BlockPlacementListener {
 
         if (placeAdjacent) {
             var placementBlock = instance.getBlock(placementPosition);
-            var placementRule = BLOCK_MANAGER.getBlockPlacementRule(placementBlock);
+            var placementRule = player.process().block().getBlockPlacementRule(placementBlock);
             if (!placementBlock.replaceable() && !(placementRule != null && placementRule.isSelfReplaceable(
                     new BlockPlacementRule.Replacement(placementBlock, blockFace, cursorPosition, true, useMaterial)))) {
                 // If the block is still not replaceable, cancel the placement
@@ -180,7 +174,7 @@ public class BlockPlacementListener {
         PlayerBlockPlaceEvent playerBlockPlaceEvent = new PlayerBlockPlaceEvent(player, instance, placedBlock, blockFace, placementPosition.asBlockVec(), cursorPosition, packet.hand());
         playerBlockPlaceEvent.consumeBlock(player.getGameMode() != GameMode.CREATIVE);
         playerBlockPlaceEvent.setDoBlockUpdates(blockState.equals(useMaterial.prototype().get(DataComponents.BLOCK_STATE, ItemBlockState.EMPTY)));
-        EventDispatcher.call(playerBlockPlaceEvent);
+        player.process().eventHandler().call(playerBlockPlaceEvent);
         if (playerBlockPlaceEvent.isCancelled()) {
             rollback(player, hand, placementPosition, instance.getBlock(placementPosition), packet.sequence());
             return;

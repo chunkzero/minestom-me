@@ -2,14 +2,12 @@ package net.minestom.server.listener;
 
 import net.minestom.server.entity.GameMode;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.player.PlayerStartFlyingEvent;
 import net.minestom.server.event.player.PlayerStopFlyingEvent;
 import net.minestom.server.network.packet.client.play.ClientPlayerAbilitiesPacket;
 
 public class AbilitiesListener {
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void listener(ClientPlayerAbilitiesPacket packet, Player player) {
         final boolean canFly = player.isAllowFlying() || player.getGameMode() == GameMode.CREATIVE;
 
@@ -20,10 +18,10 @@ public class AbilitiesListener {
 
             if (isFlying) {
                 PlayerStartFlyingEvent startFlyingEvent = new PlayerStartFlyingEvent(player);
-                EventDispatcher.call(startFlyingEvent);
+                player.process().eventHandler().call(startFlyingEvent);
             } else {
                 PlayerStopFlyingEvent stopFlyingEvent = new PlayerStopFlyingEvent(player);
-                EventDispatcher.call(stopFlyingEvent);
+                player.process().eventHandler().call(stopFlyingEvent);
             }
         }
     }

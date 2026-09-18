@@ -1,10 +1,8 @@
 package net.minestom.server.listener;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.component.DataComponents;
 import net.minestom.server.entity.Player;
 import net.minestom.server.entity.PlayerHand;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.item.PlayerBeginItemUseEvent;
 import net.minestom.server.event.player.PlayerUseItemEvent;
 import net.minestom.server.inventory.PlayerInventory;
@@ -17,10 +15,10 @@ import net.minestom.server.item.instrument.Instrument;
 import net.minestom.server.network.packet.client.play.ClientUseItemPacket;
 import net.minestom.server.network.packet.server.play.AcknowledgeBlockChangePacket;
 import net.minestom.server.registry.Holder;
+import net.minestom.server.registry.Registries;
 
 public class UseItemListener {
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public static void useItemListener(ClientUseItemPacket packet, Player player) {
         PlayerPositionListener.playerRotation(player, packet.yaw(), packet.pitch());
 
@@ -52,7 +50,7 @@ public class UseItemListener {
             useItemTime = 1200;
             useAnimation = ItemAnimation.SPYGLASS;
         } else if (material == Material.GOAT_HORN) {
-            useItemTime = getInstrumentTime(itemStack);
+            useItemTime = getInstrumentTime(player.process().registries(), itemStack);
             useAnimation = ItemAnimation.TOOT_HORN;
         } else if (material == Material.BRUSH) {
             useItemTime = 200;
@@ -72,7 +70,7 @@ public class UseItemListener {
         boolean usingMainHand = player.getItemUseHand() == PlayerHand.MAIN && hand == PlayerHand.OFF;
         PlayerUseItemEvent useItemEvent = new PlayerUseItemEvent(player, hand, itemStack,
                 usingMainHand ? 0 : useItemTime);
-        EventDispatcher.call(useItemEvent);
+        player.process().eventHandler().call(useItemEvent);
 
         player.sendPacket(new AcknowledgeBlockChangePacket(packet.sequence()));
         final PlayerInventory playerInventory = player.getInventory();
@@ -84,7 +82,7 @@ public class UseItemListener {
         useItemTime = useItemEvent.getItemUseTime();
         if (useItemTime != 0) {
             final PlayerBeginItemUseEvent beginUseEvent = new PlayerBeginItemUseEvent(player, hand, itemStack, useAnimation, useItemTime);
-            EventDispatcher.callCancellable(beginUseEvent, () -> {
+            player.process().eventHandler().callCancellable(beginUseEvent, () -> {
                 if (beginUseEvent.getItemUseDuration() <= 0) return;
 
                 player.refreshItemUse(hand, beginUseEvent.getItemUseDuration());
@@ -103,12 +101,11 @@ public class UseItemListener {
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    private static int getInstrumentTime(ItemStack itemStack) {
+    private static int getInstrumentTime(Registries registries, ItemStack itemStack) {
         final Holder<Instrument> holder = itemStack.get(DataComponents.INSTRUMENT);
         if (holder == null) return 0;
 
-        final Instrument instrument = holder.resolve(MinecraftServer.getInstrumentRegistry());
+        final Instrument instrument = holder.resolve(registries.instrument());
         if (instrument == null) return 0;
 
         return instrument.useDurationTicks();

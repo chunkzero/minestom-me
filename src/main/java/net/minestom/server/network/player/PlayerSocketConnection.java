@@ -27,6 +27,7 @@ import net.minestom.server.network.packet.client.login.ClientEncryptionResponseP
 import net.minestom.server.network.packet.client.login.ClientLoginAcknowledgedPacket;
 import net.minestom.server.network.packet.client.login.ClientLoginPluginResponsePacket;
 import net.minestom.server.network.packet.client.login.ClientLoginStartPacket;
+import net.minestom.server.network.packet.client.play.ClientConfigurationAckPacket;
 import net.minestom.server.network.packet.client.play.ClientCreativeInventoryActionPacket;
 import net.minestom.server.network.packet.client.status.StatusRequestPacket;
 import net.minestom.server.network.packet.server.BufferedPacket;
@@ -71,6 +72,7 @@ public class PlayerSocketConnection extends PlayerConnection {
             ClientLoginPluginResponsePacket.class,
             ClientSelectKnownPacksPacket.class, // Immediate answer to server request on config
             ClientLoginAcknowledgedPacket.class, // Handle config state
+            ClientConfigurationAckPacket.class, // Re-enter config state before the next socket read
             ClientFinishConfigurationPacket.class // Enter play state
     );
 
