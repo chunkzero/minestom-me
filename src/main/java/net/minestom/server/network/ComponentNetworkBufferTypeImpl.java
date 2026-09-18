@@ -12,6 +12,7 @@ import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.TranslatableComponent;
 import net.kyori.adventure.text.TranslationArgument;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.DataComponentValueConverterRegistry;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.ShadowColor;
@@ -21,6 +22,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.object.PlayerHeadObjectContents;
 import net.kyori.adventure.text.object.SpriteObjectContents;
 import net.minestom.server.adventure.MinestomAdventure;
+import net.minestom.server.adventure.MinestomDataComponentValue;
 import net.minestom.server.adventure.serializer.nbt.NbtDataComponentValue;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.Transcoder;
@@ -30,7 +32,6 @@ import net.minestom.server.registry.RegistryTranscoder;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -426,9 +427,11 @@ record ComponentNetworkBufferTypeImpl() implements NetworkBufferTypeImpl<Compone
 
             buffer.write(BYTE, TAG_COMPOUND);
             buffer.write(STRING_IO_UTF8, "components");
-            final Map<Key, NbtDataComponentValue> dataComponents = value.dataComponentsAs(NbtDataComponentValue.class);
-            for (final Map.Entry<Key, NbtDataComponentValue> entry : dataComponents.entrySet()) {
-                final BinaryTag dataComponentValue = entry.getValue().value();
+            for (var entry : value.dataComponents().entrySet()) {
+                var converted = entry.getValue() instanceof MinestomDataComponentValue nativeValue
+                        ? nativeValue.toNbt(entry.getKey(), buffer.registries())
+                        : DataComponentValueConverterRegistry.convert(NbtDataComponentValue.class, entry.getKey(), entry.getValue());
+                final BinaryTag dataComponentValue = converted.value();
                 if (dataComponentValue == null) {
                     buffer.write(BYTE, TAG_COMPOUND);
                     buffer.write(STRING_IO_UTF8, "!" + entry.getKey().asString());

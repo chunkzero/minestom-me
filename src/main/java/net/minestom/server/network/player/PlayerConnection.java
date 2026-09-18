@@ -169,9 +169,12 @@ public abstract class PlayerConnection {
      * Forcing the player to disconnect.
      */
     public void disconnect() {
+        final Player player;
         synchronized (this) {
             if (!online) return;
             online = false;
+            // Reply cancellation can synchronously re-enter process shutdown.
+            player = process().connection().removePlayer(this);
         }
         var pluginMessages = loginPluginMessageProcessor;
         if (pluginMessages != null) pluginMessages.close();
@@ -179,11 +182,9 @@ public abstract class PlayerConnection {
         if (knownPacks != null) knownPacks.cancel(false);
         pendingCookieRequests.values().forEach(future -> future.cancel(false));
         pendingCookieRequests.clear();
-        final Player player = process().connection().getPlayer(this);
         if (player != null) {
             var resourcePacks = player.getResourcePackFuture();
             if (resourcePacks != null) resourcePacks.cancel(false);
-            process().connection().removePlayer(this);
             if (serverState == ConnectionState.PLAY && !player.isRemoved())
                 process().connection().schedulePlayerRemoval(player);
             else {

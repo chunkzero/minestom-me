@@ -3,6 +3,8 @@ package net.minestom.server.network;
 import net.kyori.adventure.resource.ResourcePackInfo;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.event.player.AsyncPlayerPreLoginEvent;
+import net.minestom.server.event.player.PlayerDisconnectEvent;
+import net.minestom.server.instance.ChunkLoader;
 import net.minestom.server.listener.preplay.LoginListener;
 import net.minestom.server.network.packet.client.handshake.ClientHandshakePacket;
 import net.minestom.server.network.packet.client.login.ClientLoginStartPacket;
@@ -13,6 +15,8 @@ import net.minestom.server.network.player.GameProfile;
 import net.minestom.server.network.player.PlayerConnection;
 import net.minestom.testing.ServerProcessPair;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -32,6 +36,38 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProcessConnectionOwnershipTest {
+    @ParameterizedTest
+    @EnumSource(value = ConnectionState.class, names = {"LOGIN", "PLAY"})
+    void cancellationCallbacksCanCloseTheProcessWithoutLosingPlayerTeardown(ConnectionState state) {
+        try (var pair = new ServerProcessPair()) {
+            var process = pair.first();
+            var connection = new ImmediateConnection(process);
+            connection.setClientState(state);
+            connection.setServerState(state);
+            var player = process.connection().createPlayer(connection, new GameProfile(UUID.randomUUID(), "Closing"));
+            var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
+            if (state == ConnectionState.PLAY) {
+                player.setInstance(instance).join();
+                process.ticker().tick(System.nanoTime());
+            }
+            var disconnected = new CopyOnWriteArrayList<PlayerDisconnectEvent>();
+            process.eventHandler().addListener(PlayerDisconnectEvent.class, event -> disconnected.add(event));
+            var task = player.scheduler().scheduleNextTick(() -> {});
+            var callback = connection.fetchCookie("test:pending").whenComplete((_, _) -> process.close());
+            connection.disconnect();
+            assertTrue(callback.isCompletedExceptionally());
+            assertFalse(connection.isOnline());
+            assertFalse(task.isAlive());
+            assertNull(process.connection().getPlayer(connection));
+            assertEquals(1, disconnected.size());
+            assertSame(player, disconnected.getFirst().getPlayer());
+            assertFalse(instance.getEntities().contains(player));
+            connection.disconnect();
+            assertEquals(1, disconnected.size());
+            pair.second().ticker().tick(System.nanoTime());
+        }
+    }
+
     @Test
     void disconnectCancelsPendingRepliesAndShutdownRejectsLateAdmission() {
         try (var pair = new ServerProcessPair()) {

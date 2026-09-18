@@ -18,9 +18,11 @@ import net.minestom.server.network.packet.PacketWriting;
 import net.minestom.server.network.packet.client.common.ClientPingRequestPacket;
 import net.minestom.server.network.packet.client.common.ClientSettingsPacket;
 import net.minestom.server.network.packet.client.handshake.ClientHandshakePacket;
+import net.minestom.server.network.packet.client.login.ClientLoginAcknowledgedPacket;
 import net.minestom.server.network.packet.client.play.ClientConfigurationAckPacket;
 import net.minestom.server.network.packet.client.play.ClientPlayerLoadedPacket;
 import net.minestom.server.network.packet.client.status.StatusRequestPacket;
+import net.minestom.server.network.packet.server.CachedPacket;
 import net.minestom.server.network.packet.server.ServerPacket;
 import net.minestom.server.network.packet.server.common.DisconnectPacket;
 import net.minestom.server.network.packet.server.common.PingResponsePacket;
@@ -38,6 +40,7 @@ import net.minestom.server.network.packet.server.status.ResponsePacket;
 import net.minestom.server.network.player.ClientSettings;
 import net.minestom.server.network.player.GameProfile;
 import net.minestom.server.network.player.PlayerSocketConnection;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.world.Difficulty;
 import net.minestom.server.world.DimensionType;
 import net.minestom.testing.ServerProcessPair;
@@ -48,12 +51,15 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -68,6 +74,79 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProcessConnectionTest {
+    @Test
+    void socketWriterReportsApplicationFailuresWhenIoErrorsAreSuppressed() throws Exception {
+        assertTrue(ServerProperties.SUPPRESS_CONNECTION_IO_ERRORS.get());
+        try (var pair = new ServerProcessPair()) {
+            var process = pair.first();
+            var errors = new LinkedBlockingQueue<Throwable>();
+            process.exception().setExceptionHandler(errors::add);
+            var admitted = new CompletableFuture<PlayerSocketConnection>();
+            process.eventHandler().addListener(AsyncPlayerPreLoginEvent.class,
+                    event -> admitted.complete((PlayerSocketConnection) event.getConnection()));
+            process.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+            try (var client = new ProtocolClient(process)) {
+                client.login("BadPacket", UUID.randomUUID());
+                client.readThrough(LoginSuccessPacket.class);
+                var connection = admitted.get(5, TimeUnit.SECONDS);
+                var expected = new IllegalArgumentException("packet supplier failed");
+                connection.sendPacket(new CachedPacket(() -> { throw expected; }));
+                assertSame(expected, errors.poll(5, TimeUnit.SECONDS));
+                assertTrue(connection.writeThread().join(Duration.ofSeconds(5)));
+                assertFalse(connection.isOnline());
+                assertThrows(EOFException.class, client::read);
+                assertTrue(errors.isEmpty(), errors::toString);
+            }
+        }
+    }
+
+    @Test
+    void shutdownReportsAStuckSocketReaderWithoutWaitingForever() throws Exception {
+        try (var pair = new ServerProcessPair()) {
+            var process = pair.first();
+            var release = new CompletableFuture<Void>();
+            var entered = new CompletableFuture<Thread>();
+            var errors = new LinkedBlockingQueue<Throwable>();
+            process.exception().setExceptionHandler(errors::add);
+            process.connection().setPlayerProvider((connection, profile) -> {
+                entered.complete(Thread.currentThread());
+                release.join(); // Deliberately ignores the shutdown interrupt.
+                return new Player(connection, profile);
+            });
+            process.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+            try (var client = new ProtocolClient(process)) {
+                client.login("Stuck", UUID.randomUUID());
+                client.readThrough(LoginSuccessPacket.class);
+                client.send(new ClientLoginAcknowledgedPacket());
+                var reader = entered.get(5, TimeUnit.SECONDS);
+                var closer = Thread.startVirtualThread(process::close);
+                try {
+                    assertTrue(closer.join(Duration.ofSeconds(3)), "Shutdown waited indefinitely for the reader");
+                    assertFalse(process.server().isOpen());
+                    assertFalse(process.dispatcher().isAlive());
+                    assertThrows(EOFException.class, client::read);
+                    var failure = errors.poll(1, TimeUnit.SECONDS);
+                    assertNotNull(failure);
+                    var socketFailure = onlySuppressed(failure);
+                    var timeout = assertInstanceOf(TimeoutException.class, onlySuppressed(socketFailure));
+                    assertTrue(timeout.getMessage().contains(reader.getName()));
+                    pair.second().ticker().tick(System.nanoTime());
+                } finally {
+                    release.complete(null);
+                    assertTrue(reader.join(Duration.ofSeconds(5)));
+                    assertTrue(closer.join(Duration.ofSeconds(5)));
+                }
+            } finally {
+                release.complete(null);
+            }
+        }
+    }
+
+    private static Throwable onlySuppressed(Throwable failure) {
+        assertEquals(1, failure.getSuppressed().length);
+        return failure.getSuppressed()[0];
+    }
+
     @Test
     void closingAProcessClosesSocketsWithoutPlayersAndLeavesOtherProcessesListening() throws Exception {
         try (var pair = new ServerProcessPair()) {

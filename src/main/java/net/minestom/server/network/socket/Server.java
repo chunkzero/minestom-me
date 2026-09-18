@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class Server {
@@ -178,9 +179,11 @@ public final class Server {
             if (!connection.isOnline()) connection.flushSync(); // Drain the final disconnect packet.
         } catch (ClosedChannelException | EOFException _) {
             // The peer or shutdown closed the connection.
-        } catch (Throwable e) {
+        } catch (IOException e) {
             if (!stop && !ServerProperties.SUPPRESS_CONNECTION_IO_ERRORS.get())
                 process.exception().handleException(e);
+        } catch (Throwable e) {
+            if (!stop) process.exception().handleException(e);
         } finally {
             try {
                 connection.disconnect();
@@ -240,14 +243,23 @@ public final class Server {
                 failures.add(failure);
             }
             if (connection.readThread() != Thread.currentThread()) connection.readThread().interrupt();
+            if (connection.writeThread() != Thread.currentThread()) connection.writeThread().interrupt();
         }
         // Disconnect callbacks may acquire the calling tick worker.
         if (!(Thread.currentThread() instanceof TickThread) && !(Thread.currentThread() instanceof TickSchedulerThread)) {
+            final long joinDeadline = System.nanoTime() + Duration.ofSeconds(1).toNanos();
+            var threads = new ArrayList<Thread>();
+            if (acceptThread != null) threads.add(acceptThread);
+            for (var connection : connections) {
+                threads.add(connection.readThread());
+                threads.add(connection.writeThread());
+            }
             try {
-                if (acceptThread != null && acceptThread != Thread.currentThread()) acceptThread.join();
-                for (var connection : connections) {
-                    if (connection.readThread() != Thread.currentThread()) connection.readThread().join();
-                    if (connection.writeThread() != Thread.currentThread()) connection.writeThread().join();
+                for (var thread : threads) {
+                    if (thread == Thread.currentThread() || !thread.isAlive()) continue;
+                    final long remaining = joinDeadline - System.nanoTime();
+                    if (remaining > 0) thread.join(Duration.ofNanos(remaining));
+                    if (thread.isAlive()) failures.add(new TimeoutException("Socket thread did not terminate: " + thread.getName()));
                 }
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();

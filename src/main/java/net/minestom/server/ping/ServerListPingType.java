@@ -51,9 +51,11 @@ public enum ServerListPingType {
 
     /**
      * Gets the ping response for this version.
+     * Use {@link #getPingResponse(Status, int)} for {@link #OPEN_TO_LAN}, supplying the owning server's port.
      *
      * @param status the response data
      * @return the response
+     * @throws IllegalStateException if this is {@link #OPEN_TO_LAN} and no port was supplied
      */
     public String getPingResponse(Status status) {
         if (this == OPEN_TO_LAN) throw new IllegalStateException("LAN responses require the server port");

@@ -357,16 +357,18 @@ public final class ConnectionManager {
      * Used during disconnection, you shouldn't have to do it manually.
      *
      * @param connection the player connection
+     * @return the removed player, or null if the connection had no admitted player
      * @see PlayerConnection#disconnect() to properly disconnect a player
      */
     @ApiStatus.Internal
-    public synchronized void removePlayer(PlayerConnection connection) {
+    public synchronized @Nullable Player removePlayer(PlayerConnection connection) {
         Check.argCondition(connection.process() != process, "Connection belongs to another process");
         final Player player = this.connectionPlayerMap.remove(connection);
-        if (player == null) return;
+        if (player == null) return null;
         this.configurationPlayers.remove(player);
         this.playPlayers.remove(player);
         this.keepAlivePlayers.remove(player);
+        return player;
     }
 
     /** Defers entity removal until the next connection tick, or removes it during shutdown. */
