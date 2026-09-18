@@ -26,7 +26,11 @@ import java.util.function.BiFunction;
  */
 public sealed interface DynamicRegistry<T> extends Registry<T> permits DynamicRegistryImpl {
 
-    /** Prevents further entry changes, unless unsafe registry operations are enabled. Tags remain mutable. */
+    /**
+     * Prevents further entry changes. Tags remain mutable.
+     * <p>A process freezes its registries at startup according to
+     * {@link net.minestom.server.ServerProcess.Settings#registryFreezing()}.</p>
+     */
     void freeze();
 
     /** Whether entry changes are currently prohibited. */

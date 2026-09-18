@@ -18,6 +18,7 @@ import net.minestom.server.network.packet.PacketBatcher;
 import net.minestom.server.network.packet.PacketBufferPool;
 import net.minestom.server.network.packet.PacketParser;
 import net.minestom.server.network.socket.Server;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.recipe.RecipeManager;
 import net.minestom.server.registry.Registries;
 import net.minestom.server.scoreboard.TeamManager;
@@ -46,17 +47,45 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
      * }
      * }
      */
-    static ServerProcess create(Auth auth) {
-        return new ServerProcessImpl(auth);
+    static ServerProcess create(Auth auth, Settings settings) {
+        return new ServerProcessImpl(auth, settings);
     }
 
-    /** Creates an independent process using offline authentication. */
+    /** Creates an independent process with {@link Settings#defaults()}. */
+    static ServerProcess create(Auth auth) {
+        return create(auth, Settings.defaults());
+    }
+
+    /** Creates an independent process using offline authentication and {@link Settings#defaults()}. */
     static ServerProcess create() {
         return create(new Auth.Offline());
     }
 
+    /**
+     * Behavior fixed when a process is created.
+     *
+     * @param registryFreezing whether {@link #start(SocketAddress)} freezes the entries of {@link #registries()}
+     */
+    record Settings(boolean registryFreezing) {
+        /**
+         * Settings derived from system properties: registries freeze at startup unless
+         * {@link ServerProperties#REGISTRY_UNSAFE_OPS} or {@link ServerProperties#INSIDE_TEST} is set.
+         */
+        public static Settings defaults() {
+            final boolean freezing = !ServerProperties.REGISTRY_UNSAFE_OPS.get() && !ServerProperties.INSIDE_TEST.get();
+            return new Settings(freezing);
+        }
+
+        public Settings withRegistryFreezing(boolean registryFreezing) {
+            return new Settings(registryFreezing);
+        }
+    }
+
     /** Identifier unique to this process within the JVM, used to distinguish its threads and diagnostics. */
     int id();
+
+    /** Settings this process was created with. */
+    Settings settings();
 
     String brandName();
 

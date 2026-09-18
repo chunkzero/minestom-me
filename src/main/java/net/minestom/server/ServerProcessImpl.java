@@ -65,6 +65,7 @@ final class ServerProcessImpl implements ServerProcess {
     private final int id = PROCESS_IDS.incrementAndGet();
     private final AtomicInteger lastEntityId = new AtomicInteger();
     private final Auth auth;
+    private final Settings settings;
     private volatile String brandName = "Minestom";
     private volatile Difficulty difficulty = Difficulty.NORMAL;
     private volatile int compressionThreshold = 256;
@@ -100,8 +101,9 @@ final class ServerProcessImpl implements ServerProcess {
     private final AtomicBoolean stopped = new AtomicBoolean();
     private @Nullable Thread shutdownHook;
 
-    public ServerProcessImpl(Auth auth) {
+    public ServerProcessImpl(Auth auth, Settings settings) {
         this.auth = Objects.requireNonNull(auth);
+        this.settings = Objects.requireNonNull(settings);
         this.exception = new ExceptionManager(this::stop);
         this.registries = Registries.vanilla();
         this.packetBuffers = new PacketBufferPool(registries);
@@ -131,6 +133,11 @@ final class ServerProcessImpl implements ServerProcess {
     @Override
     public int id() {
         return id;
+    }
+
+    @Override
+    public Settings settings() {
+        return settings;
     }
 
     @Override
@@ -315,7 +322,7 @@ final class ServerProcessImpl implements ServerProcess {
             throw new RuntimeException(e);
         }
 
-        Registries.freeze(registries);
+        if (settings.registryFreezing()) Registries.freeze(registries);
 
         // Start server
         server.start();

@@ -7,7 +7,6 @@ import net.minestom.server.world.DimensionType;
 import net.minestom.server.world.Difficulty;
 import net.minestom.testing.ServerProcessPair;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -93,22 +92,33 @@ class ServerProcessIsolationTest {
     }
 
     @Test
-    @EnabledIfSystemProperty(named = "minestom.inside-test", matches = "false")
+    void defaultSettingsFollowTestMode() {
+        assertTrue(ServerProperties.INSIDE_TEST.get());
+        assertFalse(ServerProcess.Settings.defaults().registryFreezing());
+        try (var process = ServerProcess.create()) {
+            assertEquals(ServerProcess.Settings.defaults(), process.settings());
+        }
+    }
+
+    @Test
     void startingOneProcessDoesNotFreezeAnother() {
-        assertFalse(ServerProperties.INSIDE_TEST.get());
-        try (var first = ServerProcess.create()) {
+        final var freezing = ServerProcess.Settings.defaults().withRegistryFreezing(true);
+        final var mutable = freezing.withRegistryFreezing(false);
+        try (var first = ServerProcess.create(new Auth.Offline(), freezing)) {
             first.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             assertTrue(first.registries().dimensionType().isFrozen());
             assertThrows(UnsupportedOperationException.class, () ->
                     first.registries().dimensionType().register("test:frozen", DimensionType.builder().build()));
             assertThrows(IllegalStateException.class, () -> first.setCompressionThreshold(64));
 
-            try (var second = ServerProcess.create()) {
+            try (var second = ServerProcess.create(new Auth.Offline(), mutable)) {
+                second.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
                 var dimension = DimensionType.builder().ambientLight(0.5f).build();
                 var key = second.registries().dimensionType().register("test:second", dimension);
                 assertSame(dimension, second.registries().dimensionType().get(key));
                 assertNull(first.registries().dimensionType().get(key));
                 assertFalse(second.registries().dimensionType().isFrozen());
+                assertTrue(first.registries().dimensionType().isFrozen());
                 assertDoesNotThrow(() -> Registries.vanilla().dimensionType()
                         .register("test:standalone", dimension));
             }
