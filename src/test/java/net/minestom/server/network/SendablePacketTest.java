@@ -11,6 +11,7 @@ import net.minestom.server.network.packet.client.ClientPacket;
 import net.minestom.server.network.packet.client.play.ClientAnimationPacket;
 import net.minestom.server.network.packet.server.CachedPacket;
 import net.minestom.server.network.packet.server.play.SystemChatPacket;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.registry.Registries;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -21,6 +22,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.DataFormatException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -116,6 +118,31 @@ public class SendablePacketTest {
             }
             future.get(5, TimeUnit.SECONDS);
             assertTrue(cached.isValid(), "An admitted computation can publish after invalidation");
+        }
+    }
+
+    @Test
+    void invalidationWhileCachingIsDisabledSurvivesReenabling() {
+        final boolean previousCaching = ServerProperties.CACHED_PACKET.get();
+        try (var pool = new PacketBufferPool(Registries.vanilla())) {
+            ServerProperties.CACHED_PACKET.set(true);
+            var context = pool.context(ConnectionState.PLAY, 256);
+            var original = new SystemChatPacket(Component.text("original"), false);
+            var updated = new SystemChatPacket(Component.text("updated"), false);
+            var supplied = new AtomicReference<>(original);
+            var cached = new CachedPacket(supplied::get);
+            assertSame(original, cached.packet(context));
+
+            ServerProperties.CACHED_PACKET.set(false);
+            supplied.set(updated);
+            cached.invalidate();
+            assertSame(updated, cached.packet(context));
+
+            ServerProperties.CACHED_PACKET.set(true);
+            assertSame(updated, cached.packet(context));
+            assertTrue(NetworkBuffer.equals(context.frame(updated), cached.body(context)));
+        } finally {
+            ServerProperties.CACHED_PACKET.set(previousCaching);
         }
     }
 

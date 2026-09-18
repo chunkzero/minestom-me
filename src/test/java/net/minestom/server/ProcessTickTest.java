@@ -16,6 +16,7 @@ import net.minestom.server.instance.SharedInstance;
 import net.minestom.server.network.packet.server.SendablePacket;
 import net.minestom.server.network.player.GameProfile;
 import net.minestom.server.network.player.PlayerConnection;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.world.DimensionType;
 import net.minestom.testing.ServerProcessPair;
 import org.junit.jupiter.api.Test;
@@ -287,6 +288,35 @@ class ProcessTickTest {
             second.eventHandler().addListener(ServerTickMonitorEvent.class, _ -> remainingTicks.countDown());
             assertTrue(remainingTicks.await(5, TimeUnit.SECONDS));
             assertTrue(second.dispatcher().isAlive());
+        }
+    }
+
+    @Test
+    void loweringTickRateDoesNotDelayByElapsedUptime() throws InterruptedException {
+        final int previousRate = ServerProperties.SERVER_TICKS_PER_SECOND.get();
+        try {
+            ServerProperties.SERVER_TICKS_PER_SECOND.set(20);
+            try (var process = ServerProcess.create()) {
+                var ticks = new AtomicInteger();
+                var resumed = new CountDownLatch(1);
+                long[] times = new long[2];
+                process.eventHandler().addListener(ServerTickMonitorEvent.class, _ -> {
+                    int tick = ticks.incrementAndGet();
+                    if (tick == 41) {
+                        times[0] = System.nanoTime();
+                        ServerProperties.SERVER_TICKS_PER_SECOND.set(10);
+                    } else if (tick == 42) {
+                        times[1] = System.nanoTime();
+                        resumed.countDown();
+                    }
+                });
+                process.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+                assertTrue(resumed.await(8, TimeUnit.SECONDS));
+                long gapMillis = TimeUnit.NANOSECONDS.toMillis(times[1] - times[0]);
+                assertTrue(gapMillis < 1000, "Lowering TPS stalled ticking for " + gapMillis + " ms");
+            }
+        } finally {
+            ServerProperties.SERVER_TICKS_PER_SECOND.set(previousRate);
         }
     }
 

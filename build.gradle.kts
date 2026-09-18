@@ -55,6 +55,10 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.add("-Xlint:-requires-transitive-automatic") // Adventure dependencies are automatic until 5.0.0, see https://github.com/KyoriPowered/adventure/issues/1287
 }
 
+tasks.withType<Test> {
+    jvmArgs("-Dminestom.tps.mutable=true", "-Dminestom.cached-packet.mutable=true")
+}
+
 graalvmNative {
     agent {
         defaultMode = "standard"
@@ -79,10 +83,14 @@ graalvmNative {
             systemProperties.put("minestom.viewable-packet", "false")
             systemProperties.put("minestom.inside-test", "true")
             systemProperties.put("minestom.acquirable-strict", "true")
+            systemProperties.put("minestom.tps.mutable", "true")
+            systemProperties.put("minestom.cached-packet.mutable", "true")
 
             runtimeArgs.add("-Dminestom.viewable-packet=false")
             runtimeArgs.add("-Dminestom.inside-test=true")
             runtimeArgs.add("-Dminestom.acquirable-strict=true")
+            runtimeArgs.add("-Dminestom.tps.mutable=true")
+            runtimeArgs.add("-Dminestom.cached-packet.mutable=true")
         }
     }
 }
