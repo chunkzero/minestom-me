@@ -7,10 +7,10 @@ import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.sound.SoundStop;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.TitlePart;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.advancements.Notification;
 import net.minestom.server.adventure.AdventurePacketConvertor;
 import net.minestom.server.coordinate.Point;
+import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.message.ChatPosition;
 import net.minestom.server.message.Messenger;
@@ -19,8 +19,10 @@ import net.minestom.server.network.packet.server.play.ActionBarPacket;
 import net.minestom.server.network.packet.server.play.ClearTitlesPacket;
 import net.minestom.server.network.packet.server.play.PlayerListHeaderAndFooterPacket;
 import net.minestom.server.utils.PacketSendingUtils;
+import net.minestom.server.utils.validate.Check;
 
 import java.util.Collection;
+import java.util.stream.Collectors;
 
 /**
  * An audience implementation that sends grouped packets if possible.
@@ -84,16 +86,16 @@ public interface PacketGroupingAudience extends ForwardingAudience {
         sendGroupedPacket(new ClearTitlesPacket(true));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     default void showBossBar(BossBar bar) {
-        MinecraftServer.getBossBarManager().addBossBar(this.getPlayers(), bar);
+        getPlayers().stream().collect(Collectors.groupingBy(Player::process))
+                .forEach((process, players) -> process.bossBar().addBossBar(players, bar));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     default void hideBossBar(BossBar bar) {
-        MinecraftServer.getBossBarManager().removeBossBar(this.getPlayers(), bar);
+        getPlayers().stream().collect(Collectors.groupingBy(Player::process))
+                .forEach((process, players) -> process.bossBar().removeBossBar(players, bar));
     }
 
     /**
@@ -112,6 +114,10 @@ public interface PacketGroupingAudience extends ForwardingAudience {
 
     @Override
     default void playSound(Sound sound, Sound.Emitter emitter) {
+        if (emitter instanceof Entity entity) {
+            for (var player : getPlayers())
+                Check.argCondition(player.process() != entity.process(), "Sound emitter belongs to another process");
+        }
         if (emitter != Sound.Emitter.self()) {
             sendGroupedPacket(AdventurePacketConvertor.createSoundPacket(sound, emitter));
         } else {

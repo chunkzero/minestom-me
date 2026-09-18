@@ -36,18 +36,18 @@ public class HorseCommand extends Command {
         sender.sendMessage(Component.text("Correct usage: /horse <baby> <marking> <variant>"));
     }
 
-    private static void onBabyError(CommandSender sender, ArgumentSyntaxException exception) {
+    private static void onBabyError(CommandSender sender, CommandContext context, ArgumentSyntaxException exception) {
         sender.sendMessage(Component.text("SYNTAX ERROR: '" + exception.getInput() + "' should be replaced by 'true' or 'false'"));
     }
 
-    private static void onMarkingError(CommandSender sender, ArgumentSyntaxException exception) {
+    private static void onMarkingError(CommandSender sender, CommandContext context, ArgumentSyntaxException exception) {
         String values = Stream.of(HorseMeta.Marking.values())
                 .map(value -> "'" + value.name().toLowerCase(Locale.ROOT) + "'")
                 .collect(Collectors.joining(", "));
         sender.sendMessage(Component.text("SYNTAX ERROR: '" + exception.getInput() + "' should be replaced by " + values + "."));
     }
 
-    private static void onVariantError(CommandSender sender, ArgumentSyntaxException exception) {
+    private static void onVariantError(CommandSender sender, CommandContext context, ArgumentSyntaxException exception) {
         String values = Stream.of(HorseMeta.Variant.values())
                 .map(value -> "'" + value.name().toLowerCase(Locale.ROOT) + "'")
                 .collect(Collectors.joining(", "));

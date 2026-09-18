@@ -1,7 +1,9 @@
 package net.minestom.server.command;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
@@ -12,6 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CommandTest {
+    @AutoClose
+    private static final ServerProcess process = ServerProcess.create();
+
 
     @Test
     public void testNames() {
@@ -29,7 +34,7 @@ public class CommandTest {
 
     @Test
     public void testGlobalListener() {
-        var manager = new CommandManager();
+        var manager = new CommandManager(process);
 
         AtomicBoolean hasRun = new AtomicBoolean(false);
 

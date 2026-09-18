@@ -1,9 +1,12 @@
 package net.minestom.server.command;
 
 import net.kyori.adventure.identity.Identity;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.Command;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.CommandDispatcher;
 import net.minestom.server.tag.TagHandler;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -18,10 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CommandConditionTest {
+    @AutoClose
+    private static final ServerProcess process = ServerProcess.create();
+
 
     @Test
     public void mainCondition() {
-        var dispatcher = new CommandDispatcher();
+        var dispatcher = new CommandDispatcher(new CommandManager(process));
         assertNull(dispatcher.findCommand("name"));
         var sender = new Sender();
         var sender2 = new Sender();
@@ -44,7 +50,7 @@ public class CommandConditionTest {
 
     @Test
     public void subCondition() {
-        var dispatcher = new CommandDispatcher();
+        var dispatcher = new CommandDispatcher(new CommandManager(process));
         assertNull(dispatcher.findCommand("name"));
         var sender = new Sender();
         var sender2 = new Sender();
@@ -88,7 +94,7 @@ public class CommandConditionTest {
 
     @Test
     public void subConditionOverride() {
-        var dispatcher = new CommandDispatcher();
+        var dispatcher = new CommandDispatcher(new CommandManager(process));
         assertNull(dispatcher.findCommand("name"));
         var sender = new Sender();
         var sender2 = new Sender();
@@ -131,7 +137,7 @@ public class CommandConditionTest {
 
     @Test
     public void conditionBypassedByZeroArgSyntax() {
-        var dispatcher = new CommandDispatcher();
+        var dispatcher = new CommandDispatcher(new CommandManager(process));
         var adminSender = new Sender();
         var normalSender = new Sender();
 
@@ -153,7 +159,7 @@ public class CommandConditionTest {
 
     @Test
     public void bothCommandAndSyntaxConditionsChecked() {
-        var dispatcher = new CommandDispatcher();
+        var dispatcher = new CommandDispatcher(new CommandManager(process));
         var sender1 = new Sender();
         var sender2 = new Sender();
         var sender3 = new Sender();
@@ -181,7 +187,7 @@ public class CommandConditionTest {
 
     @Test
     public void multipleZeroArgSyntaxesWithConditions() {
-        var dispatcher = new CommandDispatcher();
+        var dispatcher = new CommandDispatcher(new CommandManager(process));
         var sender1 = new Sender();
         var sender2 = new Sender();
         var sender3 = new Sender();
@@ -213,7 +219,7 @@ public class CommandConditionTest {
 
     @Test
     public void defaultExecutorWithConditionAndSyntaxes() {
-        var dispatcher = new CommandDispatcher();
+        var dispatcher = new CommandDispatcher(new CommandManager(process));
         var adminSender = new Sender();
         var normalSender = new Sender();
 
@@ -250,7 +256,7 @@ public class CommandConditionTest {
 
     @Test
     public void deeplyNestedSubcommandConditions() {
-        var dispatcher = new CommandDispatcher();
+        var dispatcher = new CommandDispatcher(new CommandManager(process));
         var adminSender = new Sender();
         var normalSender = new Sender();
 
@@ -282,7 +288,7 @@ public class CommandConditionTest {
 
     @Test
     public void syntaxConditionOnlyNoCommandCondition() {
-        var dispatcher = new CommandDispatcher();
+        var dispatcher = new CommandDispatcher(new CommandManager(process));
         var sender1 = new Sender();
         var sender2 = new Sender();
 
@@ -307,7 +313,7 @@ public class CommandConditionTest {
 
     @Test
     public void mixedSyntaxConditions() {
-        var dispatcher = new CommandDispatcher();
+        var dispatcher = new CommandDispatcher(new CommandManager(process));
         var sender1 = new Sender();
         var sender2 = new Sender();
         var sender3 = new Sender();
@@ -353,7 +359,7 @@ public class CommandConditionTest {
 
     @Test
     public void subcommandWithOwnConditionRequiresBoth() {
-        var dispatcher = new CommandDispatcher();
+        var dispatcher = new CommandDispatcher(new CommandManager(process));
         var sender1 = new Sender();
         var sender2 = new Sender();
         var sender3 = new Sender();
@@ -386,7 +392,7 @@ public class CommandConditionTest {
 
     @Test
     public void zeroArgSyntaxAndDefaultExecutorWithCondition() {
-        var dispatcher = new CommandDispatcher();
+        var dispatcher = new CommandDispatcher(new CommandManager(process));
         var adminSender = new Sender();
         var normalSender = new Sender();
 
@@ -426,8 +432,8 @@ public class CommandConditionTest {
 
         assertNotNull(root.execution(), "Root node should have execution");
         assertNotNull(root.execution().condition(), "Root node should preserve command condition");
-        assertFalse(root.execution().test(normalSender), "Normal sender should fail condition check");
-        assertTrue(root.execution().test(adminSender), "Admin sender should pass condition check");
+        assertFalse(root.execution().test(normalSender, new CommandContext(process.command(), "")), "Normal sender should fail condition check");
+        assertTrue(root.execution().test(adminSender, new CommandContext(process.command(), "")), "Admin sender should pass condition check");
     }
 
     @Test

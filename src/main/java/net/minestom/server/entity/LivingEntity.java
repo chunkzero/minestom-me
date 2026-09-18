@@ -43,6 +43,7 @@ import net.minestom.server.thread.Acquirable;
 import net.minestom.server.utils.block.BlockIterator;
 import net.minestom.server.utils.time.Cooldown;
 import net.minestom.server.utils.time.TimeUnit;
+import net.minestom.server.utils.validate.Check;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnmodifiableView;
@@ -342,7 +343,7 @@ public class LivingEntity extends Entity implements EquipmentHandler {
     }
 
     public boolean damage(RegistryKey<DamageType> type, float amount) {
-        return damage(new Damage(type, null, null, null, amount));
+        return damage(new Damage(process(), type, null, null, null, amount));
     }
 
     /**
@@ -352,6 +353,7 @@ public class LivingEntity extends Entity implements EquipmentHandler {
      * @return true if damage has been applied, false if it didn't
      */
     public boolean damage(Damage damage) {
+        Check.argCondition(damage.process() != process(), "Damage belongs to another process");
         if (isDead())
             return false;
         if (isImmune(damage.getType())) {
@@ -361,6 +363,7 @@ public class LivingEntity extends Entity implements EquipmentHandler {
         EntityDamageEvent entityDamageEvent = new EntityDamageEvent(this, damage, damage.getSound(this));
         process().eventHandler().callCancellable(entityDamageEvent, () -> {
             // Set the last damage type since the event is not cancelled
+            Check.argCondition(entityDamageEvent.getDamage().process() != process(), "Damage belongs to another process");
             this.lastDamage = entityDamageEvent.getDamage();
 
             float remainingDamage = entityDamageEvent.getDamage().getAmount();
@@ -703,6 +706,7 @@ public class LivingEntity extends Entity implements EquipmentHandler {
      * @param team The new team
      */
     public void setTeam(@Nullable Team team) {
+        Check.argCondition(team != null && team.process() != process(), "Team belongs to another process");
         if (this.team == team) return;
         String member = this instanceof Player player ? player.getUsername() : getUuid().toString();
         if (this.team != null) {

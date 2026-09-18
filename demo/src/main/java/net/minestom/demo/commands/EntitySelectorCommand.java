@@ -19,7 +19,7 @@ public class EntitySelectorCommand extends Command {
 
         ArgumentEntity argumentEntity = ArgumentType.Entity("entities").onlyPlayers(true);
 
-        setArgumentCallback((_, exception) -> exception.printStackTrace(), argumentEntity);
+        setArgumentCallback((_, _, exception) -> exception.printStackTrace(), argumentEntity);
 
         addSyntax(EntitySelectorCommand::executor, argumentEntity);
 

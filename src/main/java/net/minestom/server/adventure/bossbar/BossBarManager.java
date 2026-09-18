@@ -2,14 +2,16 @@ package net.minestom.server.adventure.bossbar;
 
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.bossbar.BossBar;
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Player;
 import net.minestom.server.utils.PacketSendingUtils;
+import net.minestom.server.utils.validate.Check;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @see Audience#hideBossBar(BossBar)
  */
 public class BossBarManager {
+    private final ServerProcess process;
     @SuppressWarnings("this-escape") // deliberate self registration during construction
     private final BossBarListener listener = new BossBarListener(this);
     private final Map<UUID, Set<BossBarHolder>> playerBars = new ConcurrentHashMap<>();
@@ -35,9 +38,18 @@ public class BossBarManager {
     /**
      * Creates a new boss bar manager.
      *
-     * @see MinecraftServer#getBossBarManager()
+     * @see ServerProcess#bossBar()
      */
-    public BossBarManager() {
+    public BossBarManager(ServerProcess process) {
+        this.process = Objects.requireNonNull(process);
+    }
+
+    private void checkOwner(Player player) {
+        Check.argCondition(player.process() != process, "Boss bar viewer belongs to another process");
+    }
+
+    public void clear() {
+        for (var bar : List.copyOf(bars.keySet())) destroyBossBar(bar);
     }
 
     /**
@@ -48,6 +60,7 @@ public class BossBarManager {
      * @param bar    the boss bar to show
      */
     public void addBossBar(Player player, BossBar bar) {
+        checkOwner(player);
         BossBarHolder holder = this.getOrCreateHandler(bar);
         if (holder.addViewer(player)) {
             player.sendPacket(holder.createAddPacket());
@@ -62,6 +75,7 @@ public class BossBarManager {
      * @param bar    the boss bar to hide
      */
     public void removeBossBar(Player player, BossBar bar) {
+        checkOwner(player);
         BossBarHolder holder = this.bars.get(bar);
         if (holder != null && holder.removeViewer(player)) {
             player.sendPacket(holder.createRemovePacket());
@@ -77,6 +91,7 @@ public class BossBarManager {
      * @param bar     the boss bar
      */
     public void addBossBar(Collection<? extends Player> players, BossBar bar) {
+        players.forEach(this::checkOwner);
         BossBarHolder holder = this.getOrCreateHandler(bar);
         List<? extends Player> addedPlayers = players.stream().filter(holder::addViewer).toList();
         if (!addedPlayers.isEmpty()) {
@@ -95,6 +110,7 @@ public class BossBarManager {
      * @param bar     the boss bar to hide
      */
     public void removeBossBar(Collection<? extends Player> players, BossBar bar) {
+        players.forEach(this::checkOwner);
         BossBarHolder holder = this.bars.get(bar);
         if (holder != null) {
             List<? extends Player> removedPlayers = players.stream().filter(holder::removeViewer).toList();
@@ -132,6 +148,7 @@ public class BossBarManager {
      * @param player the player
      */
     public void removeAllBossBars(Player player) {
+        checkOwner(player);
         Set<BossBarHolder> holders = this.playerBars.remove(player.getUuid());
         if (holders != null) {
             for (BossBarHolder holder : holders) {
@@ -147,6 +164,7 @@ public class BossBarManager {
      * @return the boss bars
      */
     public Collection<BossBar> getPlayerBossBars(Player player) {
+        checkOwner(player);
         Set<BossBarHolder> holders = this.playerBars.get(player.getUuid());
         return holders != null ?
                 holders.stream().map(holder -> holder.bar).toList() : List.of();

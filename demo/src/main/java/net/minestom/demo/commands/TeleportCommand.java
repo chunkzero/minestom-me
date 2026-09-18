@@ -1,7 +1,6 @@
 package net.minestom.demo.commands;
 
 import net.kyori.adventure.text.Component;
-import net.minestom.server.ServerProcess;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
@@ -12,24 +11,21 @@ import net.minestom.server.utils.location.RelativeVec;
 
 public class TeleportCommand extends Command {
 
-    private final ServerProcess process;
-
-    public TeleportCommand(ServerProcess process) {
+    public TeleportCommand() {
         super("tp");
-        this.process = process;
 
         setDefaultExecutor((source, _) -> source.sendMessage(Component.text("Usage: /tp x y z")));
 
         var posArg = ArgumentType.RelativeVec3("pos");
         var playerArg = ArgumentType.Word("player");
 
-        addSyntax(this::onPlayerTeleport, playerArg);
+        addSyntax(TeleportCommand::onPlayerTeleport, playerArg);
         addSyntax(TeleportCommand::onPositionTeleport, posArg);
     }
 
-    private void onPlayerTeleport(CommandSender sender, CommandContext context) {
+    private static void onPlayerTeleport(CommandSender sender, CommandContext context) {
         final String playerName = context.get("player");
-        Player pl = process.connection().getOnlinePlayerByUsername(playerName);
+        Player pl = context.process().connection().getOnlinePlayerByUsername(playerName);
         if (sender instanceof Player player) {
             player.teleport(pl.getPosition()).join();
         }

@@ -1,15 +1,19 @@
 package net.minestom.server.scoreboard;
 
 import net.kyori.adventure.text.Component;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.color.TeamColor;
 import net.minestom.server.entity.LivingEntity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.utils.PacketSendingUtils;
 import net.minestom.server.utils.UUIDUtils;
+import net.minestom.server.utils.validate.Check;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -17,6 +21,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
  * An object which manages all the {@link Team}'s
  */
 public final class TeamManager {
+    private final ServerProcess process;
 
     /**
      * Represents all registered teams
@@ -26,8 +31,13 @@ public final class TeamManager {
     /**
      * Default constructor
      */
-    public TeamManager() {
+    public TeamManager(ServerProcess process) {
+        this.process = Objects.requireNonNull(process);
         this.teams = new CopyOnWriteArraySet<>();
+    }
+
+    public ServerProcess process() {
+        return process;
     }
 
     /**
@@ -35,10 +45,14 @@ public final class TeamManager {
      *
      * @param team The team to be registered
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     void registerNewTeam(Team team) {
-        this.teams.add(team);
-        PacketSendingUtils.broadcastPlayPacket(team.createTeamsCreationPacket());
+        Check.argCondition(team.process() != process, "Team belongs to another process");
+        synchronized (this) {
+            var existing = getTeam(team.getTeamName());
+            Check.argCondition(existing != null && existing != team, "A team with this name is already registered");
+            if (!this.teams.add(team)) return;
+        }
+        PacketSendingUtils.broadcastPlayPacket(process, team.createTeamsCreationPacket());
     }
 
     /**
@@ -59,10 +73,10 @@ public final class TeamManager {
      * @param team The team to be deleted
      * @return {@code true} if the team was deleted, otherwise {@code false}
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public boolean deleteTeam(Team team) {
+        Check.argCondition(team.process() != process, "Team belongs to another process");
         // Sends to all online players a team destroy packet
-        PacketSendingUtils.broadcastPlayPacket(team.createTeamDestructionPacket());
+        PacketSendingUtils.broadcastPlayPacket(process, team.createTeamDestructionPacket());
         return this.teams.remove(team);
     }
 
@@ -140,13 +154,13 @@ public final class TeamManager {
     }
 
     /**
-     * Checks if the given {@link Team} registered
+     * Checks if the team's name is registered in this manager and the team belongs to this process.
      *
      * @param team The searched team
-     * @return {@code true} if the team is registered, otherwise {@code false}
+     * @return {@code true} if the team belongs to this process and its name is registered, otherwise {@code false}
      */
     public boolean exists(Team team) {
-        return this.exists(team.getTeamName());
+        return team.process() == process && exists(team.getTeamName());
     }
 
     /**
@@ -191,6 +205,6 @@ public final class TeamManager {
      * @return a {@link Set} with all registered {@link Team}'s
      */
     public Set<Team> getTeams() {
-        return this.teams;
+        return Collections.unmodifiableSet(this.teams);
     }
 }

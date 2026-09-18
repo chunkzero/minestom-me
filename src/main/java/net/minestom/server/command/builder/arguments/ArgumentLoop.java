@@ -2,6 +2,7 @@ package net.minestom.server.command.builder.arguments;
 
 import net.minestom.server.command.ArgumentParserType;
 import net.minestom.server.command.CommandSender;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.exception.ArgumentSyntaxException;
 import net.minestom.server.utils.StringUtils;
 
@@ -23,7 +24,7 @@ public class ArgumentLoop<T> extends Argument<List<T>> {
     }
 
     @Override
-    public List<T> parse(CommandSender sender, String input) throws ArgumentSyntaxException {
+    public List<T> parse(CommandSender sender, CommandContext context, String input) throws ArgumentSyntaxException {
         List<T> result = new ArrayList<>();
         final String[] split = input.split(StringUtils.SPACE, 0);
 
@@ -35,7 +36,7 @@ public class ArgumentLoop<T> extends Argument<List<T>> {
             for (Argument<T> argument : arguments) {
                 try {
                     final String inputString = builder.toString();
-                    final T value = argument.parse(sender, inputString);
+                    final T value = argument.parse(sender, context, inputString);
                     success = true;
                     result.add(value);
                     break;

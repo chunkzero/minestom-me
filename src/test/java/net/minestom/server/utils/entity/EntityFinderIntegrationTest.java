@@ -1,6 +1,8 @@
 package net.minestom.server.utils.entity;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.ServerSender;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.arguments.minecraft.ArgumentEntity;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Entity;
@@ -22,7 +24,7 @@ public class EntityFinderIntegrationTest {
     private static final Pos ORIGIN = new Pos(0, 40, 0);
 
     private static Entity spawn(Instance instance, EntityType type, double x) {
-        var entity = new Entity(type);
+        var entity = new Entity(instance.process(), type);
         entity.setInstance(instance, ORIGIN.add(x, 0, 0)).join();
         return entity;
     }
@@ -31,8 +33,8 @@ public class EntityFinderIntegrationTest {
         return spawn(instance, EntityType.ZOMBIE, x);
     }
 
-    private static EntityFinder createFinder(EntityFinder.TargetSelector selector) {
-        return new EntityFinder()
+    private static EntityFinder createFinder(ServerProcess process, EntityFinder.TargetSelector selector) {
+        return new EntityFinder(process)
                 .setTargetSelector(selector)
                 .setStartPosition(ORIGIN);
     }
@@ -45,7 +47,7 @@ public class EntityFinderIntegrationTest {
         nearSurvival.setGameMode(GameMode.SURVIVAL);
         farCreative.setGameMode(GameMode.CREATIVE);
 
-        var finder = createFinder(EntityFinder.TargetSelector.NEAREST_PLAYER)
+        var finder = createFinder(env.process(), EntityFinder.TargetSelector.NEAREST_PLAYER)
                 .setGameMode(GameMode.CREATIVE, EntityFinder.ToggleableType.INCLUDE);
 
         assertEquals(List.of(farCreative), finder.find(instance, null));
@@ -60,7 +62,7 @@ public class EntityFinderIntegrationTest {
             env.createPlayer(instance, ORIGIN).setGameMode(GameMode.SURVIVAL);
         }
 
-        var finder = new EntityFinder()
+        var finder = new EntityFinder(env.process())
                 .setTargetSelector(EntityFinder.TargetSelector.RANDOM_PLAYER)
                 .setGameMode(GameMode.CREATIVE, EntityFinder.ToggleableType.INCLUDE);
 
@@ -75,7 +77,7 @@ public class EntityFinderIntegrationTest {
     @Test
     public void randomPlayerWithoutAnyPlayersReturnsEmpty(Env env) {
         var instance = env.createFlatInstance();
-        var finder = new EntityFinder()
+        var finder = new EntityFinder(env.process())
                 .setTargetSelector(EntityFinder.TargetSelector.RANDOM_PLAYER);
 
         assertTrue(finder.find(instance, null).isEmpty());
@@ -87,7 +89,7 @@ public class EntityFinderIntegrationTest {
         var _ = spawnZombie(instance, 1);
         var far = spawnZombie(instance, 50);
 
-        var finder = createFinder(EntityFinder.TargetSelector.ALL_ENTITIES)
+        var finder = createFinder(env.process(), EntityFinder.TargetSelector.ALL_ENTITIES)
                 .setDistance(new Range.Double(5.0, (double) Float.MAX_VALUE));
 
         assertEquals(List.of(far), finder.find(instance, null));
@@ -99,7 +101,8 @@ public class EntityFinderIntegrationTest {
         var near = spawnZombie(instance, 1);
         var _ = spawnZombie(instance, 50);
 
-        var finder = new ArgumentEntity("selector").parse(new ServerSender(), "@e[distance=..1.5]");
+        var context = new CommandContext(env.process().command(), "selector");
+        var finder = new ArgumentEntity("selector").parse(new ServerSender(), context, "@e[distance=..1.5]");
         finder.setStartPosition(ORIGIN);
 
         assertEquals(List.of(near), finder.find(instance, null));
@@ -111,7 +114,7 @@ public class EntityFinderIntegrationTest {
         var near = spawnZombie(instance, 1);
         var _ = spawnZombie(instance, 50);
 
-        var finder = createFinder(EntityFinder.TargetSelector.ALL_ENTITIES)
+        var finder = createFinder(env.process(), EntityFinder.TargetSelector.ALL_ENTITIES)
                 .setDistance(new Range.Double(-10.0, 5.0));
 
         assertEquals(List.of(near), finder.find(instance, null));
@@ -125,12 +128,12 @@ public class EntityFinderIntegrationTest {
         var first = spawnZombie(instance, 1);
 
         assertEquals(List.of(first, second, third),
-                createFinder(EntityFinder.TargetSelector.ALL_ENTITIES)
+                createFinder(env.process(), EntityFinder.TargetSelector.ALL_ENTITIES)
                         .setEntitySort(EntityFinder.EntitySort.NEAREST)
                         .find(instance, null));
 
         assertEquals(List.of(third, second, first),
-                createFinder(EntityFinder.TargetSelector.ALL_ENTITIES)
+                createFinder(env.process(), EntityFinder.TargetSelector.ALL_ENTITIES)
                         .setEntitySort(EntityFinder.EntitySort.FURTHEST)
                         .find(instance, null));
     }
@@ -142,7 +145,7 @@ public class EntityFinderIntegrationTest {
             spawnZombie(instance, i);
         }
 
-        var finder = createFinder(EntityFinder.TargetSelector.ALL_ENTITIES)
+        var finder = createFinder(env.process(), EntityFinder.TargetSelector.ALL_ENTITIES)
                 .setEntitySort(EntityFinder.EntitySort.RANDOM)
                 .setLimit(2);
 
@@ -155,7 +158,7 @@ public class EntityFinderIntegrationTest {
         var _ = env.createPlayer(instance, ORIGIN.add(1, 0, 0));
         var far = env.createPlayer(instance, ORIGIN.add(10, 0, 0));
 
-        var finder = createFinder(EntityFinder.TargetSelector.NEAREST_PLAYER)
+        var finder = createFinder(env.process(), EntityFinder.TargetSelector.NEAREST_PLAYER)
                 .setEntitySort(EntityFinder.EntitySort.FURTHEST);
 
         assertEquals(List.of(far), finder.find(instance, null));
@@ -168,7 +171,7 @@ public class EntityFinderIntegrationTest {
         var _ = spawnZombie(instance, 10);
         var near = spawnZombie(instance, 1);
 
-        var finder = createFinder(EntityFinder.TargetSelector.NEAREST_ENTITY);
+        var finder = createFinder(env.process(), EntityFinder.TargetSelector.NEAREST_ENTITY);
         assertEquals(List.of(near), finder.find(instance, null));
     }
 
@@ -178,7 +181,7 @@ public class EntityFinderIntegrationTest {
         var _ = spawn(instance, EntityType.SHEEP, 1);
         var farPig = spawn(instance, EntityType.PIG, 10);
 
-        var finder = createFinder(EntityFinder.TargetSelector.NEAREST_ENTITY)
+        var finder = createFinder(env.process(), EntityFinder.TargetSelector.NEAREST_ENTITY)
                 .setEntity(EntityType.PIG, EntityFinder.ToggleableType.INCLUDE);
 
         assertEquals(List.of(farPig), finder.find(instance, null));
@@ -190,7 +193,7 @@ public class EntityFinderIntegrationTest {
         var _ = spawnZombie(instance, 1);
         var far = spawnZombie(instance, 10);
 
-        var finder = createFinder(EntityFinder.TargetSelector.NEAREST_ENTITY)
+        var finder = createFinder(env.process(), EntityFinder.TargetSelector.NEAREST_ENTITY)
                 .setEntitySort(EntityFinder.EntitySort.FURTHEST);
 
         assertEquals(List.of(far), finder.find(instance, null));
@@ -204,7 +207,7 @@ public class EntityFinderIntegrationTest {
         var _ = spawnZombie(instance, 4);
         var second = spawnZombie(instance, 2);
 
-        var finder = createFinder(EntityFinder.TargetSelector.ALL_ENTITIES)
+        var finder = createFinder(env.process(), EntityFinder.TargetSelector.ALL_ENTITIES)
                 .setEntitySort(EntityFinder.EntitySort.NEAREST)
                 .setLimit(2);
 
@@ -219,7 +222,7 @@ public class EntityFinderIntegrationTest {
         var fourth = spawnZombie(instance, 4);
         var _ = spawnZombie(instance, 2);
 
-        var finder = createFinder(EntityFinder.TargetSelector.ALL_ENTITIES)
+        var finder = createFinder(env.process(), EntityFinder.TargetSelector.ALL_ENTITIES)
                 .setEntitySort(EntityFinder.EntitySort.FURTHEST)
                 .setLimit(2);
 

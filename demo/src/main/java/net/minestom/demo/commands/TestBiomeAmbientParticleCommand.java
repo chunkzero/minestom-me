@@ -1,7 +1,6 @@
 package net.minestom.demo.commands;
 
 import net.kyori.adventure.text.Component;
-import net.minestom.server.ServerProcess;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
@@ -21,20 +20,17 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class TestBiomeAmbientParticleCommand extends Command {
 
-    private final ServerProcess process;
-
-    public TestBiomeAmbientParticleCommand(ServerProcess process) {
+    public TestBiomeAmbientParticleCommand() {
         super("testbiomeambientparticle");
-        this.process = process;
-        setDefaultExecutor(this::usage);
+        setDefaultExecutor(TestBiomeAmbientParticleCommand::usage);
     }
 
-    private void usage(CommandSender sender, CommandContext context) {
+    private static void usage(CommandSender sender, CommandContext context) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text("This command is only available for players"));
             return;
         }
-        Instance instance = process.instance().createInstanceContainer();
+        Instance instance = context.process().instance().createInstanceContainer();
         Particle particle = Particle.BLOCK_MARKER.withBlock(
                 Block.COPPER_BULB
                         .withProperty("lit", "true")
@@ -43,7 +39,7 @@ public class TestBiomeAmbientParticleCommand extends Command {
         Biome biome = Biome.builder()
                 .setAttribute(EnvironmentAttribute.AMBIENT_PARTICLES, List.of(new AmbientParticle(particle, 0.005f)))
                 .build();
-        RegistryKey<Biome> key = process.registries().biome().register("testbiome", biome);
+        RegistryKey<Biome> key = context.process().registries().biome().register("testbiome", biome);
         instance.setGenerator(unit -> {
             unit.modifier().fillBiome(key);
             unit.fork(unit.absoluteStart().withY(63), unit.absoluteEnd().withY(63)).modifier().fill(Block.STONE);

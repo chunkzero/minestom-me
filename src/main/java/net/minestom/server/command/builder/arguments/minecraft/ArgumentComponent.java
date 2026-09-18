@@ -3,12 +3,12 @@ package net.minestom.server.command.builder.arguments.minecraft;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import net.kyori.adventure.text.Component;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.Result;
 import net.minestom.server.codec.Transcoder;
 import net.minestom.server.command.ArgumentParserType;
 import net.minestom.server.command.CommandSender;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.arguments.Argument;
 import net.minestom.server.command.builder.exception.ArgumentSyntaxException;
 import net.minestom.server.registry.RegistryTranscoder;
@@ -21,12 +21,11 @@ public class ArgumentComponent extends Argument<Component> {
         super(id, true);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
-    public Component parse(CommandSender sender, String input) throws ArgumentSyntaxException {
+    public Component parse(CommandSender sender, CommandContext context, String input) throws ArgumentSyntaxException {
         try {
             final Transcoder<JsonElement> coder = new RegistryTranscoder<>(
-                    Transcoder.JSON, MinecraftServer.getRegistries());
+                    Transcoder.JSON, context.process().registries());
             final Result<Component> result = Codec.COMPONENT.decode(coder, JsonUtil.fromJson(input));
             return switch (result) {
                 case Result.Ok(var component) -> component;

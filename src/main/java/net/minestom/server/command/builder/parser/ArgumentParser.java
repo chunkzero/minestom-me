@@ -1,6 +1,7 @@
 package net.minestom.server.command.builder.parser;
 
 import net.minestom.server.command.CommandSender;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.arguments.Argument;
 import net.minestom.server.command.builder.arguments.ArgumentBoolean;
 import net.minestom.server.command.builder.arguments.ArgumentCommand;
@@ -152,7 +153,7 @@ public class ArgumentParser {
     }
 
     @Nullable
-    public static ArgumentResult validate(CommandSender sender,
+    public static ArgumentResult validate(CommandSender sender, CommandContext context,
                                           Argument<?> argument,
                                           Argument<?>[] arguments, int argIndex,
                                           String[] inputArguments, int inputIndex) {
@@ -185,7 +186,7 @@ public class ArgumentParser {
                 rawArg = builder.toString();
 
                 try {
-                    parsedValue = argument.parse(sender, rawArg);
+                    parsedValue = argument.parse(sender, context, rawArg);
                     correct = true;
                 } catch (ArgumentSyntaxException exception) {
                     argumentSyntaxException = exception;
@@ -200,7 +201,7 @@ public class ArgumentParser {
                 rawArg = builder.toString();
 
                 try {
-                    parsedValue = argument.parse(sender, rawArg);
+                    parsedValue = argument.parse(sender, context, rawArg);
 
                     // Prevent quitting the parsing too soon if the argument
                     // does not allow space

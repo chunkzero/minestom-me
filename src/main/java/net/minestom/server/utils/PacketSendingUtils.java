@@ -5,8 +5,8 @@ import net.kyori.adventure.audience.ForwardingAudience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TranslatableComponent;
 import net.kyori.adventure.text.event.HoverEvent;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.adventure.ComponentHolder;
 import net.minestom.server.adventure.audience.PacketGroupingAudience;
 import net.minestom.server.entity.Player;
@@ -83,13 +83,10 @@ public final class PacketSendingUtils {
     }
 
     /**
-     * @deprecated Scheduled for deletion. Use {@link #sendGroupedPacket(Collection, ServerPacket)}
-     * with the owning process's players.
+     * Sends a packet to the online players of the supplied process.
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    @Deprecated(forRemoval = true)
-    public static void broadcastPlayPacket(ServerPacket packet) {
-        sendGroupedPacket(MinecraftServer.getConnectionManager().getOnlinePlayers(), packet);
+    public static void broadcastPlayPacket(ServerProcess process, ServerPacket packet) {
+        sendGroupedPacket(process.connection().getOnlinePlayers(), packet);
     }
 
     private static SendablePacket groupedPacket(ServerPacket packet) {

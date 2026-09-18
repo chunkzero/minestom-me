@@ -1,5 +1,6 @@
 package net.minestom.server.inventory.click;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.inventory.Inventory;
 import net.minestom.server.inventory.InventoryType;
 import net.minestom.server.item.ItemStack;
@@ -15,8 +16,8 @@ public final class ClickUtils {
 
     public static final int SIZE = TYPE.getSize(); // Default hopper size
 
-    public static Inventory createInventory() {
-        return new Inventory(TYPE, "TestInventory");
+    public static Inventory createInventory(ServerProcess process) {
+        return new Inventory(process, TYPE, "TestInventory");
     }
 
     public static void assertProcessed(ClickPreprocessor preprocessor, @Nullable Click info, ClientClickWindowPacket packet) {

@@ -62,7 +62,7 @@ public class TestInstabreakCommand extends Command {
 
         addConditionalSyntax((sender, _) -> sender instanceof Player, (sender, _) -> {
             Player player = (Player) sender;
-            player.openInventory(new Inventory(InventoryType.ANVIL, Component.translatable("container.repair")));
+            player.openInventory(new Inventory(player.process(), InventoryType.ANVIL, Component.translatable("container.repair")));
         }, ArgumentType.Literal("anvil"));
 
         RelativeBlockBatch areaBatch = new RelativeBlockBatch();

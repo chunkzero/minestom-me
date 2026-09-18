@@ -3,6 +3,7 @@ package net.minestom.server;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minestom.server.advancements.AdvancementManager;
 import net.minestom.server.adventure.ClickCallbackManager;
+import net.minestom.server.adventure.audience.Audiences;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.entity.Entity;
@@ -84,6 +85,7 @@ final class ServerProcessImpl implements ServerProcess {
     private final SchedulerManager scheduler;
     private final AdvancementManager advancement;
     private final BossBarManager bossBar;
+    private final Audiences audiences;
     private final ClickCallbackManager clickCallbackManager;
 
     private final Server server;
@@ -109,14 +111,15 @@ final class ServerProcessImpl implements ServerProcess {
         this.packetParser = PacketVanilla.CLIENT_PACKET_PARSER;
         this.instance = new InstanceManager(this);
         this.block = new BlockManager();
-        this.command = new CommandManager();
+        this.command = new CommandManager(this);
+        this.audiences = new Audiences(this);
         this.recipe = new RecipeManager(registries);
-        this.team = new TeamManager();
+        this.team = new TeamManager(this);
         this.eventHandler = new ProcessEventHandler(this);
         this.scheduler = new SchedulerManager(this);
-        this.advancement = new AdvancementManager();
-        this.bossBar = new BossBarManager();
-        this.clickCallbackManager = new ClickCallbackManager();
+        this.advancement = new AdvancementManager(this);
+        this.bossBar = new BossBarManager(this);
+        this.clickCallbackManager = new ClickCallbackManager(this);
 
         this.server = new Server(this, packetParser);
 
@@ -228,6 +231,11 @@ final class ServerProcessImpl implements ServerProcess {
     @Override
     public AdvancementManager advancement() {
         return advancement;
+    }
+
+    @Override
+    public Audiences audiences() {
+        return audiences;
     }
 
     @Override
@@ -354,6 +362,10 @@ final class ServerProcessImpl implements ServerProcess {
         packetBatcher.close();
         scheduler.shutdown();
         connection.shutdown();
+        bossBar.clear();
+        advancement.clear();
+        clickCallbackManager.clear();
+        audiences.registry().clear();
         server.stop();
         packetBuffers.close();
         LOGGER.info("Shutting down all thread pools.");

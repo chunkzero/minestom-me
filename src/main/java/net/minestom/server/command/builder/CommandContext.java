@@ -1,5 +1,7 @@
 package net.minestom.server.command.builder;
 
+import net.minestom.server.ServerProcess;
+import net.minestom.server.command.CommandManager;
 import net.minestom.server.command.builder.arguments.Argument;
 import net.minestom.server.utils.StringUtils;
 import org.jetbrains.annotations.NotNull;
@@ -21,15 +23,57 @@ import java.util.function.Supplier;
  */
 public class CommandContext {
 
+    private final CommandManager commandManager;
     private final String input;
     private final String commandName;
-    protected Map<String, Object> args = new HashMap<>();
-    protected Map<String, String> rawArgs = new HashMap<>();
+    private final Purpose purpose;
+    protected Map<String, Object> args;
+    protected Map<String, String> rawArgs;
     private CommandData returnData;
 
-    public CommandContext(String input) {
+    public CommandContext(CommandManager commandManager, String input) {
+        this(commandManager, input, Purpose.EXECUTION);
+    }
+
+    public CommandContext(CommandManager commandManager, String input, Purpose purpose) {
+        this.commandManager = Objects.requireNonNull(commandManager);
         this.input = input;
         this.commandName = input.split(StringUtils.SPACE, 0)[0];
+        this.purpose = Objects.requireNonNull(purpose);
+        this.args = new HashMap<>();
+        this.rawArgs = new HashMap<>();
+    }
+
+    private CommandContext(CommandContext source) {
+        this.commandManager = source.commandManager;
+        this.input = source.input;
+        this.commandName = source.commandName;
+        this.purpose = source.purpose;
+        this.args = new HashMap<>(source.args);
+        this.rawArgs = new HashMap<>(source.rawArgs);
+    }
+
+    public ServerProcess process() {
+        return commandManager.process();
+    }
+
+    public CommandManager commandManager() {
+        return commandManager;
+    }
+
+    public CommandContext fork() {
+        return new CommandContext(this);
+    }
+
+    public Purpose purpose() {
+        return purpose;
+    }
+
+    /**
+     * The operation using this context. Parsing can precede either execution or suggestions.
+     */
+    public enum Purpose {
+        PARSING, EXECUTION, SUGGESTION, DECLARATION
     }
 
     public String getInput() {
@@ -79,8 +123,10 @@ public class CommandContext {
     }
 
     public void copy(CommandContext context) {
-        this.args = context.args;
-        this.rawArgs = context.rawArgs;
+        if (commandManager != context.commandManager)
+            throw new IllegalArgumentException("Command context belongs to another manager");
+        this.args = new HashMap<>(context.args);
+        this.rawArgs = new HashMap<>(context.rawArgs);
     }
 
     public String getRaw(Argument<?> argument) {
@@ -115,7 +161,7 @@ public class CommandContext {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof CommandContext that)) return false;
-        return Objects.equals(input, that.input) &&
+        return commandManager == that.commandManager && purpose == that.purpose && Objects.equals(input, that.input) &&
                 Objects.equals(commandName, that.commandName) &&
                 Objects.equals(args, that.args) &&
                 Objects.equals(rawArgs, that.rawArgs) &&
@@ -124,6 +170,6 @@ public class CommandContext {
 
     @Override
     public int hashCode() {
-        return Objects.hash(input, commandName, args, rawArgs, returnData);
+        return Objects.hash(commandManager, input, commandName, purpose, args, rawArgs, returnData);
     }
 }

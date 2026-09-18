@@ -2,6 +2,7 @@ package net.minestom.server.event;
 
 import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Entity;
+import net.minestom.server.entity.damage.Damage;
 import net.minestom.server.event.entity.EntityAttackEvent;
 import net.minestom.server.event.entity.EntityDamageEvent;
 import net.minestom.server.event.entity.EntityItemMergeEvent;
@@ -16,18 +17,20 @@ import net.minestom.server.event.player.AsyncPlayerConfigurationEvent;
 import net.minestom.server.event.player.AsyncPlayerPreLoginEvent;
 import net.minestom.server.event.player.PlayerEntityInteractEvent;
 import net.minestom.server.event.player.PlayerPickEntityEvent;
-import net.minestom.server.event.player.PlayerSpectateEntityEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
+import net.minestom.server.event.player.PlayerSpectateEntityEvent;
 import net.minestom.server.event.player.PlayerTeleportToEntityEvent;
 import net.minestom.server.event.server.ClientPingServerEvent;
 import net.minestom.server.event.server.ServerListPingEvent;
 import net.minestom.server.event.trait.EntityEvent;
 import net.minestom.server.event.trait.EntityInstanceEvent;
 import net.minestom.server.event.trait.InstanceEvent;
+import net.minestom.server.event.trait.InventoryEvent;
 import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.EntityTracker;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.InstanceManager;
+import net.minestom.server.inventory.AbstractInventory;
 import net.minestom.server.network.ConnectionManager;
 import net.minestom.server.network.player.PlayerConnection;
 import net.minestom.server.network.socket.Server;
@@ -53,6 +56,8 @@ final class EventOwnership {
         final ServerProcess owner = switch (value) {
             case ServerProcess target -> target;
             case Entity entity -> entity.process();
+            case AbstractInventory inventory -> inventory.process();
+            case Damage damage -> damage.process();
             case Instance instance -> instance.process();
             case Chunk chunk -> chunk.getInstance().process();
             case PlayerConnection connection -> connection.process();
@@ -67,6 +72,7 @@ final class EventOwnership {
     }
 
     static void checkEvent(ServerProcess process, Event event) {
+        if (event instanceof InventoryEvent inventoryEvent) checkTarget(process, inventoryEvent.getInventory());
         if (event instanceof EntityEvent entityEvent) checkTarget(process, entityEvent.getEntity());
         if (event instanceof InstanceEvent instanceEvent) {
             if (event instanceof EntityInstanceEvent entityEvent && INHERITS_ENTITY_INSTANCE.get(event.getClass())) {
@@ -84,6 +90,7 @@ final class EventOwnership {
             }
             case EntityAttackEvent attack -> checkTarget(process, attack.getTarget());
             case EntityDamageEvent damage -> {
+                checkTarget(process, damage.getDamage());
                 checkTarget(process, damage.getDamage().getAttacker());
                 checkTarget(process, damage.getDamage().getSource());
             }

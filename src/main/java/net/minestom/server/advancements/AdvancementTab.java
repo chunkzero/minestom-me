@@ -1,5 +1,6 @@
 package net.minestom.server.advancements;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.Viewable;
 import net.minestom.server.entity.Player;
 import net.minestom.server.network.packet.server.play.AdvancementsPacket;
@@ -14,8 +15,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * Represents a tab which can be shared between multiple players. Created using {@link AdvancementManager#createTab(String, AdvancementRoot)}.
@@ -28,7 +27,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
  */
 public class AdvancementTab implements Viewable {
 
-    private static final Map<UUID, Set<AdvancementTab>> PLAYER_TAB_MAP = new HashMap<>();
+    private final ServerProcess process;
 
     private final Set<Player> viewers = new HashSet<>();
 
@@ -42,7 +41,8 @@ public class AdvancementTab implements Viewable {
     protected final AdvancementsPacket removePacket;
 
     @SuppressWarnings("this-escape") // deliberate self registration during construction
-    protected AdvancementTab(String rootIdentifier, AdvancementRoot root) {
+    protected AdvancementTab(ServerProcess process, String rootIdentifier, AdvancementRoot root) {
+        this.process = process;
         this.root = root;
         cacheAdvancement(rootIdentifier, root, null);
         this.removePacket = new AdvancementsPacket(false, List.of(), List.of(rootIdentifier), List.of(), true);
@@ -57,7 +57,7 @@ public class AdvancementTab implements Viewable {
      */
     @Nullable
     public static Set<AdvancementTab> getTabs(Player player) {
-        return PLAYER_TAB_MAP.getOrDefault(player.getUuid(), null);
+        return player.process().advancement().getTabs(player);
     }
 
     /**
@@ -121,6 +121,7 @@ public class AdvancementTab implements Viewable {
 
     @Override
     public synchronized boolean addViewer(Player player) {
+        Check.argCondition(player.process() != process, "Advancement viewer belongs to another process");
         final boolean result = viewers.add(player);
         if (!result) return false;
         // Send the tab to the player
@@ -131,6 +132,7 @@ public class AdvancementTab implements Viewable {
 
     @Override
     public synchronized boolean removeViewer(Player player) {
+        Check.argCondition(player.process() != process, "Advancement viewer belongs to another process");
         if (!isViewer(player)) {
             return false;
         }
@@ -146,42 +148,15 @@ public class AdvancementTab implements Viewable {
         return Collections.unmodifiableSet(viewers);
     }
 
-    protected void removeAllViewers() {
-        viewers.removeIf(player -> {
-            if (player.isRemoved()) {
-                return true;
-            }
-            player.sendPacket(removePacket);
-            removePlayer(player);
-            return true;
-        });
+    protected synchronized void removeAllViewers() {
+        for (var player : List.copyOf(viewers)) removeViewer(player);
     }
 
-    /**
-     * Adds the tab to the player set.
-     *
-     * @param player the player
-     */
     private void addPlayer(Player player) {
-        Set<AdvancementTab> tabs = PLAYER_TAB_MAP.computeIfAbsent(player.getUuid(), _ -> new CopyOnWriteArraySet<>());
-        tabs.add(this);
+        process.advancement().addViewer(player, this);
     }
 
-    /**
-     * Removes the tab from the player set.
-     *
-     * @param player the player
-     */
     private void removePlayer(Player player) {
-        final UUID uuid = player.getUuid();
-        if (!PLAYER_TAB_MAP.containsKey(uuid)) {
-            return;
-        }
-        Set<AdvancementTab> tabs = PLAYER_TAB_MAP.get(uuid);
-        tabs.remove(this);
-        if (tabs.isEmpty()) {
-            PLAYER_TAB_MAP.remove(uuid);
-        }
+        process.advancement().removeViewer(player, this);
     }
-
 }

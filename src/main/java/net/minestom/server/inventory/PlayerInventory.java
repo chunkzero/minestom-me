@@ -1,8 +1,8 @@
 package net.minestom.server.inventory;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.EquipmentSlot;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.item.EntityEquipEvent;
 import net.minestom.server.inventory.click.ClickType;
 import net.minestom.server.inventory.click.InventoryClickResult;
@@ -34,8 +34,8 @@ public non-sealed class PlayerInventory extends AbstractInventory {
 
     private ItemStack cursorItem = ItemStack.AIR;
 
-    public PlayerInventory() {
-        super(INVENTORY_SIZE);
+    public PlayerInventory(ServerProcess process) {
+        super(process, INVENTORY_SIZE);
     }
 
     @Override
@@ -121,7 +121,6 @@ public non-sealed class PlayerInventory extends AbstractInventory {
         if (sendPacket) sendPacketToViewers(new SetCursorItemPacket(cursorItem));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     protected void UNSAFE_itemInsert(int slot, ItemStack item, ItemStack previous, boolean sendPacket) {
         for (Player player : getViewers()) {
@@ -129,7 +128,7 @@ public non-sealed class PlayerInventory extends AbstractInventory {
             if (equipmentSlot == null) continue;
 
             EntityEquipEvent entityEquipEvent = new EntityEquipEvent(player, item, equipmentSlot);
-            EventDispatcher.call(entityEquipEvent);
+            process().eventHandler().call(entityEquipEvent);
             item = entityEquipEvent.getEquippedItem();
 
             player.updateEquipmentAttributes(previous, item, equipmentSlot);
@@ -170,6 +169,7 @@ public non-sealed class PlayerInventory extends AbstractInventory {
 
     @Override
     public boolean leftClick(Player player, int slot) {
+        checkViewer(player);
         final ItemStack cursor = getCursorItem();
         final ItemStack clicked = getItemStack(slot);
         final InventoryClickResult clickResult = clickProcessor.leftClick(clicked, cursor);
@@ -185,6 +185,7 @@ public non-sealed class PlayerInventory extends AbstractInventory {
 
     @Override
     public boolean rightClick(Player player, int slot) {
+        checkViewer(player);
         final ItemStack cursor = getCursorItem();
         final ItemStack clicked = getItemStack(slot);
         final InventoryClickResult clickResult = clickProcessor.rightClick(clicked, cursor);
@@ -200,6 +201,7 @@ public non-sealed class PlayerInventory extends AbstractInventory {
 
     @Override
     public boolean middleClick(Player player, int slot) {
+        checkViewer(player);
         // TODO
         update();
         return false;
@@ -207,6 +209,7 @@ public non-sealed class PlayerInventory extends AbstractInventory {
 
     @Override
     public boolean drop(Player player, boolean all, int slot) {
+        checkViewer(player);
         final ItemStack cursor = getCursorItem();
         final boolean outsideDrop = slot == -999;
         final ItemStack clicked = outsideDrop ? ItemStack.AIR : getItemStack(slot);
@@ -225,6 +228,7 @@ public non-sealed class PlayerInventory extends AbstractInventory {
 
     @Override
     public boolean shiftClick(Player player, int slot, int button) {
+        checkViewer(player);
         final ItemStack cursor = getCursorItem();
         final ItemStack clicked = getItemStack(slot);
         final boolean craftingGridClick = slot > 36 && slot <= 40;
@@ -305,6 +309,7 @@ public non-sealed class PlayerInventory extends AbstractInventory {
 
     @Override
     public boolean changeHeld(Player player, int slot, int key) {
+        checkViewer(player);
         final ItemStack cursorItem = getCursorItem();
         if (!cursorItem.isAir()) return false;
         final ItemStack heldItem = getItemStack(key);
@@ -322,6 +327,7 @@ public non-sealed class PlayerInventory extends AbstractInventory {
 
     @Override
     public boolean dragging(Player player, List<Integer> slots, int button) {
+        checkViewer(player);
         final ItemStack cursor = getCursorItem();
 
         final ItemStack clickResult = clickProcessor.dragging(player, this, slots, button, cursor);
@@ -336,6 +342,7 @@ public non-sealed class PlayerInventory extends AbstractInventory {
 
     @Override
     public boolean doubleClick(Player player, int slot) {
+        checkViewer(player);
         final ItemStack cursor = getCursorItem();
         final ItemStack clicked = getItemStack(slot);
         final InventoryClickResult clickResult = clickProcessor.doubleClick(this, this, player, slot, clicked, cursor);

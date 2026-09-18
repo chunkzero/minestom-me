@@ -1,6 +1,7 @@
 package net.minestom.server.utils.callback;
 
 import net.minestom.server.command.CommandSender;
+import net.minestom.server.command.builder.CommandContext;
 
 /**
  * Functional interface used by the {@link net.minestom.server.command.CommandManager}
@@ -14,8 +15,8 @@ public interface CommandCallback {
      * Executed if an unknown command is run.
      *
      * @param sender  the command sender
-     * @param command the complete command string
+     * @param context the command context
      */
-    void apply(CommandSender sender, String command);
+    void apply(CommandSender sender, CommandContext context);
 
 }

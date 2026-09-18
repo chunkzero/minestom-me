@@ -1,8 +1,10 @@
 package net.minestom.server.command;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandResult;
 import net.minestom.server.command.builder.arguments.ArgumentType;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -12,10 +14,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CommandManagerTest {
+    @AutoClose
+    private static final ServerProcess process = ServerProcess.create();
+
 
     @Test
     public void testCommandRegistration() {
-        var manager = new CommandManager();
+        var manager = new CommandManager(process);
 
         var command = new Command("name1", "name2");
 
@@ -34,7 +39,7 @@ public class CommandManagerTest {
 
     @Test
     public void testUnknownCommandCallback() {
-        var manager = new CommandManager();
+        var manager = new CommandManager(process);
 
         AtomicBoolean check = new AtomicBoolean(false);
         manager.setUnknownCommandCallback((_, _) -> check.set(true));
@@ -50,7 +55,7 @@ public class CommandManagerTest {
 
     @Test
     public void testSharedArgumentSyntaxABFirst() {
-        var manager = new CommandManager();
+        var manager = new CommandManager(process);
 
         var checkA = new AtomicBoolean(false);
         var checkAB = new AtomicBoolean(false);
@@ -78,7 +83,7 @@ public class CommandManagerTest {
 
     @Test
     public void testSharedArgumentSyntaxAFirst() {
-        var manager = new CommandManager();
+        var manager = new CommandManager(process);
 
         var checkA = new AtomicBoolean(false);
         var checkAB = new AtomicBoolean(false);

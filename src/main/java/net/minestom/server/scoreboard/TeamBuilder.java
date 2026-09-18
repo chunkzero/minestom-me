@@ -31,7 +31,7 @@ public class TeamBuilder {
      * @param teamManager The manager for the team
      */
     public TeamBuilder(String name, TeamManager teamManager) {
-        this(teamManager.exists(name) ? teamManager.getTeam(name) : new Team(name), teamManager);
+        this(teamManager.exists(name) ? teamManager.getTeam(name) : new Team(teamManager.process(), name), teamManager);
     }
 
     /**
@@ -274,7 +274,7 @@ public class TeamBuilder {
      * @return the built team
      */
     public Team build() {
-        if (!this.teamManager.exists(this.team)) this.teamManager.registerNewTeam(this.team);
+        this.teamManager.registerNewTeam(this.team);
         if (this.updateTeam) {
             this.team.sendUpdatePacket();
             this.updateTeam = false;

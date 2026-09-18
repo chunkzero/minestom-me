@@ -21,8 +21,8 @@ public interface CommandParser {
      * @param input command string without prefix
      * @return the parsed command which can be executed and cached
      */
-    @Contract("_, _ -> new")
-    Result parse(CommandSender sender, Graph graph, String input);
+    @Contract("_, _, _, _ -> new")
+    Result parse(CommandManager manager, CommandSender sender, Graph graph, String input);
 
     sealed interface Result {
         ExecutableCommand executable();

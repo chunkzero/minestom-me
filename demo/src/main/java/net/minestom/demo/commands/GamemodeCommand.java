@@ -28,7 +28,7 @@ public class GamemodeCommand extends Command {
 
         //GameMode parameter
         ArgumentEnum<GameMode> gamemode = ArgumentType.Enum("gamemode", GameMode.class).setFormat(ArgumentEnum.Format.LOWER_CASED);
-        gamemode.setCallback((sender, exception) -> sender.sendMessage(
+        gamemode.setCallback((sender, _, exception) -> sender.sendMessage(
                 Component.text("Invalid gamemode ", NamedTextColor.RED)
                         .append(Component.text(exception.getInput(), NamedTextColor.WHITE))
                         .append(Component.text("!"))));

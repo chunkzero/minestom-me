@@ -2,6 +2,7 @@ package net.minestom.server;
 
 import net.minestom.server.advancements.AdvancementManager;
 import net.minestom.server.adventure.ClickCallbackManager;
+import net.minestom.server.adventure.audience.Audiences;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.entity.Entity;
@@ -140,6 +141,11 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
      * Handles registered boss bars.
      */
     BossBarManager bossBar();
+
+    /**
+     * Provides this process's players, console, and custom audience registrations.
+     */
+    Audiences audiences();
 
     /**
      * Handles all thrown exceptions from the server.

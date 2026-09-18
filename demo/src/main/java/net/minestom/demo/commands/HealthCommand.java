@@ -36,11 +36,11 @@ public class HealthCommand extends Command {
         sender.sendMessage(Component.text("Correct usage: health set|add <number>"));
     }
 
-    private static void onModeError(CommandSender sender, ArgumentSyntaxException exception) {
+    private static void onModeError(CommandSender sender, CommandContext context, ArgumentSyntaxException exception) {
         sender.sendMessage(Component.text("SYNTAX ERROR: '" + exception.getInput() + "' should be replaced by 'set' or 'add'"));
     }
 
-    private static void onValueError(CommandSender sender, ArgumentSyntaxException exception) {
+    private static void onValueError(CommandSender sender, CommandContext context, ArgumentSyntaxException exception) {
         final int error = exception.getErrorCode();
         final String input = exception.getInput();
         switch (error) {

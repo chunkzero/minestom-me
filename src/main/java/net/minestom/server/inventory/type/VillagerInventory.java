@@ -1,6 +1,7 @@
 package net.minestom.server.inventory.type;
 
 import net.kyori.adventure.text.Component;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Player;
 import net.minestom.server.inventory.Inventory;
 import net.minestom.server.inventory.InventoryType;
@@ -20,12 +21,12 @@ public class VillagerInventory extends Inventory {
     private boolean regularVillager;
     private boolean canRestock;
 
-    public VillagerInventory(Component title) {
-        super(InventoryType.MERCHANT, title);
+    public VillagerInventory(ServerProcess process, Component title) {
+        super(process, InventoryType.MERCHANT, title);
     }
 
-    public VillagerInventory(String title) {
-        super(InventoryType.MERCHANT, title);
+    public VillagerInventory(ServerProcess process, String title) {
+        super(process, InventoryType.MERCHANT, title);
     }
 
     public List<TradeListPacket.Trade> getTrades() {

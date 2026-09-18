@@ -1,5 +1,6 @@
 package net.minestom.server.command;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.Command;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -10,10 +11,11 @@ import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
-import java.util.Set;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -35,11 +37,13 @@ import static net.minestom.server.command.builder.arguments.ArgumentType.Word;
 @Warmup(time = 2, iterations = 3)
 @Measurement(time = 6)
 public class CommandBenchmark {
+    private ServerProcess process;
     Function<String, Object> parser;
 
     @Setup
     public void setup() {
-        var graph = Graph.merge(Set.of(
+        process = ServerProcess.create();
+        var graph = Graph.merge(List.of(
                 new Command("tp", "teleport") {{
                     addSyntax((_, _) -> {}, RelativeVec3("pos"));
                     addSyntax((_, _) -> {}, Entity("entity"), RelativeVec3("pos"));
@@ -69,7 +73,12 @@ public class CommandBenchmark {
                 }}
         ));
         final CommandParser commandParser = CommandParser.parser();
-        this.parser = input -> commandParser.parse(null, graph, input);
+        this.parser = input -> commandParser.parse(process.command(), process.command().getConsoleSender(), graph, input);
+    }
+
+    @TearDown
+    public void close() {
+        process.close();
     }
 
     @Benchmark

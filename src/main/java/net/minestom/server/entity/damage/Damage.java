@@ -1,18 +1,19 @@
 package net.minestom.server.entity.damage;
 
 import net.kyori.adventure.text.Component;
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.LivingEntity;
 import net.minestom.server.entity.Player;
-import net.minestom.server.registry.DynamicRegistry;
 import net.minestom.server.registry.RegistryKey;
 import net.minestom.server.sound.SoundEvent;
 import net.minestom.server.tag.TagHandler;
 import net.minestom.server.tag.Taggable;
 import net.minestom.server.utils.validate.Check;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Objects;
 
 /**
  * Represents a type of damage, required when calling {@link LivingEntity#damage(Damage)}
@@ -21,8 +22,7 @@ import org.jetbrains.annotations.Nullable;
  * This class can be extended if you need to include custom fields and/or methods.
  */
 public class Damage implements Taggable {
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    private static final DynamicRegistry<DamageType> DAMAGE_TYPE_REGISTRY = MinecraftServer.getDamageTypeRegistry();
+    private final ServerProcess process;
 
     private final RegistryKey<DamageType> typeKey;
     private final DamageType type;
@@ -42,14 +42,21 @@ public class Damage implements Taggable {
      * @param amount         amount of damage
      * @param sourcePosition The position of the source of damage
      */
-    public Damage(RegistryKey<DamageType> type, @Nullable Entity source, @Nullable Entity attacker, @Nullable Point sourcePosition, float amount) {
+    public Damage(ServerProcess process, RegistryKey<DamageType> type, @Nullable Entity source, @Nullable Entity attacker, @Nullable Point sourcePosition, float amount) {
+        this.process = Objects.requireNonNull(process);
+        Check.argCondition(source != null && source.process() != process, "Damage source belongs to another process");
+        Check.argCondition(attacker != null && attacker.process() != process, "Damage attacker belongs to another process");
         this.typeKey = type;
-        this.type = DAMAGE_TYPE_REGISTRY.get(type);
+        this.type = process.registries().damageType().get(type);
         Check.argCondition(this.type == null, "Damage type is not registered: {0}", type);
         this.source = source;
         this.attacker = attacker;
         this.sourcePosition = sourcePosition;
         this.amount = amount;
+    }
+
+    public ServerProcess process() {
+        return process;
     }
 
     /**
@@ -69,7 +76,7 @@ public class Damage implements Taggable {
      * @return The integer id of the damage type
      */
     public int getTypeId() {
-        return DAMAGE_TYPE_REGISTRY.getId(typeKey);
+        return process.registries().damageType().getId(typeKey);
     }
 
     /**
@@ -148,8 +155,8 @@ public class Damage implements Taggable {
         return new EntityDamage(entity, amount);
     }
 
-    public static PositionalDamage fromPosition(RegistryKey<DamageType> type, Point sourcePosition, float amount) {
-        return new PositionalDamage(type, sourcePosition, amount);
+    public static PositionalDamage fromPosition(ServerProcess process, RegistryKey<DamageType> type, Point sourcePosition, float amount) {
+        return new PositionalDamage(process, type, sourcePosition, amount);
     }
 
     /**

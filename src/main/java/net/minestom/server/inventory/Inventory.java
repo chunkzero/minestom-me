@@ -1,6 +1,7 @@
 package net.minestom.server.inventory;
 
 import net.kyori.adventure.text.Component;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Player;
 import net.minestom.server.inventory.click.ClickType;
 import net.minestom.server.inventory.click.InventoryClickResult;
@@ -15,7 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Represents an inventory which can be viewed by a collection of {@link Player}.
  * <p>
- * You can create one with {@link Inventory#Inventory(InventoryType, String)} or by making your own subclass.
+ * You can create one with {@link Inventory#Inventory(ServerProcess, InventoryType, String)} or by making your own subclass.
  * It can then be opened using {@link Player#openInventory(Inventory)}.
  */
 public non-sealed class Inventory extends AbstractInventory {
@@ -28,8 +29,8 @@ public non-sealed class Inventory extends AbstractInventory {
     private final int offset;
 
     @SuppressWarnings("this-escape") // deliberate self registration during construction
-    public Inventory(InventoryType inventoryType, Component title) {
-        super(inventoryType.getSize());
+    public Inventory(ServerProcess process, InventoryType inventoryType, Component title) {
+        super(process, inventoryType.getSize());
         this.id = generateId();
         this.inventoryType = inventoryType;
         this.title = title;
@@ -37,8 +38,8 @@ public non-sealed class Inventory extends AbstractInventory {
         this.offset = getSize();
     }
 
-    public Inventory(InventoryType inventoryType, String title) {
-        this(inventoryType, Component.text(title));
+    public Inventory(ServerProcess process, InventoryType inventoryType, String title) {
+        this(process, inventoryType, Component.text(title));
     }
 
     private static byte generateId() {
@@ -89,6 +90,7 @@ public non-sealed class Inventory extends AbstractInventory {
      */
     @Override
     public boolean addViewer(Player player) {
+        checkViewer(player);
         if (!this.viewers.add(player)) return false;
 
         // Also send the open window packet
@@ -146,6 +148,7 @@ public non-sealed class Inventory extends AbstractInventory {
 
     @Override
     public boolean leftClick(Player player, int slot) {
+        checkViewer(player);
         final PlayerInventory playerInventory = player.getInventory();
         final ItemStack cursor = playerInventory.getCursorItem();
         final boolean isInWindow = isClickInWindow(slot);
@@ -169,6 +172,7 @@ public non-sealed class Inventory extends AbstractInventory {
 
     @Override
     public boolean rightClick(Player player, int slot) {
+        checkViewer(player);
         final PlayerInventory playerInventory = player.getInventory();
         final ItemStack cursor = playerInventory.getCursorItem();
         final boolean isInWindow = isClickInWindow(slot);
@@ -192,6 +196,7 @@ public non-sealed class Inventory extends AbstractInventory {
 
     @Override
     public boolean shiftClick(Player player, int slot, int button) {
+        checkViewer(player);
         final PlayerInventory playerInventory = player.getInventory();
         final boolean isInWindow = isClickInWindow(slot);
         final int clickSlot = isInWindow ? slot : slot - offset;
@@ -238,6 +243,7 @@ public non-sealed class Inventory extends AbstractInventory {
 
     @Override
     public boolean changeHeld(Player player, int slot, int key) {
+        checkViewer(player);
         final int convertedKey = key == 40 ? PlayerInventoryUtils.OFFHAND_SLOT : key;
         final PlayerInventory playerInventory = player.getInventory();
         final boolean isInWindow = isClickInWindow(slot);
@@ -262,6 +268,7 @@ public non-sealed class Inventory extends AbstractInventory {
 
     @Override
     public boolean middleClick(Player player, int slot) {
+        checkViewer(player);
         // TODO
         update(player);
         return false;
@@ -269,6 +276,7 @@ public non-sealed class Inventory extends AbstractInventory {
 
     @Override
     public boolean drop(Player player, boolean all, int slot) {
+        checkViewer(player);
         final PlayerInventory playerInventory = player.getInventory();
         final boolean isInWindow = isClickInWindow(slot);
         final boolean outsideDrop = slot == -999;
@@ -295,6 +303,7 @@ public non-sealed class Inventory extends AbstractInventory {
 
     @Override
     public boolean dragging(Player player, List<Integer> slots, int button) {
+        checkViewer(player);
         final PlayerInventory playerInventory = player.getInventory();
         final ItemStack cursor = playerInventory.getCursorItem();
 
@@ -310,6 +319,7 @@ public non-sealed class Inventory extends AbstractInventory {
 
     @Override
     public boolean doubleClick(Player player, int slot) {
+        checkViewer(player);
         final PlayerInventory playerInventory = player.getInventory();
         final boolean isInWindow = isClickInWindow(slot);
         final int clickSlot = isInWindow ? slot : slot - offset;

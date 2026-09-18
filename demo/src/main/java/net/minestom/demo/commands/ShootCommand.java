@@ -29,7 +29,7 @@ public class ShootCommand extends Command {
         sender.sendMessage(Component.text("Correct usage: shoot [default/spectral/colored]"));
     }
 
-    private static void onTypeError(CommandSender sender, ArgumentSyntaxException exception) {
+    private static void onTypeError(CommandSender sender, CommandContext context, ArgumentSyntaxException exception) {
         sender.sendMessage(Component.text("SYNTAX ERROR: '" + exception.getInput() + "' should be replaced by 'default', 'spectral' or 'colored'"));
     }
 

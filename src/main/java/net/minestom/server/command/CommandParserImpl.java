@@ -12,8 +12,6 @@ import net.minestom.server.command.builder.suggestion.Suggestion;
 import net.minestom.server.command.builder.suggestion.SuggestionCallback;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -25,10 +23,15 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 final class CommandParserImpl implements CommandParser {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CommandParserImpl.class);
     static final CommandParserImpl PARSER = new CommandParserImpl();
 
     static final class Chain {
+        final CommandContext context;
+        @Nullable ArgumentCallback errorCallback;
+        @Nullable ArgumentSyntaxException error;
+        @Nullable CommandCondition errorCondition;
+        @Nullable CommandCondition suggestionCondition;
+
         @Nullable CommandExecutor defaultExecutor = null;
         @Nullable SuggestionCallback suggestionCallback = null;
         final ArrayDeque<NodeResult> nodeResults = new ArrayDeque<>();
@@ -37,6 +40,13 @@ final class CommandParserImpl implements CommandParser {
 
         void append(NodeResult result) {
             this.nodeResults.add(result);
+            if (result.argumentResult instanceof ArgumentResult.Success<?> success) {
+                context.setArg(result.name(), success.value(), success.input());
+            } else if (size() > 1 && result.argumentResult instanceof ArgumentResult.IncompatibleType<?> failure) {
+                errorCallback = result.node.argument().getCallback();
+                error = failure.exception();
+                if (errorCallback != null) errorCondition = callbackCondition(result.node);
+            }
             final Graph.Execution execution = result.node.execution();
             if (execution != null) {
                 // Create condition chain
@@ -54,12 +64,32 @@ final class CommandParserImpl implements CommandParser {
         }
 
         CommandCondition mergedConditions() {
-            return (sender, commandString) -> {
+            return (sender, context) -> {
                 for (CommandCondition condition : conditions) {
-                    if (!condition.canUse(sender, commandString)) return false;
+                    if (!condition.canUse(sender, context)) return false;
                 }
                 return true;
             };
+        }
+
+        CommandCondition callbackCondition(Node node) {
+            // A shorter syntax ending at an ancestor does not govern this callback's syntax.
+            var commands = nodeResults.stream().map(result -> result.node.execution())
+                    .filter(execution -> execution != null && execution.globalListener() != null).toList();
+            var syntaxCondition = node.callbackCondition();
+            return (sender, context) -> {
+                for (var command : commands) {
+                    if (!command.test(sender, context)) return false;
+                }
+                return syntaxCondition == null || syntaxCondition.canUse(sender, context);
+            };
+        }
+
+        void suggestion(Node node) {
+            var callback = node.argument().getSuggestionCallback();
+            if (callback == null) return;
+            suggestionCallback = callback;
+            suggestionCondition = callbackCondition(node);
         }
 
         CommandExecutor mergedGlobalExecutors() {
@@ -140,14 +170,16 @@ final class CommandParserImpl implements CommandParser {
             return previousNode;
         }
 
-        Chain() {
+        Chain(CommandContext context) {
+            this.context = context;
         }
 
-        Chain(@Nullable CommandExecutor defaultExecutor,
+        Chain(CommandContext context, @Nullable CommandExecutor defaultExecutor,
               @Nullable SuggestionCallback suggestionCallback,
               ArrayDeque<NodeResult> nodeResults,
               List<CommandCondition> conditions,
               List<CommandExecutor> globalListeners) {
+            this.context = context;
             this.defaultExecutor = defaultExecutor;
             this.suggestionCallback = suggestionCallback;
             this.nodeResults.addAll(nodeResults);
@@ -156,21 +188,28 @@ final class CommandParserImpl implements CommandParser {
         }
 
         Chain fork() {
-            return new Chain(defaultExecutor, suggestionCallback, nodeResults, conditions, globalListeners);
+            var copy = new Chain(context.fork(), defaultExecutor, suggestionCallback, nodeResults, conditions, globalListeners);
+            copy.errorCallback = errorCallback;
+            copy.error = error;
+            copy.errorCondition = errorCondition;
+            copy.suggestionCondition = suggestionCondition;
+            return copy;
         }
     }
 
     @Override
-    public CommandParser.Result parse(CommandSender sender, Graph graph, String input) {
+    public CommandParser.Result parse(CommandManager manager, CommandSender sender, Graph graph, String input) {
+        manager.checkSender(sender);
         final CommandStringReader reader = new CommandStringReader(input);
         Node parent = graph.root();
 
-        NodeResult result = parseNode(sender, parent, new Chain(), reader);
+        NodeResult result = parseNode(sender, parent, new Chain(new CommandContext(manager, input, CommandContext.Purpose.PARSING)), reader);
         Chain chain = result.chain();
 
         NodeResult lastNodeResult = chain.nodeResults.peekLast();
-        if (lastNodeResult == null) return UnknownCommandResult.INSTANCE;
+        if (lastNodeResult == null) return new UnknownCommandResult(manager);
         Node lastNode = lastNodeResult.node;
+        if (chain.errorCallback != null && chain.error != null) return InvalidCommand.invalid(input, chain);
 
         if (result.argumentResult instanceof ArgumentResult.Success<?>) {
             CommandExecutor executor = nullSafeGetter(lastNode.execution(), Graph.Execution::executor);
@@ -178,10 +217,10 @@ final class CommandParserImpl implements CommandParser {
         }
 
         // If here, then the command failed or didn't have an executor, then this isn't a known command
-        if (chain.depth() < 1) return UnknownCommandResult.INSTANCE;
+        if (chain.depth() < 1) return new UnknownCommandResult(manager);
 
         // Look for a default executor, or give up if we got nowhere
-        if (lastNode.equals(parent)) return UnknownCommandResult.INSTANCE;
+        if (lastNode.equals(parent)) return new UnknownCommandResult(manager);
 
         final @Nullable ValidCommand defaultExecutor = ValidCommand.defaultExecutor(input, chain);
         if (defaultExecutor != null) return defaultExecutor;
@@ -200,12 +239,12 @@ final class CommandParserImpl implements CommandParser {
         int start = reader.cursor();
 
         if (reader.hasRemaining()) {
+            chain.suggestion(node);
             SuggestionCallback suggestionCallback = argument.getSuggestionCallback();
-            ArgumentResult<?> result = parseArgument(sender, argument, reader);
+            ArgumentResult<?> result = parseArgument(sender, chain.context, argument, reader);
             @SuppressWarnings("unchecked")
             NodeResult nodeResult = new NodeResult(node, chain, (ArgumentResult<Object>) result, suggestionCallback);
             chain.append(nodeResult);
-            if (suggestionCallback != null) chain.suggestionCallback = suggestionCallback;
             if (chain.size() == 1) { // If this is the root node (usually "Literal<>")
                 reader.cursor(start);
             } else {
@@ -216,9 +255,9 @@ final class CommandParserImpl implements CommandParser {
             }
         } else {
             // Nothing left, yet we're still being asked to parse? There must be defaults then
-            Function<CommandSender, ?> defaultSupplier = node.argument().getDefaultValue();
+            var defaultSupplier = node.argument().getDefaultValue();
             if (defaultSupplier != null) {
-                Object value = defaultSupplier.apply(sender);
+                Object value = defaultSupplier.apply(sender, chain.context);
                 ArgumentResult<Object> argumentResult = new ArgumentResult.Success<>(value, "");
                 chain.append(new NodeResult(node, chain, argumentResult, argument.getSuggestionCallback()));
                 // Add the default to the chain, and then carry on dealing with this node
@@ -255,11 +294,16 @@ final class CommandParserImpl implements CommandParser {
                     if (!(childResult.chain.size() == 2 && childResult.argumentResult instanceof ArgumentResult.IncompatibleType<?>)) {
                         // If the last successful result is null, throw an exception instead of having unintended behaviour
                         NodeResult lastSuccess = Objects.requireNonNull(childResult.chain().lastSuccessfulResult());
+                        final Chain errorChain = lastSuccess.chain().fork();
+                        errorChain.error = childResult.chain().error;
+                        errorChain.errorCallback = childResult.chain().errorCallback;
+                        errorChain.errorCondition = childResult.chain().errorCondition;
+                        lastSuccess = new NodeResult(lastSuccess.node(), errorChain, lastSuccess.argumentResult(), lastSuccess.callback());
                         final SuggestionCallback deepestSuggestion = childResult.chain().suggestionCallback;
 
                         if (deepestSuggestion != null) {
-                            final Chain errorChain = lastSuccess.chain().fork();
                             errorChain.suggestionCallback = deepestSuggestion;
+                            errorChain.suggestionCondition = childResult.chain().suggestionCondition;
 
                             lastSuccess = new NodeResult(
                                     lastSuccess.node(),
@@ -303,7 +347,10 @@ final class CommandParserImpl implements CommandParser {
                     new ArgumentResult.SyntaxError<>("Command has trailing data", "", -1),
                     suggestionCallback
             );
-            chain.suggestionCallback = suggestionCallback;
+            if (error == null) {
+                chain.suggestionCallback = suggestionCallback;
+                chain.suggestionCondition = suggestionCallback == null ? null : chain.callbackCondition(returnNode);
+            }
             // prevent duplicates from being added (Fixes CommandParseTest#singleCommandWithMultipleSyntax() failure)
             if (chain.getArgs().stream().noneMatch(arg -> arg.getId().equals(argument.getId()))) {
                 chain.append(nodeResult);
@@ -315,12 +362,11 @@ final class CommandParserImpl implements CommandParser {
         return chain.nodeResults.peekLast();
     }
 
-    record UnknownCommandResult() implements Result.UnknownCommand {
-        private static final CommandParser.Result INSTANCE = new UnknownCommandResult();
+    record UnknownCommandResult(CommandManager manager) implements Result.UnknownCommand {
 
         @Override
         public ExecutableCommand executable() {
-            return UnknownExecutableCmd.INSTANCE;
+            return new UnknownExecutableCmd(manager);
         }
 
         @Override
@@ -335,6 +381,7 @@ final class CommandParserImpl implements CommandParser {
     }
 
     sealed interface InternalKnownCommand extends Result.KnownCommand {
+        CommandManager manager();
         String input();
 
         @Nullable CommandCondition condition();
@@ -345,41 +392,46 @@ final class CommandParserImpl implements CommandParser {
 
         @Nullable SuggestionCallback suggestionCallback();
 
+        @Nullable CommandCondition suggestionCondition();
+
         @Override
         default @Nullable Suggestion suggestion(CommandSender sender) {
+            manager().checkSender(sender);
             final SuggestionCallback callback = suggestionCallback();
             if (callback == null) return null;
             final int lastSpace = input().lastIndexOf(" ");
             final Suggestion suggestion = new Suggestion(input(), lastSpace + 2, input().length() - lastSpace - 1);
-            final CommandContext context = createCommandContext(input(), arguments());
+            final CommandContext context = createCommandContext(manager(), input(), arguments(), CommandContext.Purpose.SUGGESTION);
+            if (suggestionCondition() != null && !suggestionCondition().canUse(sender, context)) return null;
             callback.apply(sender, context, suggestion);
             return suggestion;
         }
     }
 
-    record InvalidCommand(String input, CommandCondition condition, @Nullable ArgumentCallback callback,
+    record InvalidCommand(CommandManager manager, String input, CommandCondition condition, @Nullable ArgumentCallback callback,
                           ArgumentResult.SyntaxError<?> error,
                           Map<String, ArgumentResult<Object>> arguments, CommandExecutor globalListener,
-                          @Nullable SuggestionCallback suggestionCallback, List<Argument<?>> args)
+                          @Nullable SuggestionCallback suggestionCallback, @Nullable CommandCondition suggestionCondition, List<Argument<?>> args)
             implements InternalKnownCommand, Result.KnownCommand.Invalid {
 
         static InvalidCommand invalid(String input, Chain chain) {
-            return new InvalidCommand(input, chain.mergedConditions(),
-                    null/*todo command syntax callback*/,
-                    new ArgumentResult.SyntaxError<>("Command has trailing data.", null, -1),
-                    chain.collectArguments(), chain.mergedGlobalExecutors(), chain.suggestionCallback, chain.getArgs());
+            return new InvalidCommand(chain.context.commandManager(), input, chain.errorCondition != null ? chain.errorCondition : chain.mergedConditions(),
+                    chain.errorCallback,
+                    chain.error == null ? new ArgumentResult.SyntaxError<>("Command has trailing data.", input, -1)
+                            : new ArgumentResult.SyntaxError<>(chain.error.getMessage(), chain.error.getInput(), chain.error.getErrorCode()),
+                    chain.collectArguments(), chain.mergedGlobalExecutors(), chain.suggestionCallback, chain.suggestionCondition, chain.getArgs());
         }
 
         @Override
         public ExecutableCommand executable() {
-            return new InvalidExecutableCmd(condition, globalListener, callback, error, input, arguments);
+            return new InvalidExecutableCmd(manager, condition, globalListener, callback, error, input, arguments);
         }
     }
 
-    record ValidCommand(String input, CommandCondition condition, CommandExecutor executor,
+    record ValidCommand(CommandManager manager, String input, CommandCondition condition, CommandExecutor executor,
                         Map<String, ArgumentResult<Object>> arguments,
                         CommandExecutor globalListener, @Nullable SuggestionCallback suggestionCallback,
-                        List<Argument<?>> args)
+                        @Nullable CommandCondition suggestionCondition, List<Argument<?>> args)
             implements InternalKnownCommand, Result.KnownCommand.Valid {
 
         static @Nullable ValidCommand defaultExecutor(String input, Chain chain) {
@@ -392,70 +444,78 @@ final class CommandParserImpl implements CommandParser {
             }
 
             if (defaultExecutor == null) return null;
-            return new ValidCommand(input, chain.mergedConditions(), defaultExecutor, chain.collectArguments(),
-                    chain.mergedGlobalExecutors(), chain.suggestionCallback, chain.getArgs());
+            return new ValidCommand(chain.context.commandManager(), input, chain.mergedConditions(), defaultExecutor, chain.collectArguments(),
+                    chain.mergedGlobalExecutors(), chain.suggestionCallback, chain.suggestionCondition, chain.getArgs());
         }
 
         static ValidCommand executor(String input, Chain chain, CommandExecutor executor) {
-            return new ValidCommand(input, chain.mergedConditions(), executor, chain.collectArguments(), chain.mergedGlobalExecutors(),
-                    chain.suggestionCallback, chain.getArgs());
+            return new ValidCommand(chain.context.commandManager(), input, chain.mergedConditions(), executor, chain.collectArguments(), chain.mergedGlobalExecutors(),
+                    chain.suggestionCallback, chain.suggestionCondition, chain.getArgs());
         }
 
         @Override
         public ExecutableCommand executable() {
-            return new ValidExecutableCmd(condition, globalListener, executor, input, arguments);
+            return new ValidExecutableCmd(manager, condition, globalListener, executor, input, arguments);
         }
     }
 
-    record UnknownExecutableCmd() implements ExecutableCommand {
-        static final ExecutableCommand INSTANCE = new UnknownExecutableCmd();
+    record UnknownExecutableCmd(CommandManager manager) implements ExecutableCommand {
 
         @Override
         public ExecutableCommand.Result execute(CommandSender sender) {
+            manager.checkSender(sender);
             return ExecutionResultImpl.UNKNOWN;
         }
     }
 
-    record ValidExecutableCmd(CommandCondition condition, CommandExecutor globalListener, CommandExecutor executor,
+    record ValidExecutableCmd(CommandManager manager, CommandCondition condition, CommandExecutor globalListener, CommandExecutor executor,
                               String input,
                               Map<String, ArgumentResult<Object>> arguments) implements ExecutableCommand {
         @Override
         public ExecutableCommand.Result execute(CommandSender sender) {
-            final CommandContext context = createCommandContext(input, arguments);
+            manager.checkSender(sender);
+            final CommandContext context = createCommandContext(manager, input, arguments);
 
             globalListener().apply(sender, context);
 
-            if (condition != null && !condition.canUse(sender, input())) {
+            if (condition != null && !condition.canUse(sender, context)) {
                 return ExecutionResultImpl.PRECONDITION_FAILED;
             }
             try {
                 executor().apply(sender, context);
                 return new ExecutionResultImpl(ExecutableCommand.Result.Type.SUCCESS, context.getReturnData());
             } catch (Exception e) {
-                LOGGER.error("An exception was encountered while executing command: {}", input(), e);
+                manager.process().exception().handleException(e);
                 return ExecutionResultImpl.EXECUTOR_EXCEPTION;
             }
         }
     }
 
-    record InvalidExecutableCmd(CommandCondition condition, CommandExecutor globalListener, ArgumentCallback callback,
+    record InvalidExecutableCmd(CommandManager manager, CommandCondition condition, CommandExecutor globalListener, ArgumentCallback callback,
                                 ArgumentResult.SyntaxError<?> error, String input,
                                 Map<String, ArgumentResult<Object>> arguments) implements ExecutableCommand {
         @Override
         public ExecutableCommand.Result execute(CommandSender sender) {
-            globalListener().apply(sender, createCommandContext(input, arguments));
+            manager.checkSender(sender);
+            final CommandContext context = createCommandContext(manager, input, arguments);
+            globalListener().apply(sender, context);
 
-            if (condition != null && !condition.canUse(sender, input())) {
+            if (condition != null && !condition.canUse(sender, context)) {
                 return ExecutionResultImpl.PRECONDITION_FAILED;
             }
             if (callback != null)
-                callback.apply(sender, new ArgumentSyntaxException(error.message(), error.input(), error.code()));
+                callback.apply(sender, context, new ArgumentSyntaxException(error.message(), error.input(), error.code()));
             return ExecutionResultImpl.INVALID_SYNTAX;
         }
     }
 
-    private static CommandContext createCommandContext(String input, Map<String, ArgumentResult<Object>> arguments) {
-        final CommandContext context = new CommandContext(input);
+    private static CommandContext createCommandContext(CommandManager manager, String input, Map<String, ArgumentResult<Object>> arguments) {
+        return createCommandContext(manager, input, arguments, CommandContext.Purpose.EXECUTION);
+    }
+
+    private static CommandContext createCommandContext(CommandManager manager, String input, Map<String, ArgumentResult<Object>> arguments,
+                                                        CommandContext.Purpose purpose) {
+        final CommandContext context = new CommandContext(manager, input, purpose);
         for (var entry : arguments.entrySet()) {
             final String identifier = entry.getKey();
             final ArgumentResult<Object> value = entry.getValue();
@@ -528,21 +588,21 @@ final class CommandParserImpl implements CommandParser {
 
     // ARGUMENT
 
-    private static <T> ArgumentResult<T> parseArgument(CommandSender sender, Argument<T> argument, CommandStringReader reader) {
+    private static <T> ArgumentResult<T> parseArgument(CommandSender sender, CommandContext context, Argument<T> argument, CommandStringReader reader) {
         // Handle specific type without loop
         try {
             // Single word argument
             if (!argument.allowSpace()) {
                 final String word = reader.readWord();
-                return new ArgumentResult.Success<>(argument.parse(sender, word), word);
+                return new ArgumentResult.Success<>(argument.parse(sender, context, word), word);
             }
             // Complete input argument
             if (argument.useRemaining()) {
                 final String remaining = reader.readRemaining();
-                return new ArgumentResult.Success<>(argument.parse(sender, remaining), remaining);
+                return new ArgumentResult.Success<>(argument.parse(sender, context, remaining), remaining);
             }
-        } catch (ArgumentSyntaxException _) {
-            return new ArgumentResult.IncompatibleType<>();
+        } catch (ArgumentSyntaxException e) {
+            return new ArgumentResult.IncompatibleType<>(e);
         }
         // Bruteforce
         assert argument.allowSpace() && !argument.useRemaining();
@@ -550,14 +610,13 @@ final class CommandParserImpl implements CommandParser {
         while (true) {
             try {
                 final String input = current.toString();
-                return new ArgumentResult.Success<>(argument.parse(sender, input), input);
-            } catch (ArgumentSyntaxException _) {
-                if (!reader.hasRemaining()) break;
+                return new ArgumentResult.Success<>(argument.parse(sender, context, input), input);
+            } catch (ArgumentSyntaxException e) {
+                if (!reader.hasRemaining()) return new ArgumentResult.IncompatibleType<>(e);
                 current.append(" ");
                 current.append(reader.readWord());
             }
         }
-        return new ArgumentResult.IncompatibleType<>();
     }
 
     private sealed interface ArgumentResult<R> {
@@ -565,7 +624,7 @@ final class CommandParserImpl implements CommandParser {
                 implements ArgumentResult<T> {
         }
 
-        record IncompatibleType<T>()
+        record IncompatibleType<T>(ArgumentSyntaxException exception)
                 implements ArgumentResult<T> {
         }
 

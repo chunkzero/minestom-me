@@ -4,6 +4,7 @@ import net.minestom.server.command.ArgumentParserType;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.ArgumentCallback;
 import net.minestom.server.command.builder.Command;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.CommandExecutor;
 import net.minestom.server.command.builder.arguments.minecraft.SuggestionType;
 import net.minestom.server.command.builder.exception.ArgumentSyntaxException;
@@ -21,7 +22,10 @@ import java.util.function.Supplier;
  * <p>
  * You can create your own with your own special conditions.
  * <p>
- * Arguments are parsed using {@link #parse(CommandSender, String)}.
+ * Commands parse arguments using {@link #parse(CommandSender, CommandContext, String)}.
+ * Stateless arguments can also support {@link #parse(CommandSender, String)}.
+ * Subclasses must override at least one of these methods. Overriding neither compiles,
+ * but parsing then throws {@link IllegalStateException}.
  *
  * @param <T> the type of this parsed argument
  */
@@ -32,7 +36,7 @@ public abstract class Argument<T> {
 
     private @Nullable ArgumentCallback callback;
 
-    private @Nullable Function<CommandSender, T> defaultValue;
+    private @Nullable BiFunction<CommandSender, CommandContext, T> defaultValue;
 
     private @Nullable SuggestionCallback suggestionCallback;
     protected @Nullable SuggestionType suggestionType;
@@ -89,7 +93,21 @@ public abstract class Argument<T> {
      * @return the parsed argument
      * @throws ArgumentSyntaxException if {@code value} is not valid
      */
-    public abstract T parse(CommandSender sender, String input) throws ArgumentSyntaxException;
+    public T parse(CommandSender sender, String input) throws ArgumentSyntaxException {
+        throw new IllegalStateException("This argument requires a command context");
+    }
+
+    /**
+     * Parses with the executing manager's context, including previously parsed arguments.
+     * Registry-dependent arguments must override this method.
+     */
+    public T parse(CommandSender sender, CommandContext context, String input) throws ArgumentSyntaxException {
+        return parse(sender, input);
+    }
+
+    public static <T> T parse(CommandSender sender, CommandContext context, Argument<T> argument) {
+        return argument.parse(sender, context, argument.getId());
+    }
 
     public abstract ArgumentParserType parser();
 
@@ -173,7 +191,7 @@ public abstract class Argument<T> {
     }
 
     @Nullable
-    public Function<CommandSender, T> getDefaultValue() {
+    public BiFunction<CommandSender, CommandContext, T> getDefaultValue() {
         return defaultValue;
     }
 
@@ -187,11 +205,16 @@ public abstract class Argument<T> {
      * @return 'this' for chaining
      */
     public Argument<T> setDefaultValue(@Nullable Supplier<T> defaultValue) {
-        this.defaultValue = defaultValue == null ? null : _ -> defaultValue.get();
+        this.defaultValue = defaultValue == null ? null : (_, _) -> defaultValue.get();
         return this;
     }
 
     public Argument<T> setDefaultValue(@Nullable Function<CommandSender, T> defaultValue) {
+        this.defaultValue = defaultValue == null ? null : (sender, _) -> defaultValue.apply(sender);
+        return this;
+    }
+
+    public Argument<T> setDefaultValue(@Nullable BiFunction<CommandSender, CommandContext, T> defaultValue) {
         this.defaultValue = defaultValue;
         return this;
     }
@@ -203,7 +226,7 @@ public abstract class Argument<T> {
      * @return 'this' for chaining
      */
     public Argument<T> setDefaultValue(T defaultValue) {
-        this.defaultValue = _ -> defaultValue;
+        this.defaultValue = (_, _) -> defaultValue;
         return this;
     }
 
@@ -295,7 +318,7 @@ public abstract class Argument<T> {
             if (argument.getSuggestionCallback() != null)
                 this.setSuggestionCallback(argument.getSuggestionCallback());
             if (argument.getDefaultValue() != null)
-                this.setDefaultValue(sender -> mapper.apply(sender, argument.getDefaultValue().apply(sender)));
+                this.setDefaultValue((sender, context) -> mapper.apply(sender, argument.getDefaultValue().apply(sender, context)));
             this.argument = argument;
             this.mapper = mapper;
         }
@@ -307,6 +330,13 @@ public abstract class Argument<T> {
             if (mappedValue == null)
                 throw new ArgumentSyntaxException("Couldn't be converted to map type", input, INVALID_MAP);
             return mappedValue;
+        }
+
+        @Override
+        public O parse(CommandSender sender, CommandContext context, String input) {
+            final O value = mapper.apply(sender, argument.parse(sender, context, input));
+            if (value == null) throw new ArgumentSyntaxException("Couldn't be converted to map type", input, INVALID_MAP);
+            return value;
         }
 
         @Override
@@ -340,6 +370,13 @@ public abstract class Argument<T> {
             final T result = argument.parse(sender, input);
             if (!predicate.test(result))
                 throw new ArgumentSyntaxException("Predicate failed", input, INVALID_FILTER);
+            return result;
+        }
+
+        @Override
+        public T parse(CommandSender sender, CommandContext context, String input) {
+            final T result = argument.parse(sender, context, input);
+            if (!predicate.test(result)) throw new ArgumentSyntaxException("Predicate failed", input, INVALID_FILTER);
             return result;
         }
 

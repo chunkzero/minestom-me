@@ -32,6 +32,10 @@ public class AudienceRegistry {
         this.provider = _ -> backingCollection.get();
     }
 
+    public void clear() {
+        registry.clear();
+    }
+
     /**
      * Checks if this registry is empty.
      *

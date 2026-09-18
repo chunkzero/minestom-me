@@ -1,9 +1,9 @@
 package net.minestom.demo.commands;
 
 import net.minestom.server.command.CommandSender;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.SimpleCommand;
 import net.minestom.server.entity.Player;
-import org.jetbrains.annotations.Nullable;
 
 public class LegacyCommand extends SimpleCommand {
     public LegacyCommand() {
@@ -11,7 +11,7 @@ public class LegacyCommand extends SimpleCommand {
     }
 
     @Override
-    public boolean process(CommandSender sender, String command, String[] args) {
+    public boolean process(CommandSender sender, CommandContext context, String command, String[] args) {
         if (!(sender instanceof Player)) return false;
 
         System.gc();
@@ -20,7 +20,7 @@ public class LegacyCommand extends SimpleCommand {
     }
 
     @Override
-    public boolean hasAccess(CommandSender sender, @Nullable String commandString) {
+    public boolean hasAccess(CommandSender sender, CommandContext context) {
         return true;
     }
 }

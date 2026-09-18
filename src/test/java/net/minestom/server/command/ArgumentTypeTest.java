@@ -10,8 +10,9 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.color.TeamColor;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.arguments.Argument;
 import net.minestom.server.command.builder.arguments.ArgumentEnum;
 import net.minestom.server.command.builder.arguments.ArgumentType;
@@ -28,6 +29,7 @@ import net.minestom.server.tag.Tag;
 import net.minestom.server.utils.Range;
 import net.minestom.server.utils.location.RelativeVec;
 import net.minestom.server.utils.time.TimeUnit;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -42,9 +44,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
 public class ArgumentTypeTest {
 
-    static {
-        MinecraftServer.init(); // TODO, some args require a ServerProcess.
-    }
+    @AutoClose
+    private static final ServerProcess process = ServerProcess.create();
 
     @Test
     public void testArgumentEntityType() {
@@ -403,13 +404,13 @@ public class ArgumentTypeTest {
         var arg = ArgumentType.Group("group", ArgumentType.Integer("integer"), ArgumentType.String("string"), ArgumentType.Double("double"));
 
         // Test normal input
-        var context1 = arg.parse(new ServerSender(), "1234 1234 1234");
+        var context1 = arg.parse(new ServerSender(), new CommandContext(process.command(), ""), "1234 1234 1234");
         assertEquals(1234, context1.<Integer>get("integer"));
         assertEquals("1234", context1.<String>get("string"));
         assertEquals(1234.0, context1.<Double>get("double"));
 
         // Test different input + trailing spaces
-        var context2 = arg.parse(new ServerSender(), "1234 abcd 1234.5678   ");
+        var context2 = arg.parse(new ServerSender(), new CommandContext(process.command(), ""), "1234 abcd 1234.5678   ");
         assertEquals(1234, context2.<Integer>get("integer"));
         assertEquals("abcd", context2.<String>get("string"));
         assertEquals(1234.5678, context2.<Double>get("double"));
@@ -488,18 +489,18 @@ public class ArgumentTypeTest {
     }
 
     private static <T> void assertArg(Argument<T> arg, T expected, String input) {
-        assertEquals(expected, arg.parse(new ServerSender(), input));
+        assertEquals(expected, arg.parse(new ServerSender(), new CommandContext(process.command(), ""), input));
     }
 
     private static <T> void assertArrayArg(Argument<T[]> arg, T[] expected, String input) {
-        assertArrayEquals(expected, arg.parse(new ServerSender(), input));
+        assertArrayEquals(expected, arg.parse(new ServerSender(), new CommandContext(process.command(), ""), input));
     }
 
     private static <T> void assertValidArg(Argument<T> arg, String input) {
-        assertDoesNotThrow(() -> arg.parse(new ServerSender(), input));
+        assertDoesNotThrow(() -> arg.parse(new ServerSender(), new CommandContext(process.command(), ""), input));
     }
 
     private static <T> void assertInvalidArg(Argument<T> arg, String input) {
-        assertThrows(ArgumentSyntaxException.class, () -> arg.parse(new ServerSender(), input));
+        assertThrows(ArgumentSyntaxException.class, () -> arg.parse(new ServerSender(), new CommandContext(process.command(), ""), input));
     }
 }

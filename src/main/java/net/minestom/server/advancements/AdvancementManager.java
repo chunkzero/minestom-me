@@ -1,11 +1,19 @@
 package net.minestom.server.advancements;
 
+import net.minestom.server.ServerProcess;
+import net.minestom.server.entity.Player;
 import net.minestom.server.utils.validate.Check;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * Used to manage all the registered {@link AdvancementTab}.
@@ -14,6 +22,38 @@ import java.util.concurrent.ConcurrentHashMap;
  * Use {@link #removeTab(String)} to remove an advancement tab with the appropriate root identifier
  */
 public class AdvancementManager {
+    private final ServerProcess process;
+    private final Map<UUID, Set<AdvancementTab>> playerTabs = new ConcurrentHashMap<>();
+
+    public AdvancementManager(ServerProcess process) {
+        this.process = Objects.requireNonNull(process);
+    }
+
+    public @Nullable Set<AdvancementTab> getTabs(Player player) {
+        Check.argCondition(player.process() != process, "Advancement viewer belongs to another process");
+        var tabs = playerTabs.get(player.getUuid());
+        return tabs == null ? null : Set.copyOf(tabs);
+    }
+
+    void addViewer(Player player, AdvancementTab tab) {
+        playerTabs.compute(player.getUuid(), (_, tabs) -> {
+            if (tabs == null) tabs = new CopyOnWriteArraySet<>();
+            tabs.add(tab);
+            return tabs;
+        });
+    }
+
+    void removeViewer(Player player, AdvancementTab tab) {
+        playerTabs.computeIfPresent(player.getUuid(), (_, tabs) -> {
+            tabs.remove(tab);
+            return tabs.isEmpty() ? null : tabs;
+        });
+    }
+
+    public void clear() {
+        for (var identifier : List.copyOf(advancementTabMap.keySet())) removeTab(identifier);
+        playerTabs.clear();
+    }
 
     // root identifier = its advancement tab
     private final Map<String, AdvancementTab> advancementTabMap = new ConcurrentHashMap<>();
@@ -29,7 +69,7 @@ public class AdvancementManager {
     public AdvancementTab createTab(String rootIdentifier, AdvancementRoot root) {
         Check.stateCondition(advancementTabMap.containsKey(rootIdentifier),
                 "A tab with the identifier '" + rootIdentifier + "' already exists");
-        final AdvancementTab advancementTab = new AdvancementTab(rootIdentifier, root);
+        final AdvancementTab advancementTab = new AdvancementTab(process, rootIdentifier, root);
         this.advancementTabMap.put(rootIdentifier, advancementTab);
         return advancementTab;
     }
@@ -51,7 +91,7 @@ public class AdvancementManager {
      * @return the collection containing all created {@link AdvancementTab}
      */
     public Collection<AdvancementTab> getTabs() {
-        return advancementTabMap.values();
+        return Collections.unmodifiableCollection(advancementTabMap.values());
     }
 
     /**

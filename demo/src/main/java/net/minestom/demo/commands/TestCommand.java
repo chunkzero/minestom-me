@@ -18,7 +18,7 @@ public class TestCommand extends Command {
         setDefaultExecutor(TestCommand::usage);
 
         var block = ArgumentType.BlockState("block");
-        block.setCallback((_, exception) -> exception.printStackTrace());
+        block.setCallback((_, _, exception) -> exception.printStackTrace());
 
         setDefaultExecutor((sender, _) -> {
             sender.playSound(Sound.sound(Key.key("item.trumpet.doot"), Sound.Source.PLAYER, 1, 1));

@@ -4,7 +4,7 @@ import net.kyori.adventure.identity.Identity;
 import net.kyori.adventure.pointer.Pointers;
 import net.kyori.adventure.pointer.PointersSupplier;
 import net.kyori.adventure.text.Component;
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.adventure.audience.PacketGroupingAudience;
 import net.minestom.server.color.TeamColor;
 import net.minestom.server.entity.LivingEntity;
@@ -19,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -79,12 +80,14 @@ public class Team implements PacketGroupingAudience {
     private final Set<Player> playerMembers = ConcurrentHashMap.newKeySet();
     private boolean isPlayerMembersUpToDate;
 
-    /**
-     * Default constructor to creates a team.
-     *
-     * @param teamName The registry name for the team
-     */
-    protected Team(String teamName) {
+    private final ServerProcess process;
+
+    public ServerProcess process() {
+        return process;
+    }
+
+    protected Team(ServerProcess process, String teamName) {
+        this.process = Objects.requireNonNull(process);
         this.teamName = teamName;
 
         this.teamDisplayName = Component.empty();
@@ -119,7 +122,6 @@ public class Team implements PacketGroupingAudience {
      *
      * @param toAdd The members to be added
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void addMembers(Collection<String> toAdd) {
         // Adds a new member to the team
         this.members.addAll(toAdd);
@@ -128,7 +130,7 @@ public class Team implements PacketGroupingAudience {
         final TeamsPacket addPlayerPacket = new TeamsPacket(teamName,
                                                             new TeamsPacket.AddEntitiesToTeamAction(toAdd));
         // Sends to all online players the add player packet
-        PacketSendingUtils.broadcastPlayPacket(addPlayerPacket);
+        PacketSendingUtils.broadcastPlayPacket(process, addPlayerPacket);
 
         // invalidate player members
         this.isPlayerMembersUpToDate = false;
@@ -154,13 +156,12 @@ public class Team implements PacketGroupingAudience {
      *
      * @param toRemove The members to be removed
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void removeMembers(Collection<String> toRemove) {
         // Initializes remove player packet
         final TeamsPacket removePlayerPacket = new TeamsPacket(teamName,
                                                                new TeamsPacket.RemoveEntitiesToTeamAction(toRemove));
         // Sends to all online player the remove player packet
-        PacketSendingUtils.broadcastPlayPacket(removePlayerPacket);
+        PacketSendingUtils.broadcastPlayPacket(process, removePlayerPacket);
 
         // Removes the member from the team
         this.members.removeAll(toRemove);
@@ -467,24 +468,22 @@ public class Team implements PacketGroupingAudience {
     /**
      * Sends an {@link TeamsPacket.UpdateTeamAction} action packet.
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     public void sendUpdatePacket() {
         final var info = new TeamsPacket.UpdateTeamAction(new TeamsPacket.Settings(
                 teamDisplayName, prefix, suffix,
                 nameTagVisibility, collisionRule,
                 color, friendlyFlags
         ));
-        PacketSendingUtils.broadcastPlayPacket(new TeamsPacket(teamName, info));
+        PacketSendingUtils.broadcastPlayPacket(process, new TeamsPacket(teamName, info));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public Collection<? extends Player> getPlayers() {
         if (!this.isPlayerMembersUpToDate) {
             this.playerMembers.clear();
 
             for (String member : this.members) {
-                Player player = MinecraftServer.getConnectionManager().getOnlinePlayerByUsername(member);
+                Player player = process.connection().getOnlinePlayerByUsername(member);
 
                 if (player != null) {
                     this.playerMembers.add(player);

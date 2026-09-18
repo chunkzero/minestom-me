@@ -1,6 +1,8 @@
 package net.minestom.server.command;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.Command;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -9,10 +11,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class SubcommandTest {
+    @AutoClose
+    private static final ServerProcess process = ServerProcess.create();
+
 
     @Test
     public void testSubCommands() {
-        var manager = new CommandManager();
+        var manager = new CommandManager(process);
 
         var parent = new Command("parent");
         var child = new Command("child");
@@ -34,7 +39,7 @@ public class SubcommandTest {
 
     @Test
     public void testSubCommandConditions() {
-        var manager = new CommandManager();
+        var manager = new CommandManager(process);
 
         var parent = new Command("parent");
         var child = new Command("child");

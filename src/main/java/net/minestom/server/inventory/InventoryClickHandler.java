@@ -1,7 +1,6 @@
 package net.minestom.server.inventory;
 
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.inventory.InventoryClickEvent;
 import net.minestom.server.inventory.click.Click;
 import net.minestom.server.inventory.click.ClickType;
@@ -115,9 +114,8 @@ public sealed interface InventoryClickHandler permits AbstractInventory {
      */
     boolean doubleClick(Player player, int slot);
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     default void callClickEvent(Player player, AbstractInventory inventory, int slot,
                                 ClickType clickType, ItemStack clicked, ItemStack cursor) {
-        EventDispatcher.call(new InventoryClickEvent(inventory, player, slot, clickType, clicked, cursor));
+        player.process().eventHandler().call(new InventoryClickEvent(inventory, player, slot, clickType, clicked, cursor));
     }
 }

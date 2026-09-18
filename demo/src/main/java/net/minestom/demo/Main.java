@@ -100,10 +100,10 @@ public class Main {
         commandManager.register(new EntitySelectorCommand());
         commandManager.register(new HealthCommand());
         commandManager.register(new LegacyCommand());
-        commandManager.register(new DimensionCommand(process));
-        commandManager.register(new ShutdownCommand(process));
-        commandManager.register(new TeleportCommand(process));
-        commandManager.register(new PlayersCommand(process));
+        commandManager.register(new DimensionCommand());
+        commandManager.register(new ShutdownCommand());
+        commandManager.register(new TeleportCommand());
+        commandManager.register(new PlayersCommand());
         commandManager.register(new FindCommand());
         commandManager.register(new TitleCommand());
         commandManager.register(new BookCommand());
@@ -115,7 +115,7 @@ public class Main {
         commandManager.register(new GiveCommand());
         commandManager.register(new SetBlockCommand());
         commandManager.register(new AutoViewCommand());
-        commandManager.register(new SaveCommand(process));
+        commandManager.register(new SaveCommand());
         commandManager.register(new GamemodeCommand());
         commandManager.register(new ExecuteCommand());
         commandManager.register(new RedirectTestCommand());
@@ -139,7 +139,7 @@ public class Main {
         commandManager.register(new SleepCommand());
         commandManager.register(new MinecartCommand());
         commandManager.register(new BelowNameCommand());
-        commandManager.register(new TestBiomeAmbientParticleCommand(process));
+        commandManager.register(new TestBiomeAmbientParticleCommand());
 
         commandManager.setUnknownCommandCallback((sender, _) -> sender.sendMessage(Component.text("Unknown command", NamedTextColor.RED)));
 
