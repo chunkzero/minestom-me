@@ -75,7 +75,7 @@ public class AttributeCommand extends Command {
 
     private static LivingEntity target(CommandSender sender, CommandContext ctx) {
         EntityFinder finder = ctx.get("target");
-        Entity entity = finder.findFirstEntity(ctx.process(), sender);
+        Entity entity = finder.findFirstEntity(sender);
         if (!(entity instanceof LivingEntity livingEntity)) {
             return null;
         }

@@ -74,7 +74,7 @@ public class GamemodeCommand extends Command {
             GameMode mode = context.get(gamemode);
 
             //Set the gamemode for the targets
-            executeOthers(sender, mode, finder.find(context.process(), sender));
+            executeOthers(sender, mode, finder.find(sender));
         }, gamemode, player);
     }
 

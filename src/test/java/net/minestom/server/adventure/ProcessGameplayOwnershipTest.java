@@ -12,6 +12,7 @@ import net.minestom.server.advancements.FrameType;
 import net.minestom.server.adventure.audience.PacketGroupingAudience;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
+import net.minestom.server.command.builder.arguments.ArgumentType;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.damage.Damage;
 import net.minestom.server.entity.damage.DamageType;
@@ -128,12 +129,13 @@ class ProcessGameplayOwnershipTest {
                 secondEvents.incrementAndGet();
                 event.setCommand("same");
             });
-            var finder = new EntityFinder().setTargetSelector(EntityFinder.TargetSelector.ALL_PLAYERS);
+            var target = ArgumentType.Entity("targets").setDefaultValue((_, context) ->
+                    new EntityFinder(context.process()).setTargetSelector(EntityFinder.TargetSelector.ALL_PLAYERS));
             var command = new Command("same");
-            command.setDefaultExecutor((sender, context) -> {
-                assertEquals(List.of(context.process() == a.process() ? first : second), finder.find(context.process(), sender));
+            command.addSyntax((sender, context) -> {
+                assertEquals(List.of(context.process() == a.process() ? first : second), context.get(target).find(sender));
                 context.process().audiences().players().sendActionBar(Component.text(context.process() == a.process() ? "first" : "second"));
-            });
+            }, target);
             a.process().command().register(command);
             b.process().command().register(command);
             var firstPackets = firstConnection.trackIncoming(ActionBarPacket.class);
@@ -165,13 +167,14 @@ class ProcessGameplayOwnershipTest {
             b.process().command().register(visible, otherVisible);
             assertFalse(a.process().command().createDeclareCommandsPacket(first).nodes().stream().anyMatch(node -> "visible".equals(node.name)));
             assertTrue(b.process().command().createDeclareCommandsPacket(second).nodes().stream().anyMatch(node -> "visible".equals(node.name)));
-            assertEquals(List.of(first), finder.find(a.process(), a.process().command().getConsoleSender()));
+            var finder = new EntityFinder(a.process()).setTargetSelector(EntityFinder.TargetSelector.ALL_PLAYERS);
+            assertEquals(List.of(first), finder.find(a.process().command().getConsoleSender()));
             assertEquals(List.of(first), finder.find(first));
             assertSame(first, finder.findFirstPlayer(first));
             assertSame(first, finder.findFirstEntity(first));
-            finder.setTargetSelector(EntityFinder.TargetSelector.MINESTOM_USERNAME).setConstantName("SameName");
-            assertEquals(List.of(second), finder.find(b.process(), b.process().command().getConsoleSender()));
-            assertThrows(IllegalArgumentException.class, () -> finder.find(a.process(), second));
+            var namedFinder = new EntityFinder(b.process()).setTargetSelector(EntityFinder.TargetSelector.MINESTOM_USERNAME).setConstantName("SameName");
+            assertEquals(List.of(second), namedFinder.find(b.process().command().getConsoleSender()));
+            assertThrows(IllegalArgumentException.class, () -> finder.find(second));
 
             var aOnly = firstConnection.trackIncoming(ActionBarPacket.class);
             var bNone = secondConnection.trackIncoming(ActionBarPacket.class);

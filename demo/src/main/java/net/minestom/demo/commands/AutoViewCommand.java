@@ -35,7 +35,7 @@ public class AutoViewCommand extends Command {
         addSyntax((sender, context) -> {
             if (!(sender instanceof Player player)) return;
             EntityFinder finder = context.get("targets");
-            final List<Entity> entities = finder.find(context.process(), sender);
+            final List<Entity> entities = finder.find(sender);
             player.updateViewableRule(entities::contains);
             player.sendMessage("Viewable rule updated to see " + entities.size() + " players");
         }, Literal("rule-viewable"), Entity("targets").onlyPlayers(true));
@@ -44,7 +44,7 @@ public class AutoViewCommand extends Command {
         addSyntax((sender, context) -> {
             if (!(sender instanceof Player player)) return;
             EntityFinder finder = context.get("targets");
-            final List<Entity> entities = finder.find(context.process(), sender);
+            final List<Entity> entities = finder.find(sender);
             player.updateViewerRule(entities::contains);
             player.sendMessage("Viewer rule updated to see " + entities.size() + " entities");
         }, Literal("rule-viewer"), Entity("targets"));

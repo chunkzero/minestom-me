@@ -1,7 +1,9 @@
 package net.minestom.server.command.builder.arguments.minecraft;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.command.ArgumentParserType;
 import net.minestom.server.command.CommandSender;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.arguments.Argument;
 import net.minestom.server.command.builder.exception.ArgumentSyntaxException;
 import net.minestom.server.entity.EntityType;
@@ -20,6 +22,8 @@ import java.util.regex.Pattern;
 
 /**
  * Represents the target selector argument.
+ * Each parse produces a new finder bound to the executing command manager's process.
+ * Shared commands should use a contextual default-value factory to create a finder for each process.
  * <a href="https://minecraft.wiki/w/Target_selectors">Target selectors</a>
  */
 public class ArgumentEntity extends Argument<EntityFinder> {
@@ -67,8 +71,8 @@ public class ArgumentEntity extends Argument<EntityFinder> {
     }
 
     @Override
-    public EntityFinder parse(CommandSender sender, String input) throws ArgumentSyntaxException {
-        return staticParse(sender, input, onlySingleEntity, onlyPlayers);
+    public EntityFinder parse(CommandSender sender, CommandContext context, String input) throws ArgumentSyntaxException {
+        return staticParse(context.process(), sender, input, onlySingleEntity, onlyPlayers);
     }
 
     @Override
@@ -91,10 +95,9 @@ public class ArgumentEntity extends Argument<EntityFinder> {
     }
 
     /**
-     * @deprecated use {@link Argument#parse(CommandSender, Argument)}
+     * Parses a selector bound to the supplied process.
      */
-    @Deprecated
-    public static EntityFinder staticParse(CommandSender sender, String input,
+    public static EntityFinder staticParse(ServerProcess process, CommandSender sender, String input,
                                            boolean onlySingleEntity, boolean onlyPlayers) throws ArgumentSyntaxException {
         // Check for raw player name or UUID
         if (!input.contains(SELECTOR_PREFIX) && !input.contains(StringUtils.SPACE)) {
@@ -102,7 +105,7 @@ public class ArgumentEntity extends Argument<EntityFinder> {
             // Check if the input is a valid UUID
             try {
                 final UUID uuid = UUID.fromString(input);
-                return new EntityFinder()
+                return new EntityFinder(process)
                         .setTargetSelector(EntityFinder.TargetSelector.MINESTOM_UUID)
                         .setConstantUuid(uuid);
             } catch (IllegalArgumentException _) {
@@ -111,7 +114,7 @@ public class ArgumentEntity extends Argument<EntityFinder> {
 
             // Check if the input is a valid player name
             if (USERNAME_PATTERN.matcher(input).matches()) {
-                return new EntityFinder()
+                return new EntityFinder(process)
                         .setTargetSelector(EntityFinder.TargetSelector.MINESTOM_USERNAME)
                         .setConstantName(input);
             }
@@ -140,7 +143,7 @@ public class ArgumentEntity extends Argument<EntityFinder> {
             throw new ArgumentSyntaxException("Argument requires only players", input, ONLY_PLAYERS_ERROR);
 
         // Create the EntityFinder which will be used for the rest of the parsing
-        final EntityFinder entityFinder = new EntityFinder()
+        final EntityFinder entityFinder = new EntityFinder(process)
                 .setTargetSelector(toTargetSelector(selectorVariable));
 
         // The selector is a single selector variable which verify all the conditions

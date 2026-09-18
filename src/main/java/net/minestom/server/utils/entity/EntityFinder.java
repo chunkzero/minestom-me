@@ -25,10 +25,12 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Represents a query which can be call to find one or multiple entities.
- * It is based on the target selectors used in commands.
+ * A query for entities belonging to one process, based on command target selectors.
+ * Entities are looked up when the query is resolved, rather than when it is constructed.
  */
 public class EntityFinder {
+
+    private final ServerProcess process;
 
     private TargetSelector targetSelector;
 
@@ -51,6 +53,14 @@ public class EntityFinder {
     // Players specific
     private final ToggleableMap<GameMode> gameModes = new ToggleableMap<>();
     private Range.Int level;
+
+    public EntityFinder(ServerProcess process) {
+        this.process = Objects.requireNonNull(process);
+    }
+
+    public final ServerProcess process() {
+        return process;
+    }
 
     public EntityFinder setTargetSelector(TargetSelector targetSelector) {
         this.targetSelector = targetSelector;
@@ -120,22 +130,13 @@ public class EntityFinder {
     }
 
     /**
-     * Find a list of entities (could be empty) based on the conditions
+     * Searches this finder's process, optionally restricted to an instance and query source.
      *
-     * @param instance the instance to search from
+     * @param instance the instance to search from, or null to search the process
      * @param self     the source of the query, null if not any
      * @return all entities validating the conditions, can be empty
      */
-    public List<Entity> find(Instance instance, @Nullable Entity self) {
-        return find(instance.process(), instance, self);
-    }
-
-    /**
-     * Searches the supplied process, optionally restricted to an instance and query source.
-     * Supplying neither searches the process's players or instances, depending on the selector.
-     */
-    public List<Entity> find(ServerProcess process, @Nullable Instance instance, @Nullable Entity self) {
-        Objects.requireNonNull(process);
+    public List<Entity> find(@Nullable Instance instance, @Nullable Entity self) {
         Check.argCondition(instance != null && instance.process() != process, "Instance belongs to another process");
         Check.argCondition(self != null && self.process() != process, "Entity belongs to another process");
         if (targetSelector == TargetSelector.MINESTOM_USERNAME) {
@@ -151,7 +152,7 @@ public class EntityFinder {
 
         final Point pos = startPosition != null ? startPosition : (self != null ? self.getPosition() : Vec.ZERO);
 
-        List<Entity> result = findTarget(process, instance, targetSelector, self);
+        List<Entity> result = findTarget(instance, targetSelector, self);
         // Fast exit if there is nothing to process
         if (result.isEmpty())
             return result;
@@ -278,22 +279,13 @@ public class EntityFinder {
         return result;
     }
 
-    /** Searches using an explicit process, including for console and custom command senders. */
-    public List<Entity> find(ServerProcess process, CommandSender sender) {
-        return sender instanceof Player player ? find(process, player.getInstance(), player) : find(process, null, null);
+    /** Searches this finder's process, using a player's instance and position when available. */
+    public List<Entity> find(CommandSender sender) {
+        return sender instanceof Player player ? find(player.getInstance(), player) : find(null, null);
     }
 
-    public @Nullable Player findFirstPlayer(ServerProcess process, CommandSender sender) {
-        return find(process, sender).stream().filter(Player.class::isInstance).map(Player.class::cast).findFirst().orElse(null);
-    }
-
-    public @Nullable Entity findFirstEntity(ServerProcess process, CommandSender sender) {
-        var entities = find(process, sender);
-        return entities.isEmpty() ? null : entities.getFirst();
-    }
-
-    public List<Entity> find(Player player) {
-        return find(player.process(), player);
+    public @Nullable Player findFirstPlayer(CommandSender sender) {
+        return find(sender).stream().filter(Player.class::isInstance).map(Player.class::cast).findFirst().orElse(null);
     }
 
     /**
@@ -303,7 +295,7 @@ public class EntityFinder {
      * @return the first player returned by {@link #find(Instance, Entity)}
      * @see #find(Instance, Entity)
      */
-    public @Nullable Player findFirstPlayer(Instance instance, @Nullable Entity self) {
+    public @Nullable Player findFirstPlayer(@Nullable Instance instance, @Nullable Entity self) {
         final List<Entity> entities = find(instance, self);
         for (Entity entity : entities) {
             if (entity instanceof Player player) {
@@ -313,17 +305,14 @@ public class EntityFinder {
         return null;
     }
 
-    public @Nullable Player findFirstPlayer(Player player) {
-        return findFirstPlayer(player.process(), player);
-    }
-
-    public @Nullable Entity findFirstEntity(Instance instance, @Nullable Entity self) {
+    public @Nullable Entity findFirstEntity(@Nullable Instance instance, @Nullable Entity self) {
         final List<Entity> entities = find(instance, self);
         return entities.isEmpty() ? null : entities.getFirst();
     }
 
-    public @Nullable Entity findFirstEntity(Player player) {
-        return findFirstEntity(player.process(), player);
+    public @Nullable Entity findFirstEntity(CommandSender sender) {
+        var entities = find(sender);
+        return entities.isEmpty() ? null : entities.getFirst();
     }
 
     public enum TargetSelector {
@@ -352,9 +341,9 @@ public class EntityFinder {
     private static class ToggleableMap<T> extends Object2BooleanOpenHashMap<T> {
     }
 
-    private static List<Entity> findTarget(ServerProcess process, @Nullable Instance instance,
-                                           TargetSelector targetSelector,
-                                           @Nullable Entity self) {
+    private List<Entity> findTarget(@Nullable Instance instance,
+                                    TargetSelector targetSelector,
+                                    @Nullable Entity self) {
         final var players = instance != null ? instance.getPlayers() : process.connection().getOnlinePlayers();
         if (targetSelector == TargetSelector.NEAREST_PLAYER || targetSelector == TargetSelector.RANDOM_PLAYER || targetSelector == TargetSelector.ALL_PLAYERS) {
             return List.copyOf(players);
