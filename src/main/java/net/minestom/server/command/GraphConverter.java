@@ -44,7 +44,7 @@ final class GraphConverter {
                                 @Nullable Player player, Map<Argument<?>, Integer> argToPacketId) {
         final Graph.Execution execution = graphNode.execution();
         if (player != null && execution != null) {
-            if (!execution.test(player, new CommandContext(manager, ""))) return new int[0];
+            if (!execution.test(player, new CommandContext(manager, "", CommandContext.Purpose.DECLARATION))) return new int[0];
         }
 
         final Argument<?> argument = graphNode.argument();

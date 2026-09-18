@@ -24,6 +24,8 @@ import java.util.function.Supplier;
  * <p>
  * Commands parse arguments using {@link #parse(CommandSender, CommandContext, String)}.
  * Stateless arguments can also support {@link #parse(CommandSender, String)}.
+ * Subclasses must override at least one of these methods. Overriding neither compiles,
+ * but parsing then throws {@link IllegalStateException}.
  *
  * @param <T> the type of this parsed argument
  */

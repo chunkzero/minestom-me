@@ -15,7 +15,7 @@ import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
-import java.util.Set;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -43,7 +43,7 @@ public class CommandBenchmark {
     @Setup
     public void setup() {
         process = ServerProcess.create();
-        var graph = Graph.merge(Set.of(
+        var graph = Graph.merge(List.of(
                 new Command("tp", "teleport") {{
                     addSyntax((_, _) -> {}, RelativeVec3("pos"));
                     addSyntax((_, _) -> {}, Entity("entity"), RelativeVec3("pos"));

@@ -70,11 +70,14 @@ record GraphImpl(NodeImpl root) implements Graph {
         }
     }
 
-    record NodeImpl(Argument<?> argument, @Nullable ExecutionImpl execution, List<Graph.Node> next) implements Graph.Node {
+    record NodeImpl(Argument<?> argument, @Nullable ExecutionImpl execution, List<Graph.Node> next,
+                    @Nullable CommandCondition callbackCondition) implements Graph.Node {
         NodeImpl(Argument<?> argument, @Nullable ExecutionImpl execution, List<Graph.Node> next) {
-            this.argument = argument;
-            this.execution = execution;
-            this.next = next.stream().sorted(nodePriority).toList();
+            this(argument, execution, next, execution == null ? null : execution.condition());
+        }
+
+        NodeImpl {
+            next = next.stream().sorted(nodePriority).toList();
         }
 
         static NodeImpl fromBuilder(BuilderImpl builder) {
@@ -156,6 +159,7 @@ record GraphImpl(NodeImpl root) implements Graph {
         final Argument<?> argument;
         ExecutionImpl execution;
         final Map<Argument<?>, ConversionNode> nextMap;
+        final List<CommandSyntax> syntaxes = new ArrayList<>();
 
         ConversionNode(Argument<?> argument, @Nullable ExecutionImpl execution, Map<Argument<?>, ConversionNode> nextMap) {
             this.argument = argument;
@@ -171,7 +175,13 @@ record GraphImpl(NodeImpl root) implements Graph {
             Node[] nodes = new NodeImpl[nextMap.size()];
             int i = 0;
             for (var entry : nextMap.values()) nodes[i++] = entry.toNode();
-            return new NodeImpl(argument, execution, List.of(nodes));
+            CommandCondition callbackCondition = null;
+            if (!syntaxes.isEmpty() && syntaxes.stream().allMatch(syntax -> syntax.getCommandCondition() != null)) {
+                var conditions = syntaxes.stream().map(CommandSyntax::getCommandCondition).distinct().toList();
+                callbackCondition = conditions.size() == 1 ? conditions.getFirst()
+                        : (sender, context) -> conditions.stream().anyMatch(condition -> condition.canUse(sender, context));
+            }
+            return new NodeImpl(argument, execution, List.of(nodes), callbackCondition);
         }
 
         static ConversionNode fromCommand(Command command) {
@@ -187,6 +197,7 @@ record GraphImpl(NodeImpl root) implements Graph {
                     boolean last = arg == syntax.getArguments()[syntax.getArguments().length - 1];
                     var ex = last ? ExecutionImpl.fromSyntax(syntax) : null;
                     syntaxNode = syntaxNode.nextMap.computeIfAbsent(arg, argument -> new ConversionNode(argument, ex));
+                    syntaxNode.syntaxes.add(syntax);
                     if (syntaxNode.execution == null) syntaxNode.execution = ex;
                 }
             }

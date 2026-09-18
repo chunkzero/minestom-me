@@ -9,7 +9,6 @@ import net.minestom.server.item.ItemStack;
 import net.minestom.server.network.packet.server.play.OpenWindowPacket;
 import net.minestom.server.network.packet.server.play.WindowPropertyPacket;
 import net.minestom.server.utils.inventory.PlayerInventoryUtils;
-import net.minestom.server.utils.validate.Check;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -91,7 +90,7 @@ public non-sealed class Inventory extends AbstractInventory {
      */
     @Override
     public boolean addViewer(Player player) {
-        Check.argCondition(player.process() != process(), "Inventory viewer belongs to another process");
+        checkViewer(player);
         if (!this.viewers.add(player)) return false;
 
         // Also send the open window packet

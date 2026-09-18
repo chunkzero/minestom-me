@@ -122,15 +122,18 @@ public class EntityFinder {
     /**
      * Find a list of entities (could be empty) based on the conditions
      *
-     * @param instance the instance to search from,
-     *                 null if the query can be executed using global data (all online players)
+     * @param instance the instance to search from
      * @param self     the source of the query, null if not any
      * @return all entities validating the conditions, can be empty
      */
-    public List<Entity> find(@Nullable Instance instance, @Nullable Entity self) {
-        return find(owner(instance, self), instance, self);
+    public List<Entity> find(Instance instance, @Nullable Entity self) {
+        return find(instance.process(), instance, self);
     }
 
+    /**
+     * Searches the supplied process, optionally restricted to an instance and query source.
+     * Supplying neither searches the process's players or instances, depending on the selector.
+     */
     public List<Entity> find(ServerProcess process, @Nullable Instance instance, @Nullable Entity self) {
         Objects.requireNonNull(process);
         Check.argCondition(instance != null && instance.process() != process, "Instance belongs to another process");
@@ -275,11 +278,7 @@ public class EntityFinder {
         return result;
     }
 
-    private static ServerProcess owner(@Nullable Instance instance, @Nullable Entity self) {
-        if (instance != null) return instance.process();
-        return Objects.requireNonNull(self, "A process is required when no instance or entity is supplied").process();
-    }
-
+    /** Searches using an explicit process, including for console and custom command senders. */
     public List<Entity> find(ServerProcess process, CommandSender sender) {
         return sender instanceof Player player ? find(process, player.getInstance(), player) : find(process, null, null);
     }
@@ -293,9 +292,8 @@ public class EntityFinder {
         return entities.isEmpty() ? null : entities.getFirst();
     }
 
-    public List<Entity> find(CommandSender sender) {
-        return sender instanceof Player player ?
-                find(player.getInstance(), player) : find((Instance) null, null);
+    public List<Entity> find(Player player) {
+        return find(player.process(), player);
     }
 
     /**
@@ -305,7 +303,7 @@ public class EntityFinder {
      * @return the first player returned by {@link #find(Instance, Entity)}
      * @see #find(Instance, Entity)
      */
-    public @Nullable Player findFirstPlayer(@Nullable Instance instance, @Nullable Entity self) {
+    public @Nullable Player findFirstPlayer(Instance instance, @Nullable Entity self) {
         final List<Entity> entities = find(instance, self);
         for (Entity entity : entities) {
             if (entity instanceof Player player) {
@@ -315,20 +313,17 @@ public class EntityFinder {
         return null;
     }
 
-    public @Nullable Player findFirstPlayer(CommandSender sender) {
-        return sender instanceof Player player ?
-                findFirstPlayer(player.getInstance(), player) :
-                findFirstPlayer((Instance) null, null);
+    public @Nullable Player findFirstPlayer(Player player) {
+        return findFirstPlayer(player.process(), player);
     }
 
-    public @Nullable Entity findFirstEntity(@Nullable Instance instance, @Nullable Entity self) {
+    public @Nullable Entity findFirstEntity(Instance instance, @Nullable Entity self) {
         final List<Entity> entities = find(instance, self);
         return entities.isEmpty() ? null : entities.getFirst();
     }
 
-    public @Nullable Entity findFirstEntity(CommandSender sender) {
-        return sender instanceof Player player ?
-                findFirstEntity(player.getInstance(), player) : findFirstEntity((Instance) null, null);
+    public @Nullable Entity findFirstEntity(Player player) {
+        return findFirstEntity(player.process(), player);
     }
 
     public enum TargetSelector {

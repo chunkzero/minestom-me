@@ -47,7 +47,11 @@ public final class TeamManager {
      */
     void registerNewTeam(Team team) {
         Check.argCondition(team.process() != process, "Team belongs to another process");
-        this.teams.add(team);
+        synchronized (this) {
+            var existing = getTeam(team.getTeamName());
+            Check.argCondition(existing != null && existing != team, "A team with this name is already registered");
+            if (!this.teams.add(team)) return;
+        }
         PacketSendingUtils.broadcastPlayPacket(process, team.createTeamsCreationPacket());
     }
 
@@ -150,7 +154,7 @@ public final class TeamManager {
     }
 
     /**
-     * Checks if the given {@link Team} registered
+     * Checks if this exact {@link Team} is registered
      *
      * @param team The searched team
      * @return {@code true} if the team is registered, otherwise {@code false}

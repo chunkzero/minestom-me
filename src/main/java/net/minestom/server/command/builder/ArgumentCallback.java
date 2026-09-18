@@ -6,6 +6,8 @@ import net.minestom.server.command.builder.exception.ArgumentSyntaxException;
 
 /**
  * Callback executed when an error is found within the {@link Argument}.
+ * An applicable argument error callback takes precedence over the command's default executor.
+ * Command and syntax conditions must permit the callback; the result remains invalid syntax.
  */
 @FunctionalInterface
 public interface ArgumentCallback {

@@ -72,7 +72,7 @@ public class CommandSyntaxSingleTest {
         List<Argument<?>> args = List.of(Group("loop", Integer("first"), Integer("second")));
         // 1 2
         {
-            var context = new CommandContext(process.command(), "1 2");
+            var context = new CommandContext(process.command(), "1 2", CommandContext.Purpose.PARSING);
             context.setArg("first", 1, "1");
             context.setArg("second", 2, "2");
             assertSyntax(args, "1 2", ExpectedExecution.SYNTAX, Map.of("loop", context));
@@ -95,15 +95,15 @@ public class CommandSyntaxSingleTest {
         List<Argument<?>> groupLoop = List.of(Loop("loop", Group("group", Integer("first"), Integer("second"))));
         // 1 2
         {
-            var context = new CommandContext(process.command(), "1 2");
+            var context = new CommandContext(process.command(), "1 2", CommandContext.Purpose.PARSING);
             context.setArg("first", 1, "1");
             context.setArg("second", 2, "2");
             assertSyntax(groupLoop, "1 2", ExpectedExecution.SYNTAX, Map.of("loop", List.of(context)));
         }
         // 1 2 3 4
         {
-            var context1 = new CommandContext(process.command(), "1 2");
-            var context2 = new CommandContext(process.command(), "3 4");
+            var context1 = new CommandContext(process.command(), "1 2", CommandContext.Purpose.PARSING);
+            var context2 = new CommandContext(process.command(), "3 4", CommandContext.Purpose.PARSING);
 
             context1.setArg("first", 1, "1");
             context1.setArg("second", 2, "2");
@@ -130,15 +130,15 @@ public class CommandSyntaxSingleTest {
         // block enchant
         {
             var input = "minecraft:stone minecraft:allay";
-            var context = new CommandContext(process.command(), input);
+            var context = new CommandContext(process.command(), input, CommandContext.Purpose.PARSING);
             context.setArg("block", Block.STONE, "minecraft:stone");
             context.setArg("entity_type", EntityType.ALLAY, "minecraft:allay");
             assertSyntax(groupLoop, input, ExpectedExecution.SYNTAX, Map.of("loop", List.of(context)));
         }
         // enchant block block enchant
         {
-            var context1 = new CommandContext(process.command(), "minecraft:allay minecraft:stone");
-            var context2 = new CommandContext(process.command(), "minecraft:grass_block minecraft:zombie");
+            var context1 = new CommandContext(process.command(), "minecraft:allay minecraft:stone", CommandContext.Purpose.PARSING);
+            var context2 = new CommandContext(process.command(), "minecraft:grass_block minecraft:zombie", CommandContext.Purpose.PARSING);
 
             context1.setArg("entity_type", EntityType.ALLAY, "minecraft:allay");
             context1.setArg("block", Block.STONE, "minecraft:stone");

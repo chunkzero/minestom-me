@@ -11,6 +11,7 @@ import net.minestom.server.advancements.AdvancementTab;
 import net.minestom.server.advancements.FrameType;
 import net.minestom.server.adventure.audience.PacketGroupingAudience;
 import net.minestom.server.command.builder.Command;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.damage.Damage;
 import net.minestom.server.entity.damage.DamageType;
@@ -51,6 +52,64 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProcessGameplayOwnershipTest {
+    @Test
+    void bossBarPacketsAreGroupedWithinEachProcess() {
+        try (var pair = new ServerProcessPair(); var a = Env.create(pair.first()); var b = Env.create(pair.second())) {
+            var ac = a.createConnection();
+            var ac2 = a.createConnection();
+            var bc = b.createConnection();
+            var bc2 = b.createConnection();
+            var ai = a.createEmptyInstance();
+            var bi = b.createEmptyInstance();
+            var first = ac.connect(ai, Pos.ZERO);
+            var firstOther = ac2.connect(ai, Pos.ZERO);
+            var second = bc.connect(bi, Pos.ZERO);
+            var secondOther = bc2.connect(bi, Pos.ZERO);
+            var packetsA = ac.trackIncoming(BossBarPacket.class);
+            var packetsA2 = ac2.trackIncoming(BossBarPacket.class);
+            var packetsB = bc.trackIncoming(BossBarPacket.class);
+            var packetsB2 = bc2.trackIncoming(BossBarPacket.class);
+            var bar = BossBar.bossBar(Component.text("grouped"), 1, BossBar.Color.BLUE, BossBar.Overlay.PROGRESS);
+            var audience = PacketGroupingAudience.of(List.of(first, second, firstOther, secondOther));
+            audience.showBossBar(bar);
+            audience.hideBossBar(bar);
+            var firstPackets = packetsA.collect();
+            var firstOtherPackets = packetsA2.collect();
+            var secondPackets = packetsB.collect();
+            var secondOtherPackets = packetsB2.collect();
+            assertEquals(2, firstPackets.size());
+            assertEquals(2, firstOtherPackets.size());
+            assertEquals(2, secondPackets.size());
+            assertEquals(2, secondOtherPackets.size());
+            for (int i = 0; i < 2; i++) {
+                assertSame(firstPackets.get(i), firstOtherPackets.get(i));
+                assertSame(secondPackets.get(i), secondOtherPackets.get(i));
+                assertNotEquals(firstPackets.get(i).uuid(), secondPackets.get(i).uuid());
+            }
+            assertTrue(a.process().bossBar().getBossBarViewers(bar).isEmpty());
+            assertTrue(b.process().bossBar().getBossBarViewers(bar).isEmpty());
+        }
+    }
+
+    @Test
+    void buildersCannotRegisterDuplicateTeamNames() {
+        try (var pair = new ServerProcessPair(); var env = Env.create(pair.first())) {
+            var connection = env.createConnection();
+            connection.connect(env.createEmptyInstance(), Pos.ZERO);
+            var packets = connection.trackIncoming(TeamsPacket.class);
+            var manager = env.process().team();
+            var first = manager.createBuilder("same");
+            var second = manager.createBuilder("same");
+            var team = first.build();
+            assertThrows(IllegalArgumentException.class, second::build);
+            assertSame(team, manager.getTeam("same"));
+            assertSame(team, manager.createTeam("same"));
+            assertEquals(Set.of(team), manager.getTeams());
+            packets.assertSingle();
+            assertTrue(pair.second().team().getTeams().isEmpty());
+        }
+    }
+
     @Test
     void commandEventsVisibilitySelectorsAndBroadcastsUseTheOwner() {
         try (var pair = new ServerProcessPair(); var a = Env.create(pair.first()); var b = Env.create(pair.second())) {
@@ -95,13 +154,21 @@ class ProcessGameplayOwnershipTest {
             var visible = new Command("visible");
             visible.setCondition((_, context) -> {
                 assertEquals("", context.getInput());
+                assertEquals(CommandContext.Purpose.DECLARATION, context.purpose());
+                assertFalse(context.has("declaration-state"));
+                context.setArg("declaration-state", true, "");
                 return context.process() == b.process();
             });
-            a.process().command().register(visible);
-            b.process().command().register(visible);
+            var otherVisible = new Command("visible-other");
+            otherVisible.setCondition(visible.getCondition());
+            a.process().command().register(visible, otherVisible);
+            b.process().command().register(visible, otherVisible);
             assertFalse(a.process().command().createDeclareCommandsPacket(first).nodes().stream().anyMatch(node -> "visible".equals(node.name)));
             assertTrue(b.process().command().createDeclareCommandsPacket(second).nodes().stream().anyMatch(node -> "visible".equals(node.name)));
             assertEquals(List.of(first), finder.find(a.process(), a.process().command().getConsoleSender()));
+            assertEquals(List.of(first), finder.find(first));
+            assertSame(first, finder.findFirstPlayer(first));
+            assertSame(first, finder.findFirstEntity(first));
             finder.setTargetSelector(EntityFinder.TargetSelector.MINESTOM_USERNAME).setConstantName("SameName");
             assertEquals(List.of(second), finder.find(b.process(), b.process().command().getConsoleSender()));
             assertThrows(IllegalArgumentException.class, () -> finder.find(a.process(), second));

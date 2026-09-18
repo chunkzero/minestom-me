@@ -22,6 +22,7 @@ import net.minestom.server.utils.PacketSendingUtils;
 import net.minestom.server.utils.validate.Check;
 
 import java.util.Collection;
+import java.util.stream.Collectors;
 
 /**
  * An audience implementation that sends grouped packets if possible.
@@ -87,12 +88,14 @@ public interface PacketGroupingAudience extends ForwardingAudience {
 
     @Override
     default void showBossBar(BossBar bar) {
-        getPlayers().forEach(player -> player.showBossBar(bar));
+        getPlayers().stream().collect(Collectors.groupingBy(Player::process))
+                .forEach((process, players) -> process.bossBar().addBossBar(players, bar));
     }
 
     @Override
     default void hideBossBar(BossBar bar) {
-        getPlayers().forEach(player -> player.hideBossBar(bar));
+        getPlayers().stream().collect(Collectors.groupingBy(Player::process))
+                .forEach((process, players) -> process.bossBar().removeBossBar(players, bar));
     }
 
     /**

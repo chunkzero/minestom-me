@@ -48,6 +48,9 @@ sealed interface Graph permits GraphImpl {
         @UnknownNullability Execution execution();
 
         List<Node> next();
+
+        /** Allows callbacks on a shared prefix when at least one of its syntaxes is available. */
+        @Nullable CommandCondition callbackCondition();
     }
 
     sealed interface Execution extends BiPredicate<CommandSender, CommandContext> permits GraphImpl.ExecutionImpl {
