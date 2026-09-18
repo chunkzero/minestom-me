@@ -21,6 +21,7 @@ import net.minestom.server.item.component.CustomModelData;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.RegistryTranscoder;
+import net.minestom.server.tag.ContextualTag;
 import net.minestom.server.tag.Tag;
 import net.minestom.server.tag.TagReadable;
 import net.minestom.server.utils.Unit;
@@ -265,6 +266,11 @@ public sealed interface ItemStack extends TagReadable, DataComponent.Holder, Hov
         return with(DataComponents.MAX_STACK_SIZE, maxStackSize);
     }
 
+    @Contract(value = "_, _, _ -> new", pure = true)
+    default <T> ItemStack withTag(ContextualTag<T> tag, @Nullable T value, Registries registries) {
+        return with(DataComponents.CUSTOM_DATA, get(DataComponents.CUSTOM_DATA, CustomData.EMPTY).withTag(tag, value, registries));
+    }
+
     @Contract(value = "_, _ -> new", pure = true)
     default <T> ItemStack withTag(Tag<T> tag, @Nullable T value) {
         return with(DataComponents.CUSTOM_DATA, get(DataComponents.CUSTOM_DATA, CustomData.EMPTY).withTag(tag, value));
@@ -415,6 +421,13 @@ public sealed interface ItemStack extends TagReadable, DataComponent.Holder, Hov
 
         @Contract(value = "_, _ -> this")
         <T> Builder set(Tag<T> tag, @Nullable T value);
+
+        @Contract(value = "_, _, _ -> this")
+        <T> Builder set(ContextualTag<T> tag, @Nullable T value, Registries registries);
+
+        default <T> void setTag(ContextualTag<T> tag, @Nullable T value, Registries registries) {
+            set(tag, value, registries);
+        }
 
         default <T> void setTag(Tag<T> tag, @Nullable T value) {
             set(tag, value);

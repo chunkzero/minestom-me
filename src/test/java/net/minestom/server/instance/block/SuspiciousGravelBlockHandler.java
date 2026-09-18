@@ -2,6 +2,7 @@ package net.minestom.server.instance.block;
 
 import net.kyori.adventure.key.Key;
 import net.minestom.server.item.ItemStack;
+import net.minestom.server.tag.ContextualTag;
 import net.minestom.server.tag.Tag;
 
 import java.util.Collection;
@@ -12,8 +13,7 @@ public class SuspiciousGravelBlockHandler implements BlockHandler {
     public static final SuspiciousGravelBlockHandler INSTANCE_NO_TAGS = new SuspiciousGravelBlockHandler(false);
 
     public static final Tag<String> LOOT_TABLE = Tag.String("LootTable");
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    public static final Tag<ItemStack> ITEM = Tag.ItemStack("item");
+    public static final ContextualTag<ItemStack> ITEM = Tag.ItemStack("item");
 
     private final boolean hasTags;
 
@@ -28,6 +28,6 @@ public class SuspiciousGravelBlockHandler implements BlockHandler {
 
     @Override
     public Collection<Tag<?>> getBlockEntityTags() {
-        return hasTags ? List.of(LOOT_TABLE, ITEM) : List.of();
+        return hasTags ? List.of(LOOT_TABLE, ITEM.asNbt()) : List.of();
     }
 }

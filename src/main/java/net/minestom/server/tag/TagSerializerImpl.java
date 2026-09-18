@@ -9,7 +9,7 @@ final class TagSerializerImpl {
     public static final TagSerializer<CompoundBinaryTag> COMPOUND = new TagSerializer<>() {
         @Override
         public CompoundBinaryTag read(TagReadable reader) {
-            return ((TagHandler) reader).asCompound();
+            return (CompoundBinaryTag) reader.getTag(Tag.NBT(""));
         }
 
         @Override

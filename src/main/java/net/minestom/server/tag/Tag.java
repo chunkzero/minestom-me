@@ -58,22 +58,12 @@ public sealed interface Tag<T extends @UnknownNullability Object> permits TagImp
         return TagImpl.tag(key, Serializers.UUID);
     }
 
-    /**
-     * @deprecated Default-process serialization is scheduled for deletion. Registry-dependent tags
-     * must acquire explicit registry context in the serialization migration.
-     */
-    @Deprecated(forRemoval = true)
-    static Tag<ItemStack> ItemStack(String key) {
-        return TagImpl.tag(key, Serializers.ITEM);
+    static ContextualTag<ItemStack> ItemStack(String key) {
+        return ContextualTagImpl.create(key, Serializers.ITEM_READER, Serializers.ITEM_WRITER);
     }
 
-    /**
-     * @deprecated Default-process serialization is scheduled for deletion. Registry-dependent tags
-     * must acquire explicit registry context in the serialization migration.
-     */
-    @Deprecated(forRemoval = true)
-    static Tag<Component> Component(String key) {
-        return TagImpl.tag(key, Serializers.COMPONENT);
+    static ContextualTag<Component> Component(String key) {
+        return ContextualTagImpl.create(key, Serializers.COMPONENT_READER, Serializers.COMPONENT_WRITER);
     }
 
     /**
@@ -108,11 +98,16 @@ public sealed interface Tag<T extends @UnknownNullability Object> permits TagImp
         return Structure("", serializer);
     }
 
+    /**
+     * Creates an ordinary record tag. Contextual fields, including in nested records, are rejected.
+     * Use {@link ContextualTag#Structure(String, Class)} for records containing items or components.
+     */
     @ApiStatus.Experimental
     static <T extends Record> Tag<T> Structure(String key, Class<T> type) {
         return Structure(key, TagRecord.serializer(type));
     }
 
+    /** Ordinary record view; contextual fields require {@link ContextualTag#View(Class)}. */
     @ApiStatus.Experimental
     static <T extends Record> Tag<T> View(Class<T> type) {
         return View(TagRecord.serializer(type));

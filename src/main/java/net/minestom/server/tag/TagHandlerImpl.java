@@ -10,7 +10,6 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
 import java.lang.invoke.VarHandle;
-import java.util.Map;
 import java.util.function.UnaryOperator;
 
 final class TagHandlerImpl implements TagHandler {
@@ -112,9 +111,9 @@ final class TagHandlerImpl implements TagHandler {
         TagImpl<T> tagImpl = (TagImpl<T>) tag;
         final Node node = traversePathWrite(root, tag, true);
         if (tag.isView()) {
-            final T previousValue = tag.read(node.compound());
+            final T previousValue = tagImpl.readValue(node.compound());
             final T newValue = value.apply(previousValue);
-            node.updateContent((CompoundBinaryTag) tagImpl.entry().write(newValue));
+            node.updateContent(newValue == null ? CompoundBinaryTag.empty() : (CompoundBinaryTag) tagImpl.entry().write(newValue));
             node.invalidate();
             return returnPrevious ? previousValue : newValue;
         }
@@ -124,16 +123,13 @@ final class TagHandlerImpl implements TagHandler {
 
         final Entry<?> previousEntry = entries.get(tagIndex);
         final T previousValue;
-        if (previousEntry != null) {
-            final Object previousTmp = previousEntry.value;
-            if (previousTmp instanceof Node n) {
-                final CompoundBinaryTag compound = CompoundBinaryTag.from(Map.of(tag.key(), n.compound()));
-                previousValue = tag.read(compound);
-            } else {
-                previousValue = (T) previousTmp;
-            }
-        } else {
+        if (previousEntry == null) {
             previousValue = tag.createDefault();
+        } else if (previousEntry.tag.shareValue(tag)) {
+            previousValue = (T) previousEntry.value;
+        } else {
+            final T decoded = tagImpl.entry().read(previousEntry.updatedNbt());
+            previousValue = decoded != null ? decoded : tag.createDefault();
         }
         final T newValue = value.apply(previousValue);
         if (newValue != null) entries.put(tagIndex, valueToEntry(node, tag, newValue));
@@ -162,6 +158,7 @@ final class TagHandlerImpl implements TagHandler {
     @Override
     public synchronized void updateContent(CompoundBinaryTag compound) {
         this.root.updateContent(compound);
+        this.copy = null;
     }
 
     @Override
@@ -259,9 +256,8 @@ final class TagHandlerImpl implements TagHandler {
             final Node node = traversePathRead(this, tag);
             if (node == null)
                 return tag.createDefault(); // Must be a path-able entry, but not present
-            if (tag.isView()) return tag.read(node.compound());
-
             final TagImpl<T> tagImpl = (TagImpl<T>) tag;
+            if (tag.isView()) return tagImpl.readValue(node.compound());
             final StaticIntMap<Entry<?>> entries = node.entries;
             final Entry<?> entry = entries.get(tagImpl.index());
             if (entry == null)

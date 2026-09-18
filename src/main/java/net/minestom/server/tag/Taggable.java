@@ -1,5 +1,6 @@
 package net.minestom.server.tag;
 
+import net.minestom.server.registry.Registries;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
@@ -8,6 +9,11 @@ import java.util.function.UnaryOperator;
 public interface Taggable extends TagReadable, TagWritable {
 
     TagHandler tagHandler();
+
+    @Override
+    default Registries tagRegistries() {
+        return tagHandler().tagRegistries();
+    }
 
     @Override
     default <T> @UnknownNullability T getTag(Tag<T> tag) {

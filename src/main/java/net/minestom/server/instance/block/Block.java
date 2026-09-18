@@ -17,9 +17,11 @@ import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.batch.Batch;
 import net.minestom.server.item.Material;
 import net.minestom.server.network.NetworkBuffer;
+import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.Registry;
 import net.minestom.server.registry.RegistryData;
 import net.minestom.server.registry.StaticProtocolObject;
+import net.minestom.server.tag.ContextualTag;
 import net.minestom.server.tag.Tag;
 import net.minestom.server.tag.TagReadable;
 import org.jetbrains.annotations.Contract;
@@ -133,6 +135,9 @@ public sealed interface Block extends StaticProtocolObject<Block>, TagReadable, 
      */
     @Contract(pure = true)
     <T> Block withTag(Tag<T> tag, @Nullable T value);
+
+    @Contract(pure = true)
+    <T> Block withTag(ContextualTag<T> tag, @Nullable T value, Registries registries);
 
     /**
      * Creates a new block with different nbt data.

@@ -2,8 +2,6 @@ package net.minestom.server.tag;
 
 import net.kyori.adventure.nbt.CompoundBinaryTag;
 import net.minestom.server.adventure.MinestomAdventure;
-import net.minestom.server.item.ItemStack;
-import net.minestom.server.item.Material;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -109,16 +107,6 @@ public class TagTest {
 
         assertNull(handler.getTag(tag2));
         assertEquals("hey", handler.getTag(tag2.defaultValue("hey")));
-    }
-
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    @Test
-    public void item() {
-        var item = ItemStack.of(Material.DIAMOND);
-        var tag = Tag.ItemStack("item");
-        var handler = TagHandler.newHandler();
-        handler.setTag(tag, item);
-        assertEquals(item, handler.getTag(tag));
     }
 
     @Test

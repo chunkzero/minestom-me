@@ -932,6 +932,49 @@
       ]
     },
     {
+      "type": "net.minestom.server.tag.ProcessContextualTagTest$Reward",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "net.minestom.server.item.ItemStack",
+            "net.kyori.adventure.text.Component"
+          ]
+        },
+        {
+          "name": "item",
+          "parameterTypes": []
+        },
+        {
+          "name": "title",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.minestom.server.tag.ProcessContextualTagTest$Envelope",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "net.minestom.server.tag.ProcessContextualTagTest$Reward",
+            "net.minestom.server.coordinate.Vec"
+          ]
+        },
+        {
+          "name": "reward",
+          "parameterTypes": []
+        },
+        {
+          "name": "position",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.minestom.server.tag.ProcessContextualTagTest$Recursive"
+    },
+    {
       "type": "net.minestom.server.tag.TagRecordTest$1ArrayRecord"
     },
     {

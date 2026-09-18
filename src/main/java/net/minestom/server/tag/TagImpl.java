@@ -146,6 +146,16 @@ record TagImpl<T>(int index, String key,
 
     @Override
     public @Nullable T read(CompoundBinaryTag nbt) {
+        if (path != null) {
+            for (PathEntry element : path) {
+                if (!(nbt.get(element.name()) instanceof CompoundBinaryTag child)) return createDefault();
+                nbt = child;
+            }
+        }
+        return readValue(nbt);
+    }
+
+    @Nullable T readValue(CompoundBinaryTag nbt) {
         final BinaryTag readable = isView() ? nbt : nbt.get(key);
         final T result;
         try {
@@ -159,6 +169,13 @@ record TagImpl<T>(int index, String key,
 
     @Override
     public void write(CompoundBinaryTag.Builder nbtCompound, @Nullable T value) {
+        if (path != null) {
+            var handler = TagHandler.fromCompound(nbtCompound.build());
+            handler.setTag(this, value);
+            nbtCompound.build().keySet().forEach(nbtCompound::remove);
+            nbtCompound.put(handler.asCompound());
+            return;
+        }
         if (value != null) {
             final BinaryTag nbt = entry.write(value);
             if (isView()) nbtCompound.put((CompoundBinaryTag) nbt);

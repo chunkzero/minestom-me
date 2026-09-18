@@ -11,6 +11,7 @@ import net.minestom.server.item.component.TooltipDisplay;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.RegistryTranscoder;
+import net.minestom.server.tag.ContextualTag;
 import net.minestom.server.tag.Tag;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
@@ -214,6 +215,12 @@ record ItemStackImpl(Material material, int amount, DataComponentMap componentPa
         @Override
         public ItemStack.Builder remove(DataComponent<?> component) {
             components.remove(component);
+            return this;
+        }
+
+        @Override
+        public <T> ItemStack.Builder set(ContextualTag<T> tag, @Nullable T value, Registries registries) {
+            components.set(DataComponents.CUSTOM_DATA, components.get(DataComponents.CUSTOM_DATA, CustomData.EMPTY).withTag(tag, value, registries));
             return this;
         }
 

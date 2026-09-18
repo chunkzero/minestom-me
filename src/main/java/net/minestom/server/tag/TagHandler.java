@@ -1,6 +1,7 @@
 package net.minestom.server.tag;
 
 import net.kyori.adventure.nbt.CompoundBinaryTag;
+import net.minestom.server.registry.Registries;
 
 /**
  * Represents an element which can read and write {@link Tag tags}.
@@ -42,6 +43,19 @@ public interface TagHandler extends TagReadable, TagWritable {
      * @return a nbt compound representation of this handler
      */
     CompoundBinaryTag asCompound();
+
+    @Override
+    default TagHandler withRegistries(Registries registries) {
+        return new TagAccessors.Handler(this, registries);
+    }
+
+    static TagHandler newHandler(Registries registries) {
+        return newHandler().withRegistries(registries);
+    }
+
+    static TagHandler fromCompound(CompoundBinaryTag compound, Registries registries) {
+        return fromCompound(compound).withRegistries(registries);
+    }
 
     static TagHandler newHandler() {
         return new TagHandlerImpl();

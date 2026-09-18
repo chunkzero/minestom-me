@@ -13,15 +13,16 @@ import net.kyori.adventure.nbt.LongBinaryTag;
 import net.kyori.adventure.nbt.ShortBinaryTag;
 import net.kyori.adventure.nbt.StringBinaryTag;
 import net.kyori.adventure.text.Component;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.Transcoder;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.property.ServerProperties;
+import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.RegistryTranscoder;
 import net.minestom.server.utils.UUIDUtils;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
@@ -39,17 +40,13 @@ final class Serializers {
     static final Entry<BinaryTag, BinaryTag> NBT_ENTRY = new Entry<>(null, Function.identity(), Function.identity());
 
     static final Entry<java.util.UUID, IntArrayBinaryTag> UUID = new Entry<>(BinaryTagTypes.INT_ARRAY, UUIDUtils::fromNbt, UUIDUtils::toNbt);
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    static final Entry<ItemStack, CompoundBinaryTag> ITEM = new Entry<>(BinaryTagTypes.COMPOUND,
-            input -> ItemStack.fromItemNBT(input, MinecraftServer.getRegistries()),
-            itemStack -> itemStack.toItemNBT(MinecraftServer.getRegistries()));
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    static final Entry<Component, BinaryTag> COMPONENT = new Entry<>(null,
-            input -> Codec.COMPONENT.decode(
-                    new RegistryTranscoder<>(Transcoder.NBT, MinecraftServer.getRegistries()), input).orElse(null),
-            component -> Codec.COMPONENT.encode(
-                    new RegistryTranscoder<>(Transcoder.NBT, MinecraftServer.getRegistries()), component).orElse(null)
-    );
+    static final BiFunction<BinaryTag, Registries, ItemStack> ITEM_READER = (input, registries) ->
+            input instanceof CompoundBinaryTag compound ? ItemStack.fromItemNBT(compound, registries) : null;
+    static final BiFunction<ItemStack, Registries, BinaryTag> ITEM_WRITER = ItemStack::toItemNBT;
+    static final BiFunction<BinaryTag, Registries, Component> COMPONENT_READER = (input, registries) ->
+            Codec.COMPONENT.decode(new RegistryTranscoder<>(Transcoder.NBT, registries), input).orElse(null);
+    static final BiFunction<Component, Registries, BinaryTag> COMPONENT_WRITER = (component, registries) ->
+            Codec.COMPONENT.encode(new RegistryTranscoder<>(Transcoder.NBT, registries), component).orElseThrow();
 
     static final Entry<Object, ByteBinaryTag> EMPTY = new Entry<>(BinaryTagTypes.BYTE, _ -> null, _ -> null);
 

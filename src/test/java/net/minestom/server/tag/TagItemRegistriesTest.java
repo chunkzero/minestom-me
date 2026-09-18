@@ -2,8 +2,8 @@ package net.minestom.server.tag;
 
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
-import net.minestom.testing.Env;
-import net.minestom.testing.EnvTest;
+import net.minestom.server.registry.Registries;
+import net.minestom.testing.RegistriesTest;
 import org.junit.jupiter.api.Test;
 
 import java.lang.ref.WeakReference;
@@ -13,36 +13,33 @@ import static net.minestom.testing.TestUtils.waitUntilCleared;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-@EnvTest
-public class TagItemIntegrationTest {
+@RegistriesTest
+public class TagItemRegistriesTest {
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
-    public void get() {
+    public void get(Registries registries) {
         var item = ItemStack.of(Material.DIAMOND);
         var tag = Tag.ItemStack("item");
-        var handler = TagHandler.newHandler();
+        var handler = TagHandler.newHandler(registries);
         handler.setTag(tag, item);
 
         assertEquals(item, handler.getTag(tag));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
-    public void getDifferentObject() {
+    public void getDifferentObject(Registries registries) {
         var item = ItemStack.of(Material.DIAMOND);
-        var handler = TagHandler.newHandler();
+        var handler = TagHandler.newHandler(registries);
         handler.setTag(Tag.ItemStack("item"), item);
 
         assertEquals(item, handler.getTag(Tag.ItemStack("item")));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
-    public void remove() {
+    public void remove(Registries registries) {
         var item = ItemStack.of(Material.DIAMOND);
         var tag = Tag.ItemStack("item");
-        var handler = TagHandler.newHandler();
+        var handler = TagHandler.newHandler(registries);
         handler.setTag(tag, item);
         assertEquals(item, handler.getTag(tag));
 
@@ -50,12 +47,11 @@ public class TagItemIntegrationTest {
         assertNull(handler.getTag(tag));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
-    public void gc() {
+    public void gc(Registries registries) {
         var item = ItemStack.of(Material.DIAMOND);
         var tag = Tag.ItemStack("item");
-        var handler = TagHandler.newHandler();
+        var handler = TagHandler.newHandler(registries);
         handler.setTag(tag, item);
         assertEquals(item, handler.getTag(tag));
         handler.setTag(tag, null);
@@ -66,12 +62,11 @@ public class TagItemIntegrationTest {
         waitUntilCleared(ref);
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
-    public void invalidation() {
+    public void invalidation(Registries registries) {
         var item = ItemStack.of(Material.DIAMOND);
         var item2 = ItemStack.of(Material.DIAMOND, 2);
-        var handler = TagHandler.newHandler();
+        var handler = TagHandler.newHandler(registries);
 
         var tag = Tag.ItemStack("item");
         handler.setTag(tag, item);
@@ -80,12 +75,11 @@ public class TagItemIntegrationTest {
         assertEquals(item2, handler.getTag(tag));
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
-    public void differentTagInvalidation(Env env) {
+    public void differentTagInvalidation(Registries registries) {
         var item = ItemStack.of(Material.DIAMOND);
         var item2 = ItemStack.of(Material.DIAMOND, 2);
-        var handler = TagHandler.newHandler();
+        var handler = TagHandler.newHandler(registries);
 
         var itemTag = Tag.ItemStack("item");
         var nbtTag = Tag.NBT("item");
@@ -93,20 +87,19 @@ public class TagItemIntegrationTest {
         {
             handler.setTag(itemTag, item);
             assertEquals(item, handler.getTag(itemTag));
-            assertEquals(item.toItemNBT(env.process().registries()), handler.getTag(nbtTag));
+            assertEquals(item.toItemNBT(registries), handler.getTag(nbtTag));
         }
         // Override it with an NBT tag
         {
-            handler.setTag(nbtTag, item2.toItemNBT(env.process().registries()));
+            handler.setTag(nbtTag, item2.toItemNBT(registries));
             assertEquals(item2, handler.getTag(itemTag));
-            assertEquals(item2.toItemNBT(env.process().registries()), handler.getTag(nbtTag));
+            assertEquals(item2.toItemNBT(registries), handler.getTag(nbtTag));
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
-    public void snbt(Env env) {
-        var handler = TagHandler.newHandler();
+    public void snbt(Registries registries) {
+        var handler = TagHandler.newHandler(registries);
         var tag = Tag.ItemStack("item");
         handler.setTag(tag, ItemStack.of(Material.DIAMOND));
         assertEqualsSNBT("""
