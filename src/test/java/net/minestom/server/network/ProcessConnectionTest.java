@@ -17,8 +17,10 @@ import net.minestom.server.instance.Instance;
 import net.minestom.server.network.packet.PacketWriting;
 import net.minestom.server.network.packet.client.common.ClientPingRequestPacket;
 import net.minestom.server.network.packet.client.common.ClientSettingsPacket;
+import net.minestom.server.network.packet.client.handshake.ClientHandshakePacket;
 import net.minestom.server.network.packet.client.play.ClientConfigurationAckPacket;
 import net.minestom.server.network.packet.client.play.ClientPlayerLoadedPacket;
+import net.minestom.server.network.packet.client.status.StatusRequestPacket;
 import net.minestom.server.network.packet.server.ServerPacket;
 import net.minestom.server.network.packet.server.common.DisconnectPacket;
 import net.minestom.server.network.packet.server.common.PingResponsePacket;
@@ -32,6 +34,7 @@ import net.minestom.server.network.packet.server.play.JoinGamePacket;
 import net.minestom.server.network.packet.server.play.PlayerInfoUpdatePacket;
 import net.minestom.server.network.packet.server.play.ServerDifficultyPacket;
 import net.minestom.server.network.packet.server.play.StartConfigurationPacket;
+import net.minestom.server.network.packet.server.status.ResponsePacket;
 import net.minestom.server.network.player.ClientSettings;
 import net.minestom.server.network.player.GameProfile;
 import net.minestom.server.network.player.PlayerSocketConnection;
@@ -40,6 +43,7 @@ import net.minestom.server.world.DimensionType;
 import net.minestom.testing.ServerProcessPair;
 import org.junit.jupiter.api.Test;
 
+import java.io.EOFException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
@@ -60,9 +64,30 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class ProcessConnectionIntegrationTest {
+class ProcessConnectionTest {
+    @Test
+    void closingAProcessClosesSocketsWithoutPlayersAndLeavesOtherProcessesListening() throws Exception {
+        try (var pair = new ServerProcessPair()) {
+            pair.first().start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+            pair.second().start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+            try (var first = new ProtocolClient(pair.first()); var second = new ProtocolClient(pair.second())) {
+                first.handshake("localhost", ClientHandshakePacket.Intent.STATUS);
+                second.handshake("localhost", ClientHandshakePacket.Intent.STATUS);
+                first.send(new StatusRequestPacket());
+                second.send(new StatusRequestPacket());
+                assertInstanceOf(ResponsePacket.class, first.read());
+                assertInstanceOf(ResponsePacket.class, second.read());
+                pair.first().close();
+                assertThrows(EOFException.class, first::read);
+                second.send(new ClientPingRequestPacket(123));
+                assertEquals(new PingResponsePacket(123), second.read());
+            }
+        }
+    }
+
     @Test
     void reconfigurationAcknowledgementChangesStateBeforeTheNextSocketRead() throws Exception {
         try (var pair = new ServerProcessPair();

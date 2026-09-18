@@ -1,5 +1,6 @@
 package net.minestom.server.adventure.provider;
 
+import net.kyori.adventure.text.flattener.ComponentFlattener;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 import java.util.function.Consumer;
@@ -10,7 +11,7 @@ public final class MinestomLegacyComponentSerializerProvider implements LegacyCo
     public LegacyComponentSerializer legacyAmpersand() {
         return LegacyComponentSerializer.builder()
                 .character(LegacyComponentSerializer.AMPERSAND_CHAR)
-                .flattener(MinestomFlattenerProvider.INSTANCE)
+                .flattener(ComponentFlattener.basic())
                 .build();
     }
 
@@ -18,13 +19,12 @@ public final class MinestomLegacyComponentSerializerProvider implements LegacyCo
     public LegacyComponentSerializer legacySection() {
         return LegacyComponentSerializer.builder()
                 .character(LegacyComponentSerializer.SECTION_CHAR)
-                .flattener(MinestomFlattenerProvider.INSTANCE)
+                .flattener(ComponentFlattener.basic())
                 .build();
     }
 
     @Override
     public Consumer<LegacyComponentSerializer.Builder> legacy() {
-        // we will provide our flattener to allow for custom translations/etc
-        return builder -> builder.flattener(MinestomFlattenerProvider.INSTANCE);
+        return builder -> builder.flattener(ComponentFlattener.basic());
     }
 }

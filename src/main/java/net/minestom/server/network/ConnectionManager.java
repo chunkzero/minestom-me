@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -44,6 +45,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -201,10 +203,19 @@ public final class ConnectionManager {
     public Player createPlayer(PlayerConnection connection, GameProfile gameProfile) {
         Check.argCondition(connection.process() != process, "Connection belongs to another process");
         assert ServerProperties.INSIDE_TEST.get() || Thread.currentThread().isVirtual();
+        synchronized (this) {
+            Check.stateCondition(shuttingDown || !connection.isOnline(), "Connection manager or connection is closed");
+        }
         final Player player = playerProvider.createPlayer(connection, gameProfile);
         Check.argCondition(player.process() != process || player.getPlayerConnection() != connection,
                 "Player provider returned a player for another connection");
-        this.connectionPlayerMap.put(connection, player);
+        synchronized (this) {
+            if (shuttingDown || !connection.isOnline()) {
+                player.scheduler().close();
+                throw new IllegalStateException("Connection manager or connection is closed");
+            }
+            this.connectionPlayerMap.put(connection, player);
+        }
         return player;
     }
 
@@ -241,9 +252,11 @@ public final class ConnectionManager {
         try {
             pluginMessageProcessor.awaitReplies(ServerProperties.LOGIN_PLUGIN_MESSAGE_TIMEOUT.get(), TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
+            if (!connection.isOnline()) return gameProfile;
             connection.kick(LoginListener.INVALID_PROXY_RESPONSE);
             throw new RuntimeException("Error getting replies for login plugin messages", t);
         }
+        if (!connection.isOnline()) return gameProfile;
         // Publish the final profile before the client could possibly respond
         if (connection instanceof PlayerSocketConnection socketConnection) {
             socketConnection.UNSAFE_setProfile(gameProfile);
@@ -254,9 +267,9 @@ public final class ConnectionManager {
     }
 
     @ApiStatus.Internal
-    public void transitionPlayToConfig(Player player) {
+    public synchronized void transitionPlayToConfig(Player player) {
         Check.argCondition(player.process() != process, "Player belongs to another process");
-        configWaitingPlayers.relaxedOffer(player);
+        if (!shuttingDown && player.isOnline()) configWaitingPlayers.relaxedOffer(player);
     }
 
     /**
@@ -266,9 +279,12 @@ public final class ConnectionManager {
     public void doConfiguration(Player player, boolean isFirstConfig) {
         Check.argCondition(player.process() != process, "Player belongs to another process");
         assert ServerProperties.INSIDE_TEST.get() || Thread.currentThread().isVirtual();
-        if (isFirstConfig) {
-            configurationPlayers.add(player);
-            keepAlivePlayers.add(player);
+        synchronized (this) {
+            if (shuttingDown || !player.isOnline()) return;
+            if (isFirstConfig) {
+                configurationPlayers.add(player);
+                keepAlivePlayers.add(player);
+            }
         }
         player.sendPacket(PluginMessagePacket.brandPacket(process().brandName()));
         // Request known packs immediately, but don't wait for the response until required (sending registry data).
@@ -296,9 +312,13 @@ public final class ConnectionManager {
                 LOGGER.warn("Player {} failed to respond to known packs query", player.getUsername());
                 player.getPlayerConnection().disconnect();
                 return;
+            } catch (CancellationException e) {
+                if (!player.isOnline()) return;
+                throw e;
             } catch (ExecutionException e) {
                 throw new RuntimeException("Error receiving known packs", e);
             }
+            if (!player.isOnline()) return;
             boolean excludeVanilla = knownPacks.contains(SelectKnownPacksPacket.MINECRAFT_CORE);
 
             Registries registries = process().registries();
@@ -310,7 +330,15 @@ public final class ConnectionManager {
 
         // Wait for pending resource packs if any
         var packFuture = player.getResourcePackFuture();
-        if (packFuture != null) packFuture.join();
+        if (packFuture != null) {
+            try {
+                packFuture.join();
+            } catch (CancellationException e) {
+                if (!player.isOnline()) return;
+                throw e;
+            }
+        }
+        if (!player.isOnline()) return;
 
         keepAlivePlayers.remove(player);
         player.setPendingOptions(spawningInstance, event.isHardcore());
@@ -318,9 +346,9 @@ public final class ConnectionManager {
     }
 
     @ApiStatus.Internal
-    public void transitionConfigToPlay(Player player) {
+    public synchronized void transitionConfigToPlay(Player player) {
         Check.argCondition(player.process() != process, "Player belongs to another process");
-        this.playWaitingPlayers.relaxedOffer(player);
+        if (!shuttingDown && player.isOnline()) this.playWaitingPlayers.relaxedOffer(player);
     }
 
     /**
@@ -379,12 +407,37 @@ public final class ConnectionManager {
             connections = List.copyOf(connectionPlayerMap.keySet());
         }
         // Disconnect callbacks may acquire tick threads; do not hold the manager lock here.
-        for (var connection : connections) connection.kick(SHUTDOWN_TEXT);
-        processRemovals();
+        var failures = new ArrayList<Throwable>();
+        for (var connection : connections) {
+            try {
+                connection.kick(SHUTDOWN_TEXT);
+            } catch (Throwable failure) {
+                failures.add(failure);
+            }
+        }
+        while (true) {
+            final Player player;
+            synchronized (this) {
+                player = pendingRemovals.poll();
+            }
+            if (player == null) break;
+            try {
+                removePlayerEntity(player);
+            } catch (Throwable failure) {
+                failures.add(failure);
+            }
+        }
+        this.playWaitingPlayers.clear();
+        this.configWaitingPlayers.clear();
         this.configurationPlayers.clear();
         this.playPlayers.clear();
         this.keepAlivePlayers.clear();
         this.connectionPlayerMap.clear();
+        if (!failures.isEmpty()) {
+            var failure = new IllegalStateException("Failed to disconnect all players cleanly");
+            failures.forEach(failure::addSuppressed);
+            throw failure;
+        }
     }
 
     public void tick(long tickStart) {

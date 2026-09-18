@@ -20,9 +20,9 @@ public class EntityEntityCollisionIntegrationTest {
             for (int j = -2; j <= 2; ++j)
                 instance.loadChunk(i, j).join();
 
-        var movingEntity = new Entity(EntityType.ZOMBIE);
-        var stillEntity = new Entity(EntityType.ZOMBIE);
-        var doNotHitEntity = new Entity(EntityType.ZOMBIE);
+        var movingEntity = new Entity(env.process(), EntityType.ZOMBIE);
+        var stillEntity = new Entity(env.process(), EntityType.ZOMBIE);
+        var doNotHitEntity = new Entity(env.process(), EntityType.ZOMBIE);
 
         movingEntity.setInstance(instance, new Vec(0, 42, 0)).join();
         stillEntity.setInstance(instance, new Vec(0, 42, 1)).join();
@@ -42,10 +42,10 @@ public class EntityEntityCollisionIntegrationTest {
             for (int j = -2; j <= 2; ++j)
                 instance.loadChunk(i, j).join();
 
-        var movingEntity = new Entity(EntityType.ZOMBIE);
-        var stillEntity = new Entity(EntityType.ZOMBIE);
-        var stillEntity2 = new Entity(EntityType.ZOMBIE);
-        var doNotHitEntity = new Entity(EntityType.ZOMBIE);
+        var movingEntity = new Entity(env.process(), EntityType.ZOMBIE);
+        var stillEntity = new Entity(env.process(), EntityType.ZOMBIE);
+        var stillEntity2 = new Entity(env.process(), EntityType.ZOMBIE);
+        var doNotHitEntity = new Entity(env.process(), EntityType.ZOMBIE);
 
         movingEntity.setInstance(instance, new Vec(0, 42, 0)).join();
         stillEntity.setInstance(instance, new Vec(0, 42, 1)).join();
@@ -62,8 +62,8 @@ public class EntityEntityCollisionIntegrationTest {
         var instance = env.createFlatInstance();
         instance.loadChunk(0, 0).join();
 
-        var movingEntity = new Entity(EntityType.ZOMBIE);
-        var stillEntity = new Entity(EntityType.ZOMBIE);
+        var movingEntity = new Entity(env.process(), EntityType.ZOMBIE);
+        var stillEntity = new Entity(env.process(), EntityType.ZOMBIE);
         movingEntity.setInstance(instance, new Vec(0, 42, 0)).join();
         stillEntity.setInstance(instance, new Vec(0, 42, 2)).join();
 

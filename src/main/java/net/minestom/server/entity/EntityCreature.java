@@ -1,6 +1,5 @@
 package net.minestom.server.entity;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.ai.EntityAI;
@@ -33,14 +32,6 @@ public class EntityCreature extends LivingEntity implements NavigableEntity, Ent
 
     private Entity target;
 
-    /**
-     * Constructor which allows to specify an UUID. Only use if you know what you are doing!
-     */
-    @SuppressWarnings("removal") // Temporary default-process constructor.
-    public EntityCreature(EntityType entityType, UUID uuid) {
-        this(MinecraftServer.process(), entityType, uuid);
-    }
-
     @SuppressWarnings("this-escape") // Entity initialization.
     public EntityCreature(ServerProcess process, EntityType entityType, UUID uuid) {
         super(process, entityType, uuid);
@@ -50,10 +41,6 @@ public class EntityCreature extends LivingEntity implements NavigableEntity, Ent
     /** Creates an ownerless creature builder using the destination instance's process. */
     public static EntityBuilder<? extends EntityCreature, ?> builder(EntityType entityType) {
         return Entity.builder(entityType, EntityCreature::new);
-    }
-
-    public EntityCreature(EntityType entityType) {
-        this(entityType, UUID.randomUUID());
     }
 
     public EntityCreature(ServerProcess process, EntityType entityType) {

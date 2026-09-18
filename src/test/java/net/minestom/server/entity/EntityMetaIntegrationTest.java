@@ -102,7 +102,7 @@ public class EntityMetaIntegrationTest {
         var incomingPackets = connection.trackIncoming(EntityMetaDataPacket.class);
 
         //Creates entity and name.
-        Entity entity = new Entity(EntityType.BEE);
+        Entity entity = new Entity(env.process(), EntityType.BEE);
         entity.setAutoViewable(false);
         entity.getEntityMeta().setNotifyAboutChanges(false);
         entity.setCustomName(Component.text("Custom Name"));
@@ -153,7 +153,7 @@ public class EntityMetaIntegrationTest {
         connection.connect(instance, startPos);
         var incomingPackets = connection.trackIncoming(EntityMetaDataPacket.class);
 
-        var entity = new Entity(EntityType.ITEM_DISPLAY);
+        var entity = new Entity(env.process(), EntityType.ITEM_DISPLAY);
         entity.setInstance(instance, startPos).join();
         var meta = (ItemDisplayMeta) entity.getEntityMeta();
 
@@ -182,7 +182,7 @@ public class EntityMetaIntegrationTest {
         connection.connect(instance, startPos);
         var incomingPackets = connection.trackIncoming(EntityMetaDataPacket.class);
 
-        var entity = new Entity(EntityType.MANNEQUIN);
+        var entity = new Entity(env.process(), EntityType.MANNEQUIN);
         var meta = (MannequinMeta) entity.getEntityMeta();
         Assertions.assertTrue(meta.isCapeEnabled());
         Assertions.assertEquals(0x7F, meta.getDisplayedSkinParts()); // all enabled

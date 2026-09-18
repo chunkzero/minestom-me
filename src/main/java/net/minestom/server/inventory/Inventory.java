@@ -11,7 +11,6 @@ import net.minestom.server.network.packet.server.play.WindowPropertyPacket;
 import net.minestom.server.utils.inventory.PlayerInventoryUtils;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Represents an inventory which can be viewed by a collection of {@link Player}.
@@ -20,8 +19,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * It can then be opened using {@link Player#openInventory(Inventory)}.
  */
 public non-sealed class Inventory extends AbstractInventory {
-    private static final AtomicInteger ID_COUNTER = new AtomicInteger();
-
     private final byte id;
     private final InventoryType inventoryType;
     private Component title;
@@ -31,7 +28,7 @@ public non-sealed class Inventory extends AbstractInventory {
     @SuppressWarnings("this-escape") // deliberate self registration during construction
     public Inventory(ServerProcess process, InventoryType inventoryType, Component title) {
         super(process, inventoryType.getSize());
-        this.id = generateId();
+        this.id = process.generateInventoryId();
         this.inventoryType = inventoryType;
         this.title = title;
 
@@ -40,10 +37,6 @@ public non-sealed class Inventory extends AbstractInventory {
 
     public Inventory(ServerProcess process, InventoryType inventoryType, String title) {
         this(process, inventoryType, Component.text(title));
-    }
-
-    private static byte generateId() {
-        return (byte) ID_COUNTER.updateAndGet(i -> i + 1 >= 128 ? 1 : i + 1);
     }
 
     /**

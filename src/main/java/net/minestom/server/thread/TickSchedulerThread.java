@@ -1,6 +1,5 @@
 package net.minestom.server.thread;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.property.ServerProperties;
 import org.jetbrains.annotations.ApiStatus;
@@ -16,7 +15,7 @@ public final class TickSchedulerThread extends MinestomThread {
     private final ServerProcess serverProcess;
 
     public TickSchedulerThread(ServerProcess serverProcess) {
-        super(MinecraftServer.THREAD_NAME_TICK_SCHEDULER + "-" + serverProcess.id());
+        super("Ms-TickScheduler-" + serverProcess.id());
         this.serverProcess = serverProcess;
     }
 

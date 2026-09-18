@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class ProcessAuthenticationIntegrationTest {
+class ProcessAuthenticationTest {
     @Test
     void onlineAndOfflineProcessesChooseTheirOwnLoginFlow() throws Exception {
         try (var pair = new ServerProcessPair(new Auth.Online(), new Auth.Offline())) {

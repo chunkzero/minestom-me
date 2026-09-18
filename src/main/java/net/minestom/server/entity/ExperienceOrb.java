@@ -1,6 +1,5 @@
 package net.minestom.server.entity;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.thread.Acquirable;
@@ -14,11 +13,6 @@ public class ExperienceOrb extends Entity {
     private short experienceCount;
     private @Nullable Player target;
     private long lastTargetUpdateTick;
-
-    @SuppressWarnings("removal") // Temporary default-process constructor.
-    public ExperienceOrb(short experienceCount) {
-        this(MinecraftServer.process(), experienceCount);
-    }
 
     @SuppressWarnings("this-escape") // Entity initialization.
     public ExperienceOrb(ServerProcess process, short experienceCount) {

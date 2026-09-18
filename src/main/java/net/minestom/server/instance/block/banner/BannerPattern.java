@@ -41,7 +41,7 @@ public sealed interface BannerPattern extends Holder.Direct<BannerPattern>, Bann
     /**
      * <p>Creates a new registry for banner patterns, loading the vanilla banner patterns.</p>
      *
-     * @see net.minestom.server.MinecraftServer to get an existing instance of the registry
+     * @see net.minestom.server.registry.Registries
      */
     @ApiStatus.Internal
     static DynamicRegistry<BannerPattern> createDefaultRegistry() {

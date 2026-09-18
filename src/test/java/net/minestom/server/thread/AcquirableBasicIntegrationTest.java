@@ -22,7 +22,7 @@ public class AcquirableBasicIntegrationTest {
     public void localTest(Env env) {
         var instance = env.createFlatInstance();
 
-        var zombie = new Entity(EntityType.ZOMBIE) {
+        var zombie = new Entity(env.process(), EntityType.ZOMBIE) {
             @Override
             public void tick(long time) {
                 super.tick(time);
@@ -48,7 +48,7 @@ public class AcquirableBasicIntegrationTest {
     public void ownedTest(Env env) {
         var instance = env.createFlatInstance();
 
-        var zombie = new Entity(EntityType.ZOMBIE) {
+        var zombie = new Entity(env.process(), EntityType.ZOMBIE) {
             @Override
             public void tick(long time) {
                 super.tick(time);
@@ -75,7 +75,7 @@ public class AcquirableBasicIntegrationTest {
         // Ensure that acquisition before and after initialization are properly handled
         var instance = env.createFlatInstance();
 
-        var zombie = new Entity(EntityType.ZOMBIE);
+        var zombie = new Entity(env.process(), EntityType.ZOMBIE);
         var acquirable = zombie.acquirable();
 
         zombie.setInstance(instance, new Pos(1, 41, 1)).join();
@@ -93,7 +93,7 @@ public class AcquirableBasicIntegrationTest {
     @Test
     public void acquireBeforeInit(Env env) throws InterruptedException {
         // Ensure that acquisition before initialization are properly handled
-        var zombie = new Entity(EntityType.ZOMBIE);
+        var zombie = new Entity(env.process(), EntityType.ZOMBIE);
         var acquirable = zombie.acquirable();
         CountDownLatch latch = new CountDownLatch(1);
         Thread.startVirtualThread(() -> assertThrows(IllegalStateException.class, () -> {

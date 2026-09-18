@@ -3,6 +3,7 @@ package net.minestom.server.timer;
 import net.minestom.server.ServerProcess;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.RejectedExecutionException;
@@ -68,12 +69,22 @@ public final class SchedulerManager implements Scheduler {
             shutdownTasks.clear();
         }
         scope.close();
+        var failures = new ArrayList<Throwable>();
         for (var callback : callbacks) {
             try {
                 callback.run();
             } catch (Throwable t) {
-                scope.handleException(new RuntimeException("Exception in shutdown task", t));
+                try {
+                    scope.handleException(new RuntimeException("Exception in shutdown task", t));
+                } catch (Throwable failure) {
+                    failures.add(failure);
+                }
             }
+        }
+        if (!failures.isEmpty()) {
+            var failure = new IllegalStateException("Failed to report shutdown callback failures");
+            failures.forEach(failure::addSuppressed);
+            throw failure;
         }
     }
 

@@ -1,6 +1,5 @@
 package net.minestom.server.thread;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.Tickable;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.instance.Chunk;
@@ -12,6 +11,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
@@ -25,6 +25,7 @@ import java.util.function.Consumer;
 @ApiStatus.Internal
 public class TickThread extends MinestomThread {
     private final ReentrantLock lock = new ReentrantLock();
+    final AtomicLong acquiringTime = new AtomicLong();
     private volatile boolean stop;
     private final Consumer<Throwable> exceptionHandler;
 
@@ -35,7 +36,7 @@ public class TickThread extends MinestomThread {
     final List<ThreadDispatcherImpl.Partition> entries = new ArrayList<>();
 
     public TickThread(int number) {
-        this(MinecraftServer.THREAD_NAME_TICK + "-" + number);
+        this("Ms-Tick-" + number);
     }
 
     public TickThread(String name) {

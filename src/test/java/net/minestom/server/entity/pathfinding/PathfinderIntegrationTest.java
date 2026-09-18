@@ -49,7 +49,7 @@ public class PathfinderIntegrationTest {
 
         ChunkRange.chunksInRange(0, 0, 10, (x, z) -> i.loadChunk(x, z).join());
 
-        var zombie = new LivingEntity(EntityType.ZOMBIE);
+        var zombie = new LivingEntity(env.process(), EntityType.ZOMBIE);
         zombie.setInstance(i, new Pos(0, 40, 0)).join();
         zombie.setBoundingBox(3f, 6.5f, 3f);
 
@@ -70,7 +70,7 @@ public class PathfinderIntegrationTest {
 
         ChunkRange.chunksInRange(0, 0, 10, (x, z) -> i.loadChunk(x, z).join());
 
-        var zombie = new LivingEntity(EntityType.ZOMBIE);
+        var zombie = new LivingEntity(env.process(), EntityType.ZOMBIE);
         zombie.setInstance(i, new Pos(0, 40, 0)).join();
 
         Navigator nav = new Navigator(zombie);
@@ -88,7 +88,7 @@ public class PathfinderIntegrationTest {
 
         ChunkRange.chunksInRange(0, 0, 10, (x, z) -> i.loadChunk(x, z).join());
 
-        var zombie = new LivingEntity(EntityType.ZOMBIE);
+        var zombie = new LivingEntity(env.process(), EntityType.ZOMBIE);
         zombie.setInstance(i, new Pos(0, 40, 0)).join();
 
         Navigator nav = new Navigator(zombie);
@@ -107,7 +107,7 @@ public class PathfinderIntegrationTest {
 
         ChunkRange.chunksInRange(0, 0, 10, (x, z) -> i.loadChunk(x, z).join());
 
-        var zombie = new LivingEntity(EntityType.ZOMBIE);
+        var zombie = new LivingEntity(env.process(), EntityType.ZOMBIE);
         zombie.setInstance(i, new Pos(43.972731367054266, 40.000000000040735, -39.89155139999369)).join();
 
         zombie.tick(0);
@@ -172,7 +172,7 @@ public class PathfinderIntegrationTest {
         i.setBlock(6, 41, 5, Block.STONE);
         i.setBlock(7, 41, 5, Block.STONE);
 
-        var zombie = new LivingEntity(EntityType.ZOMBIE);
+        var zombie = new LivingEntity(env.process(), EntityType.ZOMBIE);
         zombie.setInstance(i, new Pos(0, 40, 0)).join();
         zombie.setBoundingBox(zombie.getBoundingBox().expand(4f, 4f, 4f));
 
@@ -191,7 +191,7 @@ public class PathfinderIntegrationTest {
 
         ChunkRange.chunksInRange(0, 0, 10, (x, z) -> i.loadChunk(x, z).join());
 
-        var zombie = new LivingEntity(EntityType.ZOMBIE);
+        var zombie = new LivingEntity(env.process(), EntityType.ZOMBIE);
 
         var nodeGenerator = new GroundNodeGenerator();
 

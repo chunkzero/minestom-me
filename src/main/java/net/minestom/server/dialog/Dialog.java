@@ -66,7 +66,7 @@ public sealed interface Dialog extends Holder.Direct<Dialog>, DialogLike, Dialog
     /**
      * <p>Creates a new registry for dialogs, loading the vanilla dialogs.</p>
      *
-     * @see net.minestom.server.MinecraftServer to get an existing instance of the registry
+     * @see net.minestom.server.registry.Registries
      */
     @ApiStatus.Internal
     static DynamicRegistry<Dialog> createDefaultRegistry(Registries registries) {

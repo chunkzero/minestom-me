@@ -6,7 +6,6 @@ import com.google.gson.ToNumberPolicy;
 import com.google.gson.stream.JsonReader;
 import net.kyori.adventure.key.Key;
 import net.minestom.data.MinestomData;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.codec.Result;
 import net.minestom.server.codec.Transcoder;
 import net.minestom.server.collision.BoundingBox;
@@ -36,6 +35,7 @@ import org.jetbrains.annotations.Unmodifiable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -132,7 +132,6 @@ public final class RegistryData {
         return resourceStream;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @ApiStatus.Internal
     public static Properties load(String resourcePath, boolean required) {
         try (InputStream resourceStream = loadRegistryFile(resourcePath)) {
@@ -146,7 +145,7 @@ public final class RegistryData {
                 return Properties.fromMap(map);
             }
         } catch (IOException e) {
-            MinecraftServer.getExceptionManager().handleException(e);
+            throw new UncheckedIOException("Failed to load registry file: " + resourcePath, e);
         }
         if (required) Check.fail("Failed to load required registry file: {0}", resourcePath);
         return Properties.fromMap(Map.of());

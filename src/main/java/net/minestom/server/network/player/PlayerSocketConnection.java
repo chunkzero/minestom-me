@@ -1,7 +1,6 @@
 package net.minestom.server.network.player;
 
 import net.minestom.server.ServerProcess;
-import net.minestom.server.adventure.MinestomAdventure;
 import net.minestom.server.entity.GameMode;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.ListenerHandle;
@@ -47,7 +46,6 @@ import java.io.IOException;
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.Collection;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
@@ -401,7 +399,7 @@ public class PlayerSocketConnection extends PlayerConnection {
             // Translation
             if (ServerProperties.AUTOMATIC_COMPONENT_TRANSLATION.get() && packet instanceof ServerPacket.ComponentHolding translatablePacket) {
                 packet = translatablePacket.copyWithOperator(component ->
-                        MinestomAdventure.COMPONENT_TRANSLATOR.apply(component, Objects.requireNonNullElseGet(player.getLocale(), MinestomAdventure::getDefaultLocale)));
+                        process().translation().translate(component, player.getLocale()));
             }
         }
         // Write packet
@@ -513,8 +511,11 @@ public class PlayerSocketConnection extends PlayerConnection {
 
     @Override
     public void disconnect() {
-        super.disconnect();
-        LockSupport.unpark(writeThread);
+        try {
+            super.disconnect();
+        } finally {
+            LockSupport.unpark(writeThread);
+        }
     }
 
     public Thread readThread() {

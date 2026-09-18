@@ -43,6 +43,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Timeout(15)
 class ProcessTickTest {
     @Test
+    void acquiringMetricsAreConsumedOnlyByTheOwningDispatcher() {
+        try (var pair = new ServerProcessPair()) {
+            var first = entity(pair.first());
+            var second = entity(pair.second());
+            first.setInstance(pair.first().instance().createInstanceContainer(ChunkLoader.noop())).join();
+            second.setInstance(pair.second().instance().createInstanceContainer(ChunkLoader.noop())).join();
+            pair.first().ticker().tick(System.nanoTime());
+            pair.second().ticker().tick(System.nanoTime());
+            first.acquirable().sync(_ -> {});
+            second.acquirable().sync(_ -> {});
+            assertTrue(pair.first().dispatcher().resetAcquiringTime() > 0);
+            assertEquals(0, pair.first().dispatcher().resetAcquiringTime());
+            assertTrue(pair.second().dispatcher().resetAcquiringTime() > 0);
+            assertEquals(0, pair.second().dispatcher().resetAcquiringTime());
+        }
+    }
+
+    @Test
     void entityIdsAreSharedAcrossInstancesAndIndependentAcrossProcesses() {
         try (var pair = new ServerProcessPair()) {
             var first = pair.first();

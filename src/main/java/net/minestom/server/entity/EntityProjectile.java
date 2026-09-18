@@ -1,6 +1,5 @@
 package net.minestom.server.entity;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.collision.BoundingBox;
 import net.minestom.server.coordinate.Point;
@@ -34,9 +33,8 @@ public class EntityProjectile extends Entity {
     private final Entity shooter;
     private boolean wasStuck;
 
-    @SuppressWarnings("removal") // Null shooters temporarily use the default process.
-    public EntityProjectile(@Nullable Entity shooter, EntityType entityType) {
-        this(shooter != null ? shooter.process() : MinecraftServer.process(), shooter, entityType);
+    public EntityProjectile(Entity shooter, EntityType entityType) {
+        this(shooter.process(), shooter, entityType);
     }
 
     @SuppressWarnings("this-escape") // Projectile metadata initialization.

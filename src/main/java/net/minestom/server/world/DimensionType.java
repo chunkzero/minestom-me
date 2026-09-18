@@ -70,7 +70,7 @@ public sealed interface DimensionType extends DimensionTypes permits DimensionTy
     /**
      * <p>Creates a new registry for dimension types, loading the vanilla dimension types.</p>
      *
-     * @see net.minestom.server.MinecraftServer to get an existing instance of the registry
+     * @see net.minestom.server.registry.Registries
      */
     @ApiStatus.Internal
     static DynamicRegistry<DimensionType> createDefaultRegistry(Registries registries) {

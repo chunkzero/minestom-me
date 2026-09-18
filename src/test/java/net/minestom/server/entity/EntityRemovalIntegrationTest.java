@@ -1,5 +1,6 @@
 package net.minestom.server.entity;
 
+import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.event.entity.EntityTickEvent;
 import net.minestom.server.network.packet.server.play.DestroyEntitiesPacket;
@@ -26,7 +27,7 @@ public class EntityRemovalIntegrationTest {
         var connection = env.createConnection();
         connection.connect(instance, new Pos(0, 40, 0));
 
-        var entity = new Entity(EntityType.ZOMBIE);
+        var entity = new Entity(env.process(), EntityType.ZOMBIE);
         entity.setInstance(instance, new Pos(0, 40, 0)).join();
 
         var tracker = connection.trackIncoming(DestroyEntitiesPacket.class);
@@ -37,7 +38,7 @@ public class EntityRemovalIntegrationTest {
     @Test
     public void instanceRemoval(Env env) {
         var instance = env.createFlatInstance();
-        var entity = new Entity(EntityType.ZOMBIE);
+        var entity = new Entity(env.process(), EntityType.ZOMBIE);
         entity.setInstance(instance, new Pos(0, 40, 0)).join();
         assertFalse(entity.isRemoved());
 
@@ -49,7 +50,7 @@ public class EntityRemovalIntegrationTest {
     @Test
     public void tickTimedRemoval(Env env) throws InterruptedException {
         var instance = env.createFlatInstance();
-        var entity = new TestEntity(2, TimeUnit.SERVER_TICK);
+        var entity = new TestEntity(env.process(), 2, TimeUnit.SERVER_TICK);
         entity.setInstance(instance, new Pos(0, 40, 0)).join();
 
         assertFalse(entity.isRemoved());
@@ -70,7 +71,7 @@ public class EntityRemovalIntegrationTest {
     public void entityGC(Env env) {
         // Ensure that entities do not stay in memory after they are removed
         var instance = env.createFlatInstance();
-        var entity = new Entity(EntityType.ZOMBIE);
+        var entity = new Entity(env.process(), EntityType.ZOMBIE);
         entity.setInstance(instance, new Pos(0, 40, 0)).join();
         entity.remove();
 
@@ -85,7 +86,7 @@ public class EntityRemovalIntegrationTest {
     public void entityNodeGC(Env env) {
         // Ensure that the entities GCed when a local listener is present
         var node = env.process().eventHandler();
-        var entity = new Entity(EntityType.ZOMBIE);
+        var entity = new Entity(env.process(), EntityType.ZOMBIE);
         entity.eventNode().addListener(EntityTickEvent.class, _ -> {
         });
         node.call(new EntityTickEvent(entity));
@@ -99,8 +100,8 @@ public class EntityRemovalIntegrationTest {
     }
 
     static final class TestEntity extends Entity {
-        public TestEntity(long delay, TemporalUnit unit) {
-            super(EntityType.ZOMBIE);
+        public TestEntity(ServerProcess process, long delay, TemporalUnit unit) {
+            super(process, EntityType.ZOMBIE);
             scheduleRemove(delay, unit);
         }
     }

@@ -4,6 +4,8 @@ import net.minestom.server.ServerProcess;
 import net.minestom.server.network.packet.PacketParser;
 import net.minestom.server.network.player.PlayerSocketConnection;
 import net.minestom.server.property.ServerProperties;
+import net.minestom.server.thread.TickSchedulerThread;
+import net.minestom.server.thread.TickThread;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.UnknownNullability;
 
@@ -19,16 +21,23 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class Server {
     private volatile boolean stop;
+    private final Set<PlayerSocketConnection> connections = new HashSet<>();
+    private @UnknownNullability Thread acceptThread;
 
     private final PacketParser.Client packetParser;
     private final ServerProcess process;
 
-    private @UnknownNullability ServerSocketChannel serverSocket;
+    private volatile @UnknownNullability ServerSocketChannel serverSocket;
     private @UnknownNullability SocketAddress socketAddress;
     private @UnknownNullability String address;
     private int port;
@@ -43,7 +52,9 @@ public final class Server {
     }
 
     @ApiStatus.Internal
-    public void init(SocketAddress address) throws IOException {
+    public synchronized void init(SocketAddress address) throws IOException {
+        if (stop) throw new IllegalStateException("Server is closed");
+        if (serverSocket != null) throw new IllegalStateException("Server is already bound");
         ProtocolFamily family;
         switch (address) {
             case InetSocketAddress inetSocketAddress -> {
@@ -61,9 +72,18 @@ public final class Server {
         }
 
         ServerSocketChannel server = ServerSocketChannel.open(family);
-        server.bind(address);
+        try {
+            server.bind(address);
+        } catch (IOException | RuntimeException | Error failure) {
+            try {
+                server.close();
+            } catch (IOException cleanupFailure) {
+                failure.addSuppressed(cleanupFailure);
+            }
+            throw failure;
+        }
         this.serverSocket = server;
-        this.socketAddress = address;
+        this.socketAddress = server.getLocalAddress();
 
         if (address instanceof InetSocketAddress && port == 0) {
             port = server.socket().getLocalPort();
@@ -71,12 +91,14 @@ public final class Server {
     }
 
     @ApiStatus.Internal
-    public void start() {
-        Thread.ofVirtual().name("Ms-Socket-Server").start(() -> {
+    public synchronized void start() {
+        if (stop) throw new IllegalStateException("Server is closed");
+        if (acceptThread != null) throw new IllegalStateException("Server already started");
+        final var serverSocket = Objects.requireNonNull(this.serverSocket, "Server is not bound");
+        acceptThread = Thread.ofVirtual().name("Ms-Socket-Server-" + process.id()).unstarted(() -> {
             // Use named thread builders for logging
-            var readBuilder = Thread.ofVirtual().name("Ms-Socket-Reader-", 0);
-            var writeBuilder = Thread.ofVirtual().name("Ms-Socket-Writer-", 0);
-            final var serverSocket = Objects.requireNonNull(this.serverSocket, "Not bound did you forget to call #init?");
+            var readBuilder = Thread.ofVirtual().name("Ms-Socket-Reader-" + process.id() + "-", 0);
+            var writeBuilder = Thread.ofVirtual().name("Ms-Socket-Writer-" + process.id() + "-", 0);
             while (!stop) {
                 final SocketChannel client;
                 try {
@@ -96,19 +118,32 @@ public final class Server {
                     Thread writeThread = writeBuilder.unstarted(() -> playerWriteLoop(reference.get()));
                     PlayerSocketConnection connection = new PlayerSocketConnection(process(), client, client.getRemoteAddress(), readThread, writeThread);
                     reference.set(connection);
-                    readThread.start();
-                    writeThread.start();
-                } catch (IOException e) {
-                    if (!ServerProperties.SUPPRESS_CONNECTION_ACCEPT_ERRORS.get())
-                        process().exception().handleException(e);
+                    synchronized (this) {
+                        if (stop) {
+                            client.close();
+                            continue;
+                        }
+                        connections.add(connection);
+                        try {
+                            readThread.start();
+                            writeThread.start();
+                        } catch (RuntimeException | Error failure) {
+                            connections.remove(connection);
+                            throw failure;
+                        }
+                    }
+                } catch (IOException | RuntimeException | Error e) {
                     try {
                         client.close();
-                    } catch (IOException _) {
-                        // Nothing more we can do, drop the connection
+                    } catch (IOException cleanupFailure) {
+                        e.addSuppressed(cleanupFailure);
                     }
+                    if (!stop && !ServerProperties.SUPPRESS_CONNECTION_ACCEPT_ERRORS.get())
+                        process().exception().handleException(e);
                 }
             }
         });
+        acceptThread.start();
     }
 
     private static void configureSocket(SocketChannel channel) throws IOException {
@@ -123,79 +158,111 @@ public final class Server {
 
     private void playerReadLoop(PlayerSocketConnection connection) {
         Objects.requireNonNull(connection, "connection cannot be null");
-        while (!stop) {
-            try {
-                // Read & process packets
-                connection.read(packetParser);
-            } catch (ClosedChannelException | EOFException _) {
-                connection.disconnect(); // We closed the socket during read, just exit.
-                break;
-            } catch (IOException e) {
-                if (!ServerProperties.SUPPRESS_CONNECTION_IO_ERRORS.get())
-                    process().exception().handleException(e);
-                connection.disconnect();
-                break;
-            } catch (Throwable e) {
-                process().exception().handleException(e);
-                connection.disconnect();
-                break;
-            }
+        try {
+            while (!stop && connection.isOnline()) connection.read(packetParser);
+        } catch (ClosedChannelException | EOFException _) {
+            // The peer or shutdown closed the connection.
+        } catch (IOException e) {
+            if (!stop && !ServerProperties.SUPPRESS_CONNECTION_IO_ERRORS.get())
+                process.exception().handleException(e);
+        } catch (Throwable e) {
+            if (!stop) process.exception().handleException(e);
+        } finally {
+            connection.disconnect();
         }
     }
 
     private void playerWriteLoop(PlayerSocketConnection connection) {
-        Objects.requireNonNull(connection, "connection cannot be null");
         try {
-            while (!stop) {
+            while (!stop && connection.isOnline()) connection.flushSync();
+            if (!connection.isOnline()) connection.flushSync(); // Drain the final disconnect packet.
+        } catch (ClosedChannelException | EOFException _) {
+            // The peer or shutdown closed the connection.
+        } catch (Throwable e) {
+            if (!stop && !ServerProperties.SUPPRESS_CONNECTION_IO_ERRORS.get())
+                process.exception().handleException(e);
+        } finally {
+            try {
+                connection.disconnect();
+            } finally {
                 try {
-                    connection.flushSync();
-                } catch (ClosedChannelException | EOFException _) {
-                    connection.disconnect();
+                    connection.getChannel().close();
                 } catch (IOException e) {
-                    if (!ServerProperties.SUPPRESS_CONNECTION_IO_ERRORS.get())
-                        process().exception().handleException(e);
-                    connection.disconnect();
-                } catch (Throwable e) {
-                    process().exception().handleException(e);
-                    connection.disconnect();
-                }
-                if (!connection.isOnline()) {
-                    try {
-                        connection.flushSync();
-                    } catch (IOException _) {
-                        // Ignore IO errors
-                    } finally {
-                        try {
-                            connection.getChannel().close();
-                        } catch (IOException _) {
-                            // May error if it was disconnect client side
-                        }
+                    if (!stop) process.exception().handleException(e);
+                } finally {
+                    connection.cleanup();
+                    synchronized (this) {
+                        connections.remove(connection);
                     }
-                    break; // Disconnect
                 }
             }
-        } finally {
-            connection.cleanup(); // Cleanup pooling
         }
     }
 
     public boolean isOpen() {
-        return !stop;
+        var socket = serverSocket;
+        return !stop && socket != null && socket.isOpen();
     }
 
     public void stop() {
-        this.stop = true;
+        final List<PlayerSocketConnection> connections;
+        synchronized (this) {
+            if (stop) return;
+            stop = true;
+            connections = List.copyOf(this.connections);
+        }
+        var failures = new ArrayList<Throwable>();
         try {
-            final var serverSocket = this.serverSocket;
-            if (serverSocket != null) {
-                serverSocket.close();
+            if (serverSocket != null) serverSocket.close();
+        } catch (Throwable failure) {
+            failures.add(failure);
+        }
+        for (var connection : connections) {
+            try {
+                connection.disconnect();
+            } catch (Throwable failure) {
+                failures.add(failure);
             }
-
-            if (socketAddress instanceof UnixDomainSocketAddress unixDomainSocketAddress) {
-                Files.deleteIfExists(unixDomainSocketAddress.getPath());
+        }
+        final long drainDeadline = System.nanoTime() + Duration.ofMillis(100).toNanos();
+        for (var connection : connections) {
+            try {
+                long remaining = drainDeadline - System.nanoTime();
+                if (remaining > 0 && connection.writeThread() != Thread.currentThread())
+                    connection.writeThread().join(Duration.ofNanos(remaining));
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                failures.add(interrupted);
             }
-        } catch (IOException e) {
-            process().exception().handleException(e);
+            try {
+                connection.getChannel().close();
+            } catch (Throwable failure) {
+                failures.add(failure);
+            }
+            if (connection.readThread() != Thread.currentThread()) connection.readThread().interrupt();
+        }
+        // Disconnect callbacks may acquire the calling tick worker.
+        if (!(Thread.currentThread() instanceof TickThread) && !(Thread.currentThread() instanceof TickSchedulerThread)) {
+            try {
+                if (acceptThread != null && acceptThread != Thread.currentThread()) acceptThread.join();
+                for (var connection : connections) {
+                    if (connection.readThread() != Thread.currentThread()) connection.readThread().join();
+                    if (connection.writeThread() != Thread.currentThread()) connection.writeThread().join();
+                }
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                failures.add(interrupted);
+            }
+        }
+        try {
+            if (socketAddress instanceof UnixDomainSocketAddress unixAddress) Files.deleteIfExists(unixAddress.getPath());
+        } catch (Throwable failure) {
+            failures.add(failure);
+        }
+        if (!failures.isEmpty()) {
+            var failure = new IllegalStateException("Failed to close server sockets");
+            failures.forEach(failure::addSuppressed);
+            throw failure;
         }
     }
 

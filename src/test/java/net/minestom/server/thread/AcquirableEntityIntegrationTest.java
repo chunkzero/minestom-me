@@ -15,7 +15,7 @@ public class AcquirableEntityIntegrationTest {
 
     @Test
     public void instanceSet(Env env) throws InterruptedException {
-        var zombie = new Entity(EntityType.ZOMBIE);
+        var zombie = new Entity(env.process(), EntityType.ZOMBIE);
         CountDownLatch latch = new CountDownLatch(1);
         Thread.startVirtualThread(() -> {
             assertFalse(zombie.acquirable().isOwned());

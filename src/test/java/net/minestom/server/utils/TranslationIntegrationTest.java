@@ -1,10 +1,7 @@
 package net.minestom.server.utils;
 
-import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.translation.GlobalTranslator;
-import net.kyori.adventure.translation.Translator;
-import net.minestom.server.adventure.MinestomAdventure;
+import net.kyori.adventure.text.TranslatableComponent;
 import net.minestom.server.component.DataComponents;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.item.ItemStack;
@@ -17,12 +14,10 @@ import net.minestom.server.scoreboard.Sidebar;
 import net.minestom.testing.Env;
 import net.minestom.testing.EnvTest;
 import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.text.MessageFormat;
 import java.util.List;
-import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -30,22 +25,11 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 @EnvTest //TODO(server-properties) Remove assumptions
 public class TranslationIntegrationTest {
 
-    @BeforeAll
-    static void translator() {
-        final var translator = new Translator() {
-            @Override
-            public Key name() {
-                return Key.key("test.reg");
-            }
-
-            @Override
-            public MessageFormat translate(String key, Locale locale) {
-                if (!"test.key".equals(key)) return null;
-                return new MessageFormat("This is a test message", MinestomAdventure.getDefaultLocale());
-            }
-        };
-
-        GlobalTranslator.translator().addSource(translator);
+    @BeforeEach
+    void translator(Env env) {
+        env.process().translation().setTranslator((component, _) ->
+                component instanceof TranslatableComponent text && text.key().equals("test.key")
+                        ? Component.text("This is a test message") : component);
     }
 
     @Test
@@ -67,7 +51,7 @@ public class TranslationIntegrationTest {
 
     @Test
     public void testTranslationDisabled(final Env env) {
-        Assumptions.assumeTrue(ServerProperties.AUTOMATIC_COMPONENT_TRANSLATION.get());
+        Assumptions.assumeFalse(ServerProperties.AUTOMATIC_COMPONENT_TRANSLATION.get());
         final var instance = env.createFlatInstance();
         final var connection = env.createConnection();
         final var player = connection.connect(instance, new Pos(0, 40, 0));

@@ -1,5 +1,6 @@
 package net.minestom.server.network;
 
+import net.kyori.adventure.resource.ResourcePackInfo;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.event.player.AsyncPlayerPreLoginEvent;
 import net.minestom.server.listener.preplay.LoginListener;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -30,6 +32,41 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProcessConnectionOwnershipTest {
+    @Test
+    void disconnectCancelsPendingRepliesAndShutdownRejectsLateAdmission() {
+        try (var pair = new ServerProcessPair()) {
+            var first = new ImmediateConnection(pair.first());
+            var second = new ImmediateConnection(pair.second());
+            first.setClientState(ConnectionState.LOGIN);
+            second.setClientState(ConnectionState.LOGIN);
+            first.answerKnownPacks = false;
+            var knownPacks = first.requestKnownPacks(List.of());
+            var plugin = first.loginPluginMessageProcessor().request("test:pending", new byte[0]);
+            var cookie = first.fetchCookie("test:pending");
+            var otherCookie = second.fetchCookie("test:pending");
+            var profile = new GameProfile(UUID.randomUUID(), "Pending");
+            var player = pair.first().connection().createPlayer(first, profile);
+            var task = player.scheduler().scheduleNextTick(() -> {});
+            player.sendResourcePacks(ResourcePackInfo.resourcePackInfo(UUID.randomUUID(), URI.create("https://example.com/pack.zip"), "test"));
+            var resourcePacks = player.getResourcePackFuture();
+            pair.first().close();
+            assertTrue(plugin.isCancelled());
+            assertTrue(knownPacks.isCancelled());
+            assertTrue(resourcePacks.isCancelled());
+            assertTrue(cookie.isCancelled());
+            assertFalse(task.isAlive());
+            assertFalse(otherCookie.isDone());
+            assertThrows(IllegalStateException.class, () -> first.fetchCookie("test:closed"));
+            assertThrows(IllegalStateException.class, () -> first.requestKnownPacks(List.of()));
+            assertThrows(IllegalStateException.class, () -> first.loginPluginMessageProcessor().request("test:closed", new byte[0]));
+            assertThrows(IllegalStateException.class, () -> pair.first().connection().createPlayer(new ImmediateConnection(pair.first()), profile));
+            pair.first().connection().doConfiguration(player, true);
+            assertTrue(pair.first().connection().getConfigPlayers().isEmpty());
+            second.receiveCookieResponse("test:pending", new byte[0]);
+            assertTrue(otherCookie.isDone());
+        }
+    }
+
     @Test
     void foreignConnectionsAndPlayersAreRejectedBeforeAdmission() {
         try (var pair = new ServerProcessPair()) {
@@ -115,6 +152,7 @@ class ProcessConnectionOwnershipTest {
 
     private static final class ImmediateConnection extends PlayerConnection {
         private final List<SendablePacket> packets = new CopyOnWriteArrayList<>();
+        private boolean answerKnownPacks = true;
 
         ImmediateConnection(ServerProcess process) {
             super(process);
@@ -123,7 +161,7 @@ class ProcessConnectionOwnershipTest {
         @Override
         public void sendPacket(SendablePacket packet) {
             packets.add(packet);
-            if (packet instanceof SelectKnownPacksPacket) receiveKnownPacksResponse(List.of());
+            if (answerKnownPacks && packet instanceof SelectKnownPacksPacket) receiveKnownPacksResponse(List.of());
         }
 
         @Override

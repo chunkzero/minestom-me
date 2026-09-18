@@ -2,7 +2,7 @@ package net.minestom.server.network.player;
 
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.MinecraftConstants;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.crypto.PlayerPublicKey;
 import net.minestom.server.entity.Player;
@@ -118,7 +118,7 @@ public abstract class PlayerConnection {
      * @return the protocol version
      */
     public int getProtocolVersion() {
-        return MinecraftServer.PROTOCOL_VERSION;
+        return MinecraftConstants.PROTOCOL_VERSION;
     }
 
     /**
@@ -158,24 +158,41 @@ public abstract class PlayerConnection {
         } else {
             disconnectPacket = new DisconnectPacket(component);
         }
-        sendPacket(disconnectPacket);
-        disconnect();
+        try {
+            sendPacket(disconnectPacket);
+        } finally {
+            disconnect();
+        }
     }
 
     /**
      * Forcing the player to disconnect.
      */
     public void disconnect() {
-        this.online = false;
+        synchronized (this) {
+            if (!online) return;
+            online = false;
+        }
+        var pluginMessages = loginPluginMessageProcessor;
+        if (pluginMessages != null) pluginMessages.close();
+        var knownPacks = knownPacksFuture;
+        if (knownPacks != null) knownPacks.cancel(false);
+        pendingCookieRequests.values().forEach(future -> future.cancel(false));
+        pendingCookieRequests.clear();
         final Player player = process().connection().getPlayer(this);
         if (player != null) {
+            var resourcePacks = player.getResourcePackFuture();
+            if (resourcePacks != null) resourcePacks.cancel(false);
             process().connection().removePlayer(this);
             if (serverState == ConnectionState.PLAY && !player.isRemoved())
                 process().connection().schedulePlayerRemoval(player);
             else {
-                process().eventHandler().call(new PlayerDisconnectEvent(player));
-                EventsJFR.newPlayerLeave(player.getUuid()).commit();
-                player.scheduler().close();
+                try {
+                    process().eventHandler().call(new PlayerDisconnectEvent(player));
+                    EventsJFR.newPlayerLeave(player.getUuid()).commit();
+                } finally {
+                    player.scheduler().close();
+                }
             }
         }
     }
@@ -276,8 +293,12 @@ public abstract class PlayerConnection {
             throw new IllegalStateException("Cannot fetch cookie in PlayerProvider, use AsyncPlayerPreLoginEvent or AsyncPlayerConfigurationEvent");
         }
         CompletableFuture<byte[]> future = new CompletableFuture<>();
+        Check.stateCondition(!online, "Connection is closed");
         pendingCookieRequests.put(Key.key(key), future);
-        sendPacket(new CookieRequestPacket(key));
+        if (!online) {
+            pendingCookieRequests.remove(Key.key(key), future);
+            future.cancel(false);
+        } else sendPacket(new CookieRequestPacket(key));
         return future;
     }
 
@@ -300,10 +321,12 @@ public abstract class PlayerConnection {
 
     @ApiStatus.Internal
     public CompletableFuture<List<SelectKnownPacksPacket.Entry>> requestKnownPacks(List<SelectKnownPacksPacket.Entry> serverPacks) {
+        Check.stateCondition(!online, "Connection is closed");
         Check.stateCondition(knownPacksFuture != null, "Known packs already pending");
         final CompletableFuture<List<SelectKnownPacksPacket.Entry>> future = new CompletableFuture<>();
         this.knownPacksFuture = future;
-        sendPacket(new SelectKnownPacksPacket(serverPacks));
+        if (!online) future.cancel(false);
+        else sendPacket(new SelectKnownPacksPacket(serverPacks));
         return future;
     }
 

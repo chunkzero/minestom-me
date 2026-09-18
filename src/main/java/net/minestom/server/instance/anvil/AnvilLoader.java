@@ -13,7 +13,7 @@ import net.kyori.adventure.nbt.ByteArrayBinaryTag;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
 import net.kyori.adventure.nbt.ListBinaryTag;
 import net.kyori.adventure.nbt.StringBinaryTag;
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.MinecraftConstants;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.adventure.MinestomAdventure;
 import net.minestom.server.instance.Chunk;
@@ -402,7 +402,7 @@ public class AnvilLoader implements ChunkLoader {
 
             chunkData.put(chunk.tagHandler().asCompound());
 
-            chunkData.putInt("DataVersion", MinecraftServer.DATA_VERSION);
+            chunkData.putInt("DataVersion", MinecraftConstants.DATA_VERSION);
             chunkData.putInt("xPos", chunkX);
             chunkData.putInt("zPos", chunkZ);
             chunkData.putInt("yPos", chunk.getMinSection());

@@ -2,12 +2,14 @@ package net.minestom.server;
 
 import net.minestom.server.advancements.AdvancementManager;
 import net.minestom.server.adventure.ClickCallbackManager;
+import net.minestom.server.adventure.ComponentTranslation;
 import net.minestom.server.adventure.audience.Audiences;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.event.ProcessEventHandler;
 import net.minestom.server.exception.ExceptionManager;
+import net.minestom.server.extras.lan.OpenToLAN;
 import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.InstanceManager;
 import net.minestom.server.instance.block.BlockManager;
@@ -32,11 +34,8 @@ import java.net.SocketAddress;
 @ApiStatus.NonExtendable
 public interface ServerProcess extends Snapshotable, AutoCloseable {
     /**
-     * Creates a process with its own managers, configuration, and registries, without changing
-     * {@link MinecraftServer#process()}.
-     * <p>Events, instances, entities, schedulers, packet encoding, and tick dispatch use their owning process.
-     * Handshake, authentication, configuration, and player initialization also use their owner.
-     * Commands, gameplay utilities, audiences, and contextual serialization are still being migrated.</p>
+     * Creates an independent process with its own managers, configuration, and registries.
+     * Retain the process and close it when its runtime is no longer needed.
      * {@snippet :
      * try (var first = ServerProcess.create(); var second = ServerProcess.create()) {
      *     first.setBrandName("First");
@@ -82,6 +81,16 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     Registries registries();
 
     Auth auth();
+
+    /** Component translation settings used by this process's players and bound serializers. */
+    ComponentTranslation translation();
+
+    /** LAN advertisements owned and closed by this process. */
+    OpenToLAN lan();
+
+    /** Allocates a window ID within this process, wrapping through the protocol's 1–127 range. */
+    @ApiStatus.Internal
+    byte generateInventoryId();
 
     /**
      * Handles incoming connections/players.
@@ -192,7 +201,7 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
      */
     ClickCallbackManager clickCallbackManager();
 
-    /** Starts this process's socket server, dispatcher, and tick scheduler. A closed process cannot be started. */
+    /** Starts this process's socket server, dispatcher, and tick scheduler. A failed start closes the process; a closed process cannot be restarted. */
     void start(SocketAddress socketAddress);
 
     /**

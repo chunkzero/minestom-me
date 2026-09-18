@@ -31,14 +31,6 @@ public sealed interface Acquirable<T> permits AcquirableImpl {
     }
 
     /**
-     * Retrieve and reset acquiring time.
-     */
-    @ApiStatus.Internal
-    static long resetAcquiringTime() {
-        return AcquirableImpl.WAIT_COUNTER_NANO.getAndSet(0);
-    }
-
-    /**
      * Creates a new {@link Acquirable} object.
      * <p>
      * Mostly for internal use, as a {@link TickThread} has to be used
