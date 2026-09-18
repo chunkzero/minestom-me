@@ -5,6 +5,8 @@ import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.StructCodec;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.NetworkBufferTemplate;
+import net.minestom.server.registry.Registries;
+import net.minestom.server.tag.ContextualTag;
 import net.minestom.server.tag.Tag;
 import net.minestom.server.tag.TagHandler;
 import net.minestom.server.tag.TagReadable;
@@ -37,6 +39,12 @@ public record TypedCustomData<T>(T type, CompoundBinaryTag nbt) implements TagRe
     public <TT> @UnknownNullability TT getTag(Tag<TT> tag) {
         final TagHandler tagHandler = TagHandler.fromCompound(nbt);
         return tagHandler.getTag(tag);
+    }
+
+    public <TT> TypedCustomData<T> withTag(ContextualTag<TT> tag, TT value, Registries registries) {
+        var handler = TagHandler.fromCompound(nbt);
+        handler.setTag(tag, value, registries);
+        return new TypedCustomData<>(type, handler.asCompound());
     }
 
     public <TT> TypedCustomData<T> withTag(Tag<TT> tag, TT value) {

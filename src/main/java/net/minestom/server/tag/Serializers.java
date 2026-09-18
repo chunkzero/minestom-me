@@ -13,15 +13,16 @@ import net.kyori.adventure.nbt.LongBinaryTag;
 import net.kyori.adventure.nbt.ShortBinaryTag;
 import net.kyori.adventure.nbt.StringBinaryTag;
 import net.kyori.adventure.text.Component;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.Transcoder;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.property.ServerProperties;
+import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.RegistryTranscoder;
 import net.minestom.server.utils.UUIDUtils;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
@@ -37,19 +38,16 @@ final class Serializers {
     static final Entry<Double, DoubleBinaryTag> DOUBLE = new Entry<>(BinaryTagTypes.DOUBLE, DoubleBinaryTag::value, DoubleBinaryTag::doubleBinaryTag);
     static final Entry<String, StringBinaryTag> STRING = new Entry<>(BinaryTagTypes.STRING, StringBinaryTag::value, StringBinaryTag::stringBinaryTag);
     static final Entry<BinaryTag, BinaryTag> NBT_ENTRY = new Entry<>(null, Function.identity(), Function.identity());
+    static final Entry<BinaryTag, BinaryTag> PRESERVED_NBT_ENTRY = new Entry<>(null, Function.identity(), Function.identity(), false, true);
 
     static final Entry<java.util.UUID, IntArrayBinaryTag> UUID = new Entry<>(BinaryTagTypes.INT_ARRAY, UUIDUtils::fromNbt, UUIDUtils::toNbt);
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    static final Entry<ItemStack, CompoundBinaryTag> ITEM = new Entry<>(BinaryTagTypes.COMPOUND,
-            input -> ItemStack.fromItemNBT(input, MinecraftServer.getRegistries()),
-            itemStack -> itemStack.toItemNBT(MinecraftServer.getRegistries()));
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    static final Entry<Component, BinaryTag> COMPONENT = new Entry<>(null,
-            input -> Codec.COMPONENT.decode(
-                    new RegistryTranscoder<>(Transcoder.NBT, MinecraftServer.getRegistries()), input).orElse(null),
-            component -> Codec.COMPONENT.encode(
-                    new RegistryTranscoder<>(Transcoder.NBT, MinecraftServer.getRegistries()), component).orElse(null)
-    );
+    static final BiFunction<BinaryTag, Registries, ItemStack> ITEM_READER = (input, registries) ->
+            input instanceof CompoundBinaryTag compound ? ItemStack.fromItemNBT(compound, registries) : null;
+    static final BiFunction<ItemStack, Registries, BinaryTag> ITEM_WRITER = ItemStack::toItemNBT;
+    static final BiFunction<BinaryTag, Registries, Component> COMPONENT_READER = (input, registries) ->
+            Codec.COMPONENT.decode(new RegistryTranscoder<>(Transcoder.NBT, registries), input).orElse(null);
+    static final BiFunction<Component, Registries, BinaryTag> COMPONENT_WRITER = (component, registries) ->
+            Codec.COMPONENT.encode(new RegistryTranscoder<>(Transcoder.NBT, registries), component).orElseThrow();
 
     static final Entry<Object, ByteBinaryTag> EMPTY = new Entry<>(BinaryTagTypes.BYTE, _ -> null, _ -> null);
 
@@ -70,9 +68,13 @@ final class Serializers {
     record Entry<T, N extends BinaryTag>(@Nullable BinaryTagType<N> nbtType,
                                          Function<N, @Nullable T> reader,
                                          Function<T, @Nullable N> writer,
-                                         boolean isPath) {
+                                         boolean isPath, boolean preserveNbt) {
         Entry(@Nullable BinaryTagType<N> nbtType, Function<N, T> reader, Function<T, N> writer) {
-            this(nbtType, reader, writer, false);
+            this(nbtType, reader, writer, false, false);
+        }
+
+        Entry(@Nullable BinaryTagType<N> nbtType, Function<N, T> reader, Function<T, N> writer, boolean isPath) {
+            this(nbtType, reader, writer, isPath, false);
         }
 
         @Nullable T read(N nbt) {

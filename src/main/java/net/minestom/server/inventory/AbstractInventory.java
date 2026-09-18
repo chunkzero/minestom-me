@@ -44,7 +44,7 @@ public sealed abstract class AbstractInventory implements InventoryClickHandler,
     // the click processor which process all the clicks in the inventory
     protected final InventoryClickProcessor clickProcessor = new InventoryClickProcessor();
 
-    private final TagHandler tagHandler = TagHandler.newHandler();
+    private final TagHandler tagHandler;
 
     // the players currently viewing this inventory
     protected final Set<Player> viewers = new CopyOnWriteArraySet<>();
@@ -55,6 +55,7 @@ public sealed abstract class AbstractInventory implements InventoryClickHandler,
 
     protected AbstractInventory(ServerProcess process, int size) {
         this.process = Objects.requireNonNull(process);
+        this.tagHandler = TagHandler.newHandler(process.registries());
         this.size = size;
         this.itemStacks = new ItemStack[getSize()];
         Arrays.fill(itemStacks, ItemStack.AIR);

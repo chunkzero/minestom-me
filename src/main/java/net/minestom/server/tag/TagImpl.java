@@ -38,6 +38,10 @@ record TagImpl<T>(int index, String key,
                 null, null, null, 0);
     }
 
+    static TagImpl<BinaryTag> preservedNbt(String key) {
+        return tag(key, Serializers.PRESERVED_NBT_ENTRY);
+    }
+
     @SuppressWarnings("unchecked")
     static <T> TagImpl<T> fromSerializer(String key, TagSerializer<T> serializer) {
         if (serializer instanceof TagRecord.Serializer<?> recordSerializer) {
@@ -81,7 +85,7 @@ record TagImpl<T>(int index, String key,
         });
         final Function<R, BinaryTag> writeFunction = writeMap.andThen(entry.writer());
         return new TagImpl<>(index, key, readMap,
-                new Serializers.Entry<>(entry.nbtType(), readFunction, writeFunction),
+                new Serializers.Entry<>(entry.nbtType(), readFunction, writeFunction, false, entry.preserveNbt()),
                 // Default value
                 () -> {
                     T defaultValue = createDefault();
@@ -110,7 +114,7 @@ record TagImpl<T>(int index, String key,
                     final List<BinaryTag> list = write.stream().map(writeFunction).toList();
                     final BinaryTagType<?> type = list.getFirst().type();
                     return ListBinaryTag.listBinaryTag(type, list);
-                });
+                }, false, entry.preserveNbt());
         UnaryOperator<List<T>> co = this.copy != null ? ts -> {
             final int size = ts.size();
             @SuppressWarnings("unchecked")
@@ -146,6 +150,16 @@ record TagImpl<T>(int index, String key,
 
     @Override
     public @Nullable T read(CompoundBinaryTag nbt) {
+        if (path != null) {
+            for (PathEntry element : path) {
+                if (!(nbt.get(element.name()) instanceof CompoundBinaryTag child)) return createDefault();
+                nbt = child;
+            }
+        }
+        return readValue(nbt);
+    }
+
+    @Nullable T readValue(CompoundBinaryTag nbt) {
         final BinaryTag readable = isView() ? nbt : nbt.get(key);
         final T result;
         try {
@@ -159,6 +173,10 @@ record TagImpl<T>(int index, String key,
 
     @Override
     public void write(CompoundBinaryTag.Builder nbtCompound, @Nullable T value) {
+        if (path != null) {
+            TagHandlerImpl.writeThroughHandler(nbtCompound, handler -> handler.setTag(this, value));
+            return;
+        }
         if (value != null) {
             final BinaryTag nbt = entry.write(value);
             if (isView()) nbtCompound.put((CompoundBinaryTag) nbt);
@@ -187,7 +205,7 @@ record TagImpl<T>(int index, String key,
         if (this == other) return true;
         if (!(other instanceof TagImpl<?> otherImpl)) return false;
         // Tags are not strictly the same, compare readers
-        if (this.listScope != otherImpl.listScope) return false;
+        if (this.listScope != otherImpl.listScope || entry.preserveNbt() != otherImpl.entry.preserveNbt()) return false;
         return this.readComparator == otherImpl.readComparator;
     }
 
@@ -209,6 +227,7 @@ record TagImpl<T>(int index, String key,
         if (!(o instanceof TagImpl<?> tag)) return false;
         return index == tag.index &&
                 listScope == tag.listScope &&
+                entry.preserveNbt() == tag.entry.preserveNbt() &&
                 readComparator.equals(tag.readComparator) &&
                 Objects.equals(defaultValue, tag.defaultValue) &&
                 Arrays.equals(path, tag.path) && Objects.equals(copy, tag.copy);
@@ -216,7 +235,7 @@ record TagImpl<T>(int index, String key,
 
     @Override
     public int hashCode() {
-        int result = Objects.hash(index, readComparator, defaultValue, copy, listScope);
+        int result = Objects.hash(index, readComparator, defaultValue, copy, listScope, entry.preserveNbt());
         result = 31 * result + Arrays.hashCode(path);
         return result;
     }

@@ -140,7 +140,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
     protected UUID uuid;
 
     // instance custom data
-    protected TagHandler tagHandler = TagHandler.newHandler();
+    protected TagHandler tagHandler;
     private final Scheduler scheduler;
     private final EventNode<InstanceEvent> eventNode;
 
@@ -182,6 +182,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         this.process = Objects.requireNonNull(process,
                 "A ServerProcess is required; use an Instance constructor accepting ServerProcess or process.instance().createInstanceContainer()");
         this.registries = process.registries();
+        this.tagHandler = TagHandler.newHandler(registries);
         this.entityTracker = EntityTracker.newTracker(process);
         this.uuid = uuid;
         this.dimensionType = dimensionType;

@@ -30,6 +30,17 @@ final class TagNbtSeparator {
             entry(BinaryTagTypes.DOUBLE, Tag::Double),
             entry(BinaryTagTypes.STRING, Tag::String));
 
+    /** Keeps explicit compound payloads intact until path traversal needs their contents. */
+    static void separateShallow(CompoundBinaryTag compound, Consumer<Entry<?>> consumer) {
+        for (var entry : compound) {
+            if (entry.getValue() instanceof CompoundBinaryTag value) {
+                consumer.accept(new Entry<>(TagImpl.preservedNbt(entry.getKey()), value));
+            } else {
+                separate(entry.getKey(), entry.getValue(), consumer);
+            }
+        }
+    }
+
     static void separate(CompoundBinaryTag nbtCompound, Consumer<Entry<?>> consumer) {
         for (var ent : nbtCompound) {
             convert(new ArrayList<>(), ent.getKey(), ent.getValue(), consumer);

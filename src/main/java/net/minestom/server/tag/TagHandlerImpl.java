@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
 import java.lang.invoke.VarHandle;
-import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
 final class TagHandlerImpl implements TagHandler {
@@ -33,9 +33,18 @@ final class TagHandlerImpl implements TagHandler {
 
     static TagHandlerImpl fromCompound(CompoundBinaryTag compound) {
         TagHandlerImpl handler = new TagHandlerImpl();
-        TagNbtSeparator.separate(compound, entry -> entry.write(handler));
+        TagNbtSeparator.separateShallow(compound, entry -> handler.root.entries.put(entry.tag().index(), makeNbtEntry(entry)));
         handler.root.compound = compound;
         return handler;
+    }
+
+    static void writeThroughHandler(CompoundBinaryTag.Builder builder, Consumer<TagHandler> writer) {
+        final CompoundBinaryTag original = builder.build();
+        final TagHandler handler = fromCompound(original);
+        writer.accept(handler);
+        final CompoundBinaryTag updated = handler.asCompound();
+        original.keySet().forEach(builder::remove);
+        builder.put(updated);
     }
 
     @Override
@@ -112,9 +121,9 @@ final class TagHandlerImpl implements TagHandler {
         TagImpl<T> tagImpl = (TagImpl<T>) tag;
         final Node node = traversePathWrite(root, tag, true);
         if (tag.isView()) {
-            final T previousValue = tag.read(node.compound());
+            final T previousValue = tagImpl.readValue(node.compound());
             final T newValue = value.apply(previousValue);
-            node.updateContent((CompoundBinaryTag) tagImpl.entry().write(newValue));
+            node.updateContent(newValue == null ? CompoundBinaryTag.empty() : (CompoundBinaryTag) tagImpl.entry().write(newValue));
             node.invalidate();
             return returnPrevious ? previousValue : newValue;
         }
@@ -124,16 +133,13 @@ final class TagHandlerImpl implements TagHandler {
 
         final Entry<?> previousEntry = entries.get(tagIndex);
         final T previousValue;
-        if (previousEntry != null) {
-            final Object previousTmp = previousEntry.value;
-            if (previousTmp instanceof Node n) {
-                final CompoundBinaryTag compound = CompoundBinaryTag.from(Map.of(tag.key(), n.compound()));
-                previousValue = tag.read(compound);
-            } else {
-                previousValue = (T) previousTmp;
-            }
-        } else {
+        if (previousEntry == null) {
             previousValue = tag.createDefault();
+        } else if (previousEntry.tag.shareValue(tag)) {
+            previousValue = (T) previousEntry.value;
+        } else {
+            final T decoded = tagImpl.entry().read(previousEntry.updatedNbt());
+            previousValue = decoded != null ? decoded : tag.createDefault();
         }
         final T newValue = value.apply(previousValue);
         if (newValue != null) entries.put(tagIndex, valueToEntry(node, tag, newValue));
@@ -162,6 +168,7 @@ final class TagHandlerImpl implements TagHandler {
     @Override
     public synchronized void updateContent(CompoundBinaryTag compound) {
         this.root.updateContent(compound);
+        this.copy = null;
     }
 
     @Override
@@ -197,7 +204,6 @@ final class TagHandlerImpl implements TagHandler {
                 assert tmp.parent == local : "Path parent is invalid: " + tmp.parent + " != " + local;
                 local = tmp;
             } else {
-                if (!present) return null;
                 synchronized (this) {
                     var synEntry = local.entries.get(pathIndex);
                     if (synEntry != null && synEntry.tag.entry().isPath()) {
@@ -208,12 +214,13 @@ final class TagHandlerImpl implements TagHandler {
                         continue;
                     }
 
-                    // Empty path, create a new handler.
-                    // Slow path is taken if the entry comes from a Structure tag, requiring conversion from NBT
+                    final CompoundBinaryTag compound = synEntry != null && synEntry.updatedNbt() instanceof CompoundBinaryTag value ? value : null;
+                    if (!present && compound == null) return null;
                     Node tmp = local;
                     local = new Node(tmp);
-                    if (synEntry != null && synEntry.updatedNbt() instanceof CompoundBinaryTag compound) {
+                    if (compound != null) {
                         local.updateContent(compound);
+                        local.preserveEmpty = synEntry.tag.entry().preserveNbt();
                     }
                     tmp.entries.put(pathIndex, Entry.makePathEntry(path.name(), local));
                 }
@@ -223,9 +230,10 @@ final class TagHandlerImpl implements TagHandler {
     }
 
     private <T> Entry<?> valueToEntry(Node parent, Tag<T> tag, T value) {
-        if (value instanceof BinaryTag nbt) {
+        if (value instanceof BinaryTag nbt && !((TagImpl<?>) tag).entry().preserveNbt()) {
             if (nbt instanceof CompoundBinaryTag compound) {
-                final TagHandlerImpl handler = fromCompound(compound);
+                final TagHandlerImpl handler = new TagHandlerImpl();
+                TagNbtSeparator.separate(compound, entry -> entry.write(handler));
                 return Entry.makePathEntry(tag, new Node(parent, handler.root.entries));
             } else {
                 return makeNbtEntry(TagNbtSeparator.separateSingle(tag.key(), nbt));
@@ -238,6 +246,8 @@ final class TagHandlerImpl implements TagHandler {
     final class Node implements TagReadable {
         final @Nullable Node parent;
         final StaticIntMap<Entry<?>> entries;
+        // Explicit NBT compounds can carry meaning even when empty.
+        boolean preserveEmpty;
         @Nullable CompoundBinaryTag compound;
 
         public Node(@Nullable Node parent, StaticIntMap<Entry<?>> entries) {
@@ -259,9 +269,8 @@ final class TagHandlerImpl implements TagHandler {
             final Node node = traversePathRead(this, tag);
             if (node == null)
                 return tag.createDefault(); // Must be a path-able entry, but not present
-            if (tag.isView()) return tag.read(node.compound());
-
             final TagImpl<T> tagImpl = (TagImpl<T>) tag;
+            if (tag.isView()) return tagImpl.readValue(node.compound());
             final StaticIntMap<Entry<?>> entries = node.entries;
             final Entry<?> entry = entries.get(tagImpl.index());
             if (entry == null)
@@ -291,7 +300,8 @@ final class TagHandlerImpl implements TagHandler {
                 this.entries.forValues(entry -> {
                     final TagImpl<?> tag = entry.tag;
                     final BinaryTag nbt = entry.updatedNbt();
-                    if (nbt != null && (!tag.entry().isPath() || ServerProperties.SERIALIZE_EMPTY_COMPOUND.get() || !((CompoundBinaryTag) nbt).isEmpty())) {
+                    if (nbt != null && (!tag.entry().isPath() || ((Node) entry.value).preserveEmpty ||
+                            ServerProperties.SERIALIZE_EMPTY_COMPOUND.get() || !((CompoundBinaryTag) nbt).isEmpty())) {
                         tmp.put(tag.key(), nbt);
                     }
                 });
@@ -305,6 +315,7 @@ final class TagHandlerImpl implements TagHandler {
         @Nullable Node copy(@Nullable Node parent) {
             CompoundBinaryTag.Builder tmp = CompoundBinaryTag.builder();
             Node result = new Node(parent, new StaticIntMap.Array<>());
+            result.preserveEmpty = preserveEmpty;
             StaticIntMap<Entry<?>> entries = result.entries;
             this.entries.forValues(entry -> {
                 TagImpl<?> tag = entry.tag;
@@ -326,7 +337,7 @@ final class TagHandlerImpl implements TagHandler {
                 entries.put(tag.index(), valueToEntry(result, (Tag<Object>) tag, value));
             });
             var compound = tmp.build();
-            if (!ServerProperties.SERIALIZE_EMPTY_COMPOUND.get() && compound.isEmpty() && parent != null)
+            if (!preserveEmpty && !ServerProperties.SERIALIZE_EMPTY_COMPOUND.get() && compound.isEmpty() && parent != null)
                 return null; // Empty child node
             result.compound = compound;
             return result;

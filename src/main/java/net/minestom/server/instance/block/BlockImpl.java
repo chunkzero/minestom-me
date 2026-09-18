@@ -6,9 +6,11 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
 import net.minestom.server.registry.BuiltinRegistries;
+import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.Registry;
 import net.minestom.server.registry.RegistryData;
 import net.minestom.server.registry.RegistryKey;
+import net.minestom.server.tag.ContextualTag;
 import net.minestom.server.tag.Tag;
 import net.minestom.server.utils.block.BlockUtils;
 import net.minestom.server.utils.collection.ObjectArray;
@@ -190,6 +192,15 @@ record BlockImpl(RegistryData.BlockEntry registry,
             updatedProperties = updateIndex(updatedProperties, keyIndex, valueIndex);
         }
         return compute(updatedProperties);
+    }
+
+    @Override
+    public <T> Block withTag(ContextualTag<T> tag, @Nullable T value, Registries registries) {
+        var builder = CompoundBinaryTag.builder();
+        if (nbt != null) builder.put(nbt);
+        tag.write(builder, value, registries);
+        var compound = builder.build();
+        return withNbt(compound.isEmpty() ? null : compound);
     }
 
     @Override

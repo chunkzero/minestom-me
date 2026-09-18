@@ -3,6 +3,8 @@ package net.minestom.server.item.component;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.network.NetworkBuffer;
+import net.minestom.server.registry.Registries;
+import net.minestom.server.tag.ContextualTag;
 import net.minestom.server.tag.Tag;
 import net.minestom.server.tag.TagHandler;
 import net.minestom.server.tag.TagReadable;
@@ -22,6 +24,12 @@ public record CustomData(CompoundBinaryTag nbt) implements TagReadable {
     public <T> @UnknownNullability T getTag(Tag<T> tag) {
         final TagHandler tagHandler = TagHandler.fromCompound(nbt);
         return tagHandler.getTag(tag);
+    }
+
+    public <T> CustomData withTag(ContextualTag<T> tag, @Nullable T value, Registries registries) {
+        var handler = TagHandler.fromCompound(nbt);
+        handler.setTag(tag, value, registries);
+        return new CustomData(handler.asCompound());
     }
 
     public <T> CustomData withTag(Tag<T> tag, @Nullable T value) {

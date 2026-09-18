@@ -1,5 +1,7 @@
 package net.minestom.server.tag;
 
+import net.kyori.adventure.nbt.CompoundBinaryTag;
+
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -9,6 +11,19 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class TagPathTest {
+
+    @Test
+    public void directNbtConversionPreservesPathsAndSiblings() {
+        var tag = Tag.Integer("value").path("outer", "inner");
+        var nbt = CompoundBinaryTag.builder().putInt("sibling", 8);
+        tag.write(nbt, 12);
+        assertEquals(12, tag.read(nbt.build()));
+        assertEquals(12, nbt.build().getCompound("outer").getCompound("inner").getInt("value"));
+        assertEquals(8, nbt.build().getInt("sibling"));
+        tag.write(nbt, null);
+        assertNull(tag.read(nbt.build()));
+        assertEquals(8, nbt.build().getInt("sibling"));
+    }
 
     @Test
     public void basic() {

@@ -204,7 +204,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     @SuppressWarnings("this-escape") // deliberate self registration, entities are not usable until spawned
     protected final EntityView viewEngine = new EntityView(this);
     protected final Set<Player> viewers = viewEngine.set;
-    private final TagHandler tagHandler = TagHandler.newHandler();
+    private final TagHandler tagHandler;
     private final Scheduler scheduler;
     private final EventNode<EntityEvent> eventNode;
 
@@ -246,6 +246,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     public Entity(ServerProcess process, EntityType entityType, UUID uuid) {
         this.process = Objects.requireNonNull(process,
                 "A ServerProcess is required; use an Entity constructor accepting ServerProcess or Entity.builder(type).spawn(instance)");
+        this.tagHandler = TagHandler.newHandler(process.registries());
         this.scheduler = Scheduler.newScheduler(process);
         this.id = process.generateEntityId();
         this.entityType = entityType;
