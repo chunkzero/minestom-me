@@ -84,15 +84,14 @@ public final class CachedPacket implements SendablePacket {
     /**
      * Invalidates the currently cached packet, if any.
      *
-     * <p>The next cache access recomputes the packet unless caching is disabled.
-     * This method has no effect when caching is disabled.
+     * <p>The next cache access recomputes the packet. The reference is cleared even while
+     * caching is disabled, so a retained value cannot resurface once caching is re-enabled.
      *
      * @implSpec This method clears the cached reference using release semantics.
      * Cache computation is not synchronized with invalidation, so an in progress
      * computation may publish a value after this method returns.
      */
     public void invalidate() {
-        if (!ServerProperties.CACHED_PACKET.get()) return;
         PACKET.setRelease(this, null);
     }
 

@@ -22,8 +22,7 @@ public final class TickSchedulerThread extends MinestomThread {
 
     @Override
     public void run() {
-        long ticks = 0;
-        long baseTime = System.nanoTime();
+        long nextTickTime = System.nanoTime();
         while (serverProcess.isAlive()) {
             final long tickStart = System.nanoTime();
             try {
@@ -32,16 +31,15 @@ public final class TickSchedulerThread extends MinestomThread {
                 serverProcess.exception().handleException(e);
             }
 
-            ticks++;
-            long tickTimeNanos = 1_000_000_000L / ServerProperties.SERVER_TICKS_PER_SECOND.get();
-            long nextTickTime = baseTime + ticks * tickTimeNanos;
+            // Advance the previous deadline so a tick rate change only affects future ticks.
+            final long tickTimeNanos = 1_000_000_000L / ServerProperties.SERVER_TICKS_PER_SECOND.get();
+            nextTickTime += tickTimeNanos;
             waitUntilNextTick(nextTickTime);
             // Check if the server can not keep up with the tickrate
-            // if it gets too far behind, reset the ticks & baseTime
+            // if it gets too far behind, reset the deadline
             // to avoid running too many ticks at once
             if (System.nanoTime() > nextTickTime + tickTimeNanos * ServerProperties.SERVER_MAX_TICK_CATCH_UP.get()) {
-                baseTime = System.nanoTime();
-                ticks = 0;
+                nextTickTime = System.nanoTime();
             }
         }
     }
