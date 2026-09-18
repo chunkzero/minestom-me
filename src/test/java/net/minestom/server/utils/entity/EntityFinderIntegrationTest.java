@@ -101,7 +101,8 @@ public class EntityFinderIntegrationTest {
         var near = spawnZombie(instance, 1);
         var _ = spawnZombie(instance, 50);
 
-        var finder = new ArgumentEntity("selector").parse(new ServerSender(), new CommandContext(env.process().command(), "@e[distance=..1.5]"), "@e[distance=..1.5]");
+        var context = new CommandContext(env.process().command(), "selector");
+        var finder = new ArgumentEntity("selector").parse(new ServerSender(), context, "@e[distance=..1.5]");
         finder.setStartPosition(ORIGIN);
 
         assertEquals(List.of(near), finder.find(instance, null));

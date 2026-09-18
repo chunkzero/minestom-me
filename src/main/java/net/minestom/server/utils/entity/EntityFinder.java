@@ -285,7 +285,7 @@ public class EntityFinder {
     }
 
     public @Nullable Player findFirstPlayer(CommandSender sender) {
-        return find(sender).stream().filter(Player.class::isInstance).map(Player.class::cast).findFirst().orElse(null);
+        return sender instanceof Player player ? findFirstPlayer(player.getInstance(), player) : findFirstPlayer(null, null);
     }
 
     /**
@@ -311,8 +311,7 @@ public class EntityFinder {
     }
 
     public @Nullable Entity findFirstEntity(CommandSender sender) {
-        var entities = find(sender);
-        return entities.isEmpty() ? null : entities.getFirst();
+        return sender instanceof Player player ? findFirstEntity(player.getInstance(), player) : findFirstEntity(null, null);
     }
 
     public enum TargetSelector {
