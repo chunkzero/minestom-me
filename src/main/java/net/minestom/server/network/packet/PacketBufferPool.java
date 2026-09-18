@@ -1,8 +1,8 @@
 package net.minestom.server.network.packet;
 
-import net.minestom.server.ServerFlag;
 import net.minestom.server.network.ConnectionState;
 import net.minestom.server.network.NetworkBuffer;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.registry.Registries;
 import net.minestom.server.utils.ObjectPool;
 import org.jetbrains.annotations.ApiStatus;
@@ -18,7 +18,7 @@ public final class PacketBufferPool implements AutoCloseable {
 
     public PacketBufferPool(Registries registries) {
         this.registries = Objects.requireNonNull(registries);
-        this.pool = ObjectPool.pool(() -> NetworkBuffer.staticBuffer(ServerFlag.POOLED_BUFFER_SIZE, registries),
+        this.pool = ObjectPool.pool(() -> NetworkBuffer.staticBuffer(ServerProperties.POOLED_BUFFER_SIZE.get(), registries),
                 NetworkBuffer::clear);
     }
 
@@ -32,7 +32,7 @@ public final class PacketBufferPool implements AutoCloseable {
 
     public NetworkBuffer get() {
         // Connection writers can still drain their final packets after process shutdown.
-        return closed ? NetworkBuffer.staticBuffer(ServerFlag.POOLED_BUFFER_SIZE, registries) : pool.get();
+        return closed ? NetworkBuffer.staticBuffer(ServerProperties.POOLED_BUFFER_SIZE.get(), registries) : pool.get();
     }
 
     public void add(NetworkBuffer buffer) {

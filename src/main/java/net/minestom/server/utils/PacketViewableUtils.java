@@ -1,10 +1,10 @@
 package net.minestom.server.utils;
 
-import net.minestom.server.ServerFlag;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Viewable;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.network.packet.server.ServerPacket;
+import net.minestom.server.property.ServerProperties;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
@@ -15,7 +15,7 @@ public final class PacketViewableUtils {
         if (entity != null && entity.process() != process) throw new IllegalArgumentException("Foreign entity");
         if (entity != null && !entity.hasPredictableViewers()) {
             entity.sendPacketToViewers(packet);
-        } else if (!ServerFlag.VIEWABLE_PACKET) {
+        } else if (!ServerProperties.VIEWABLE_PACKET.get()) {
             PacketSendingUtils.sendGroupedPacket(viewable.getViewers(), packet, player -> player != entity);
         } else {
             process.packetBatcher().prepareViewablePacket(viewable, packet, entity);

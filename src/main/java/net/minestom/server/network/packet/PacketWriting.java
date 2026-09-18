@@ -1,10 +1,10 @@
 package net.minestom.server.network.packet;
 
-import net.minestom.server.ServerFlag;
 import net.minestom.server.network.ConnectionState;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.client.ClientPacket;
 import net.minestom.server.network.packet.server.ServerPacket;
+import net.minestom.server.property.ServerProperties;
 import org.jctools.queues.MessagePassingQueue;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
@@ -163,8 +163,8 @@ public final class PacketWriting {
             } catch (IndexOutOfBoundsException _) {
                 final long sizeOf = serializer.sizeOf(packet, tmpBuffer.registries());
                 // Leave room for the three framing varints, and retry if compression expands the payload.
-                final long maxCapacity = ServerFlag.MAX_PACKET_SIZE + 15L;
-                if (sizeOf > ServerFlag.MAX_PACKET_SIZE || tmpBuffer.capacity() >= maxCapacity) {
+                final long maxCapacity = ServerProperties.MAX_PACKET_SIZE.get() + 15L;
+                if (sizeOf > ServerProperties.MAX_PACKET_SIZE.get() || tmpBuffer.capacity() >= maxCapacity) {
                     throw new IllegalStateException("Packet too large: " + sizeOf);
                 }
                 tmpBuffer.resize(Math.min(maxCapacity, Math.max(sizeOf + 15, tmpBuffer.capacity() * 2)));
@@ -198,7 +198,7 @@ public final class PacketWriting {
                 buffer.writeIndex(index);
                 if (written < minWrite) {
                     // Try again with a bigger buffer
-                    final long newSize = Math.min(buffer.capacity() * 2, ServerFlag.MAX_PACKET_SIZE);
+                    final long newSize = Math.min(buffer.capacity() * 2, ServerProperties.MAX_PACKET_SIZE.get());
                     if (newSize == buffer.capacity()) break; // We reached the maximum size
                     buffer.resize(newSize);
                 } else {

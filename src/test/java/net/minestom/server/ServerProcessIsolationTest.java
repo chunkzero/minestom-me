@@ -1,6 +1,7 @@
 package net.minestom.server;
 
 import net.minestom.server.network.player.PlayerSocketConnection;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.registry.Registries;
 import net.minestom.server.world.DimensionType;
 import net.minestom.server.world.Difficulty;
@@ -94,7 +95,7 @@ class ServerProcessIsolationTest {
     @Test
     @EnabledIfSystemProperty(named = "minestom.inside-test", matches = "false")
     void startingOneProcessDoesNotFreezeAnother() {
-        assertFalse(ServerFlag.INSIDE_TEST);
+        assertFalse(ServerProperties.INSIDE_TEST.get());
         try (var first = ServerProcess.create()) {
             first.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             assertTrue(first.registries().dimensionType().isFrozen());

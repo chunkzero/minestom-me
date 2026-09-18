@@ -1,6 +1,5 @@
 package net.minestom.server.network.player;
 
-import net.minestom.server.ServerFlag;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.adventure.MinestomAdventure;
 import net.minestom.server.entity.GameMode;
@@ -36,6 +35,7 @@ import net.minestom.server.network.packet.server.FramedPacket;
 import net.minestom.server.network.packet.server.SendablePacket;
 import net.minestom.server.network.packet.server.ServerPacket;
 import net.minestom.server.network.packet.server.login.SetCompressionPacket;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.utils.collection.ConcurrentMessageQueues;
 import net.minestom.server.utils.validate.Check;
 import org.jctools.queues.MessagePassingQueue;
@@ -100,7 +100,7 @@ public class PlayerSocketConnection extends PlayerConnection {
     private int writeCompressionThreshold;
 
     // Write lock as the default behavior of the writing thread is to park itself
-    // Requires ServerFlag.FASTER_SOCKET_WRITES to be enabled
+    // Requires ServerProperties.FASTER_SOCKET_WRITES.get() to be enabled
     private final AtomicBoolean writeSignaled = new AtomicBoolean(false);
 
     private final ListenerHandle<PlayerPacketOutEvent> outgoing;
@@ -108,7 +108,7 @@ public class PlayerSocketConnection extends PlayerConnection {
     public PlayerSocketConnection(ServerProcess process, SocketChannel channel, SocketAddress remoteAddress,
                                   Thread readThread, Thread writeThread) {
         super(process);
-        this.readBuffer = NetworkBuffer.resizableBuffer(ServerFlag.POOLED_BUFFER_SIZE, process.registries());
+        this.readBuffer = NetworkBuffer.resizableBuffer(ServerProperties.POOLED_BUFFER_SIZE.get(), process.registries());
         this.outgoing = process.eventHandler().getHandle(PlayerPacketOutEvent.class);
         this.channel = channel;
         this.remoteAddress = remoteAddress;
@@ -121,13 +121,13 @@ public class PlayerSocketConnection extends PlayerConnection {
         final long writeIndex = readBuffer.writeIndex();
         final int length = readBuffer.readChannel(channel);
 
-        if (ServerFlag.PROXY_PROTOCOL && !attemptedProxyProtocolDetection) {
+        if (ServerProperties.PROXY_PROTOCOL.get() && !attemptedProxyProtocolDetection) {
             final ProxyProtocolDecoder.Result result = ProxyProtocolDecoder.parse(remoteAddress, readBuffer);
             if (result.status() == ProxyProtocolDecoder.Status.NEED_MORE) return;
             attemptedProxyProtocolDetection = true;
             if (result.status() == ProxyProtocolDecoder.Status.PRESENT) {
                 this.remoteAddress = result.clientAddress();
-            } else if (ServerFlag.PROXY_PROTOCOL_REQUIRED) {
+            } else if (ServerProperties.PROXY_PROTOCOL_REQUIRED.get()) {
                 throw new IOException("Missing required PROXY protocol header");
             }
         }
@@ -160,11 +160,11 @@ public class PlayerSocketConnection extends PlayerConnection {
             // Errors thrown while still in the starting state are usually garbage
             // from scanners. A packet that errors after a state change within the
             // same batch is still checked against the starting state.
-            if (startingState.ordinal() > ServerFlag.SUPPRESS_MALFORMED_PACKET_ERROR_LEVEL)
+            if (startingState.ordinal() > ServerProperties.SUPPRESS_MALFORMED_PACKET_ERROR_LEVEL.get())
                 process().exception().handleException(e);
             // The remaining packets of the batch are lost, disconnect to avoid
             // reading from an invalid state.
-            if (ServerFlag.REJECT_MALFORMED_PACKET) disconnect();
+            if (ServerProperties.REJECT_MALFORMED_PACKET.get()) disconnect();
             return;
         }
         switch (result) {
@@ -184,10 +184,10 @@ public class PlayerSocketConnection extends PlayerConnection {
                             player.addPacketToQueue(packet);
                         }
                     } catch (Throwable e) {
-                        if (startingState.ordinal() > ServerFlag.SUPPRESS_MISUSED_PACKET_ERROR_LEVEL)
+                        if (startingState.ordinal() > ServerProperties.SUPPRESS_MISUSED_PACKET_ERROR_LEVEL.get())
                             process().exception().handleException(e);
                         // Packets already in the queue are unaffected.
-                        if (ServerFlag.REJECT_MISUSED_PACKET) disconnect();
+                        if (ServerProperties.REJECT_MISUSED_PACKET.get()) disconnect();
                     }
                 }
                 // Compact in case of incomplete read
@@ -259,9 +259,9 @@ public class PlayerSocketConnection extends PlayerConnection {
         unlockWriteThread();
     }
 
-    // Requires ServerFlag.FASTER_SOCKET_WRITES
+    // Requires ServerProperties.FASTER_SOCKET_WRITES.get()
     private void unlockWriteThread() {
-        if (!ServerFlag.FASTER_SOCKET_WRITES) return;
+        if (!ServerProperties.FASTER_SOCKET_WRITES.get()) return;
         if (!this.writeSignaled.compareAndExchange(false, true)) {
             LockSupport.unpark(writeThread);
         }
@@ -399,7 +399,7 @@ public class PlayerSocketConnection extends PlayerConnection {
                 }
             }
             // Translation
-            if (ServerFlag.AUTOMATIC_COMPONENT_TRANSLATION && packet instanceof ServerPacket.ComponentHolding translatablePacket) {
+            if (ServerProperties.AUTOMATIC_COMPONENT_TRANSLATION.get() && packet instanceof ServerPacket.ComponentHolding translatablePacket) {
                 packet = translatablePacket.copyWithOperator(component ->
                         MinestomAdventure.COMPONENT_TRANSLATOR.apply(component, Objects.requireNonNullElseGet(player.getLocale(), MinestomAdventure::getDefaultLocale)));
             }
@@ -485,11 +485,11 @@ public class PlayerSocketConnection extends PlayerConnection {
         // Consume queued packets
         var packetQueue = this.packetQueue;
         if (packetQueue.isEmpty()) {
-            if (!ServerFlag.FASTER_SOCKET_WRITES) {
+            if (!ServerProperties.FASTER_SOCKET_WRITES.get()) {
                 try {
                     // Can probably be improved by waking up at the end of the tick
                     // But this work well enough and without additional state.
-                    Thread.sleep(1000 / ServerFlag.SERVER_TICKS_PER_SECOND / 2);
+                    Thread.sleep(1000 / ServerProperties.SERVER_TICKS_PER_SECOND.get() / 2);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }

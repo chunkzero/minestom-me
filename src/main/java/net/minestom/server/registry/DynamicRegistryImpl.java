@@ -5,7 +5,6 @@ import com.google.gson.JsonObject;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.nbt.BinaryTag;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
-import net.minestom.server.ServerFlag;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.Result;
 import net.minestom.server.codec.Transcoder;
@@ -14,6 +13,7 @@ import net.minestom.server.network.packet.server.CachedPacket;
 import net.minestom.server.network.packet.server.SendablePacket;
 import net.minestom.server.network.packet.server.common.TagsPacket;
 import net.minestom.server.network.packet.server.configuration.RegistryDataPacket;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.utils.json.JsonUtil;
 import net.minestom.server.utils.validate.Check;
 import org.jetbrains.annotations.ApiStatus;
@@ -348,7 +348,7 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
     }
 
     static boolean canFreeze() {
-        return !ServerFlag.REGISTRY_UNSAFE_OPS && !ServerFlag.INSIDE_TEST;
+        return !ServerProperties.REGISTRY_UNSAFE_OPS.get() && !ServerProperties.INSIDE_TEST.get();
     }
 
     @SuppressWarnings("removal")
