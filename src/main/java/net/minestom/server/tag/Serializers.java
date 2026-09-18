@@ -38,6 +38,7 @@ final class Serializers {
     static final Entry<Double, DoubleBinaryTag> DOUBLE = new Entry<>(BinaryTagTypes.DOUBLE, DoubleBinaryTag::value, DoubleBinaryTag::doubleBinaryTag);
     static final Entry<String, StringBinaryTag> STRING = new Entry<>(BinaryTagTypes.STRING, StringBinaryTag::value, StringBinaryTag::stringBinaryTag);
     static final Entry<BinaryTag, BinaryTag> NBT_ENTRY = new Entry<>(null, Function.identity(), Function.identity());
+    static final Entry<BinaryTag, BinaryTag> PRESERVED_NBT_ENTRY = new Entry<>(null, Function.identity(), Function.identity(), false, true);
 
     static final Entry<java.util.UUID, IntArrayBinaryTag> UUID = new Entry<>(BinaryTagTypes.INT_ARRAY, UUIDUtils::fromNbt, UUIDUtils::toNbt);
     static final BiFunction<BinaryTag, Registries, ItemStack> ITEM_READER = (input, registries) ->
@@ -67,9 +68,13 @@ final class Serializers {
     record Entry<T, N extends BinaryTag>(@Nullable BinaryTagType<N> nbtType,
                                          Function<N, @Nullable T> reader,
                                          Function<T, @Nullable N> writer,
-                                         boolean isPath) {
+                                         boolean isPath, boolean preserveNbt) {
         Entry(@Nullable BinaryTagType<N> nbtType, Function<N, T> reader, Function<T, N> writer) {
-            this(nbtType, reader, writer, false);
+            this(nbtType, reader, writer, false, false);
+        }
+
+        Entry(@Nullable BinaryTagType<N> nbtType, Function<N, T> reader, Function<T, N> writer, boolean isPath) {
+            this(nbtType, reader, writer, isPath, false);
         }
 
         @Nullable T read(N nbt) {

@@ -20,7 +20,7 @@ record ContextualTagImpl<T>(Tag<BinaryTag> storage,
     static <T> ContextualTag<T> create(String key,
                                      BiFunction<BinaryTag, Registries, @Nullable T> reader,
                                      BiFunction<T, Registries, BinaryTag> writer) {
-        return new ContextualTagImpl<>(Tag.NBT(key), reader, writer, null);
+        return new ContextualTagImpl<>(TagImpl.preservedNbt(key), reader, writer, null);
     }
 
     static <T> ContextualTag<T> structure(String key, ContextualTagSerializer<T> serializer) {
@@ -84,15 +84,12 @@ record ContextualTagImpl<T>(Tag<BinaryTag> storage,
 
     @Override
     public T read(CompoundBinaryTag nbt, Registries registries) {
-        return TagHandler.fromCompound(nbt).getTag(this, registries);
+        return decode(storage.read(nbt), registries);
     }
 
     @Override
     public void write(CompoundBinaryTag.Builder nbt, @Nullable T value, Registries registries) {
-        var handler = TagHandler.fromCompound(nbt.build());
-        handler.setTag(this, value, registries);
-        nbt.build().keySet().forEach(nbt::remove);
-        nbt.put(handler.asCompound());
+        TagHandlerImpl.writeThroughHandler(nbt, handler -> handler.setTag(this, value, registries));
     }
 
     @Override

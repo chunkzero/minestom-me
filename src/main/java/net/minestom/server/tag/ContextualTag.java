@@ -15,6 +15,8 @@ import java.util.function.Supplier;
  * A reusable tag definition whose conversion requires registries. Definitions retain no registry context.
  * Handlers encode contextual values when written and decode them when read. Only their NBT representation
  * is cached, so copies and accessors bound to different registries never share decoded values.
+ * Repeated reads perform conversion each time. For values read every tick, retain the decoded value
+ * within the owning registry context and refresh it when the tag or relevant registries change.
  * Use an owner's bound handler or pass registries explicitly for standalone data:
  * <pre>{@code
  * static final ContextualTag<ItemStack> REWARD = Tag.ItemStack("reward");

@@ -1,20 +1,23 @@
 package net.minestom.server.tag;
 
+import net.kyori.adventure.nbt.BinaryTag;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Function;
 
 final class TagSerializerImpl {
+    private static final Tag<BinaryTag> ROOT = Tag.NBT("");
+
     public static final TagSerializer<CompoundBinaryTag> COMPOUND = new TagSerializer<>() {
         @Override
         public CompoundBinaryTag read(TagReadable reader) {
-            return (CompoundBinaryTag) reader.getTag(Tag.NBT(""));
+            return (CompoundBinaryTag) reader.getTag(ROOT);
         }
 
         @Override
         public void write(TagWritable writer, CompoundBinaryTag value) {
-            TagNbtSeparator.separate(value, entry -> entry.write(writer));
+            TagNbtSeparator.separateShallow(value, entry -> entry.write(writer));
         }
     };
 

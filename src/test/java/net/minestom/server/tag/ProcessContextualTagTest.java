@@ -8,6 +8,8 @@ import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.Player;
+import net.minestom.server.instance.ChunkLoader;
+import net.minestom.server.instance.DynamicChunk;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.inventory.Inventory;
 import net.minestom.server.inventory.InventoryType;
@@ -141,6 +143,29 @@ class ProcessContextualTagTest {
             pair.first().close();
             assertEquals(Component.text("owned"), player.getAndSetTag(TITLE, Component.text("still running")));
             assertEquals(Component.text("still running"), player.getTag(TITLE));
+        }
+    }
+
+    @Test
+    void instancesAndChunksSupplyTheirOwnersRegistries() {
+        try (var pair = configuredPair()) {
+            var first = pair.first().instance().createInstanceContainer(ChunkLoader.noop());
+            var second = pair.second().instance().createInstanceContainer(ChunkLoader.noop());
+            var firstChunk = new DynamicChunk(first, 0, 0);
+            var secondChunk = new DynamicChunk(second, 0, 0);
+            for (Taggable owned : List.of(first, firstChunk)) {
+                owned.setTag(DIMENSION, dimension(pair.first().registries()));
+                assertSame(dimension(pair.first().registries()), owned.getTag(DIMENSION));
+            }
+            second.tagHandler().updateContent(first.tagHandler().asCompound());
+            secondChunk.tagHandler().updateContent(firstChunk.tagHandler().asCompound());
+            for (Taggable owned : List.of(second, secondChunk, second.copy())) {
+                assertSame(pair.second().registries(), owned.tagRegistries());
+                assertSame(dimension(pair.second().registries()), owned.getTag(DIMENSION));
+                assertSame(dimension(pair.second().registries()), owned.tagHandler().readableCopy().getTag(DIMENSION));
+            }
+            pair.first().close();
+            assertSame(dimension(pair.second().registries()), secondChunk.updateAndGetTag(DIMENSION, value -> value));
         }
     }
 
