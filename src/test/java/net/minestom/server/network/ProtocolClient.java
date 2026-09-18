@@ -1,6 +1,6 @@
 package net.minestom.server.network;
 
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.MinecraftConstants;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.network.packet.PacketReading;
 import net.minestom.server.network.packet.PacketVanilla;
@@ -53,7 +53,8 @@ final class ProtocolClient implements AutoCloseable {
     }
 
     void handshake(String address, ClientHandshakePacket.Intent intent) throws IOException {
-        send(new ClientHandshakePacket(MinecraftServer.PROTOCOL_VERSION, address, process.server().getPort(), intent));
+        if (intent == ClientHandshakePacket.Intent.STATUS) receiving = ConnectionState.STATUS;
+        send(new ClientHandshakePacket(MinecraftConstants.PROTOCOL_VERSION, address, process.server().getPort(), intent));
     }
 
     void send(ClientPacket packet) throws IOException {

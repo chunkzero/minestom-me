@@ -1,8 +1,6 @@
 package net.minestom.testing;
 
-import net.kyori.adventure.translation.GlobalTranslator;
 import net.minestom.server.ServerProcess;
-import net.minestom.server.adventure.MinestomAdventure;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.player.AsyncPlayerConfigurationEvent;
@@ -17,7 +15,6 @@ import net.minestom.server.network.player.PlayerConnection;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -103,7 +100,7 @@ final class TestConnectionImpl implements TestConnection {
 
             if (ServerProperties.AUTOMATIC_COMPONENT_TRANSLATION.get() && serverPacket instanceof ServerPacket.ComponentHolding) {
                 serverPacket = ((ServerPacket.ComponentHolding) serverPacket).copyWithOperator(component ->
-                        GlobalTranslator.render(component, Objects.requireNonNullElseGet(player.getLocale(), MinestomAdventure::getDefaultLocale)));
+                        process().translation().translate(component, player.getLocale()));
             }
 
             return serverPacket;

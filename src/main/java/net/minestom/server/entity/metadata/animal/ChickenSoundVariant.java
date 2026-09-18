@@ -25,7 +25,7 @@ public sealed interface ChickenSoundVariant extends ChickenSoundVariants permits
     /**
      * Creates a new instance of the "minecraft:chicken_sound_variant" registry containing the vanilla contents.
      *
-     * @see net.minestom.server.MinecraftServer to get an existing instance of the registry
+     * @see net.minestom.server.registry.Registries
      */
     @ApiStatus.Internal
     static DynamicRegistry<ChickenSoundVariant> createDefaultRegistry() {

@@ -1,5 +1,6 @@
 package net.minestom.server.adventure.provider;
 
+import net.kyori.adventure.text.flattener.ComponentFlattener;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 import java.util.function.Consumer;
@@ -9,13 +10,12 @@ public final class MinestomPlainTextComponentSerializerProvider implements Plain
     @Override
     public PlainTextComponentSerializer plainTextSimple() {
         return PlainTextComponentSerializer.builder()
-                .flattener(MinestomFlattenerProvider.INSTANCE)
+                .flattener(ComponentFlattener.basic())
                 .build();
     }
 
     @Override
     public Consumer<PlainTextComponentSerializer.Builder> plainText() {
-        // we will provide our flattener to allow for custom translations/etc
-        return builder -> builder.flattener(MinestomFlattenerProvider.INSTANCE);
+        return builder -> builder.flattener(ComponentFlattener.basic());
     }
 }

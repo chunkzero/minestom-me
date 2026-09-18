@@ -11,7 +11,7 @@ import static net.minestom.server.network.NetworkBuffer.STRING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-public class SocketWriteIntegrationTest {
+public class SocketWriteTest {
 
     record IntPacket(int value) implements ServerPacket.Play {
         public static final NetworkBuffer.Type<IntPacket> SERIALIZER = NetworkBufferTemplate.template(

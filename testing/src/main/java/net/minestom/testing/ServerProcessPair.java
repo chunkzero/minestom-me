@@ -3,7 +3,7 @@ package net.minestom.testing;
 import net.minestom.server.Auth;
 import net.minestom.server.ServerProcess;
 
-/** Two unstarted processes that leave the default process untouched. */
+/** Two independently owned, unstarted processes. */
 public final class ServerProcessPair implements AutoCloseable {
     private final ServerProcess first;
     private final ServerProcess second;

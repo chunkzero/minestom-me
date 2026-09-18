@@ -17,7 +17,7 @@ public class EntityPhysicsIntegrationTest
         var instance = env.createFlatInstance();
         instance.setBlock(1, 40, 1, Block.STONE);
 
-        var entity = new Entity(EntityTypes.ZOMBIE);
+        var entity = new Entity(env.process(), EntityTypes.ZOMBIE);
         entity.setInstance(instance, new Pos(1, 41, 1)).join();
         env.tick();
 
@@ -36,7 +36,7 @@ public class EntityPhysicsIntegrationTest
         var instance = env.createFlatInstance();
         instance.setBlock(1, 40, 1, Block.STONE);
 
-        var entity = new Entity(EntityTypes.ZOMBIE);
+        var entity = new Entity(env.process(), EntityTypes.ZOMBIE);
         entity.setHasPhysics(false);
         entity.setInstance(instance, new Pos(1, 41, 1)).join();
 

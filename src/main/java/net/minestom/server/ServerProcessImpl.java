@@ -3,6 +3,7 @@ package net.minestom.server;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minestom.server.advancements.AdvancementManager;
 import net.minestom.server.adventure.ClickCallbackManager;
+import net.minestom.server.adventure.ComponentTranslation;
 import net.minestom.server.adventure.audience.Audiences;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
@@ -10,6 +11,7 @@ import net.minestom.server.entity.Entity;
 import net.minestom.server.event.ProcessEventHandler;
 import net.minestom.server.event.server.ServerTickMonitorEvent;
 import net.minestom.server.exception.ExceptionManager;
+import net.minestom.server.extras.lan.OpenToLAN;
 import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.InstanceManager;
@@ -34,7 +36,6 @@ import net.minestom.server.snapshot.InstanceSnapshot;
 import net.minestom.server.snapshot.ServerSnapshot;
 import net.minestom.server.snapshot.SnapshotImpl;
 import net.minestom.server.snapshot.SnapshotUpdater;
-import net.minestom.server.thread.Acquirable;
 import net.minestom.server.thread.ThreadDispatcher;
 import net.minestom.server.thread.ThreadProvider;
 import net.minestom.server.thread.TickSchedulerThread;
@@ -64,6 +65,9 @@ final class ServerProcessImpl implements ServerProcess {
 
     private final int id = PROCESS_IDS.incrementAndGet();
     private final AtomicInteger lastEntityId = new AtomicInteger();
+    private final AtomicInteger lastInventoryId = new AtomicInteger();
+    private final ComponentTranslation translation = new ComponentTranslation();
+    private final OpenToLAN lan;
     private final Auth auth;
     private volatile String brandName = "Minestom";
     private volatile Difficulty difficulty = Difficulty.NORMAL;
@@ -123,6 +127,7 @@ final class ServerProcessImpl implements ServerProcess {
         this.clickCallbackManager = new ClickCallbackManager(this);
 
         this.server = new Server(this, packetParser);
+        this.lan = new OpenToLAN(this);
 
         this.dispatcher = ThreadDispatcher.dispatcher(this, ThreadProvider.counter(), ServerProperties.DISPATCHER_THREADS.get());
         this.ticker = new TickerImpl();
@@ -131,6 +136,21 @@ final class ServerProcessImpl implements ServerProcess {
     @Override
     public int id() {
         return id;
+    }
+
+    @Override
+    public ComponentTranslation translation() {
+        return translation;
+    }
+
+    @Override
+    public OpenToLAN lan() {
+        return lan;
+    }
+
+    @Override
+    public byte generateInventoryId() {
+        return (byte) lastInventoryId.updateAndGet(i -> i + 1 >= 128 ? 1 : i + 1);
     }
 
     @Override
@@ -285,50 +305,53 @@ final class ServerProcessImpl implements ServerProcess {
     }
 
     @Override
-    public synchronized void start(SocketAddress socketAddress) {
-        Check.stateCondition(stopped.get(), "Server is closed");
-        if (!started.compareAndSet(false, true)) {
-            throw new IllegalStateException("Server already started");
-        }
-
-        final String brand = brandName;
-        LOGGER.info("Starting {} ({}) server.", brand, Git.version());
-        switch (auth) {
-            case Auth.Offline _ ->
-                    LOGGER.info("Running in offline mode. Beware that this is not secure and players can impersonate each other.");
-            case Auth.Online _ -> LOGGER.info("Running in online mode with Mojang's authentication.");
-            case Auth.Velocity _ -> LOGGER.info("Running in Velocity mode with modern IP forwarding.");
-            case Auth.Bungee bungee -> {
-                if (bungee.guard()) {
-                    LOGGER.info("Running in BungeeCord mode, using legacy IP forwarding with Guard enabled.");
-                } else {
-                    LOGGER.info("Running in BungeeCord mode without BungeeGuard. Be sure to configure your firewall to prevent direct connections.");
+    public void start(SocketAddress socketAddress) {
+        final Throwable failure;
+        synchronized (this) {
+            Check.stateCondition(stopped.get(), "Server is closed");
+            if (!started.compareAndSet(false, true)) throw new IllegalStateException("Server already started");
+            try {
+                final String brand = brandName;
+                LOGGER.info("Starting {} ({}) server.", brand, Git.version());
+                switch (auth) {
+                    case Auth.Offline _ ->
+                            LOGGER.info("Running in offline mode. Beware that this is not secure and players can impersonate each other.");
+                    case Auth.Online _ -> LOGGER.info("Running in online mode with Mojang's authentication.");
+                    case Auth.Velocity _ -> LOGGER.info("Running in Velocity mode with modern IP forwarding.");
+                    case Auth.Bungee bungee -> {
+                        if (bungee.guard()) {
+                            LOGGER.info("Running in BungeeCord mode, using legacy IP forwarding with Guard enabled.");
+                        } else {
+                            LOGGER.info("Running in BungeeCord mode without BungeeGuard. Be sure to configure your firewall to prevent direct connections.");
+                        }
+                    }
                 }
+                server.init(socketAddress);
+                Registries.freeze(registries);
+                if (ServerProperties.SHUTDOWN_ON_SIGNAL.get()) {
+                    shutdownHook = new Thread(this::stop, "Minestom shutdown-" + id);
+                    Runtime.getRuntime().addShutdownHook(shutdownHook);
+                }
+                server.start();
+                startDispatcher();
+                tickScheduler = new TickSchedulerThread(this);
+                tickScheduler.start();
+                LOGGER.info("{} server started successfully.", brandName);
+                return;
+            } catch (IOException | RuntimeException | Error e) {
+                failure = e;
             }
         }
-
-        // Init server
+        // Worker termination must not wait while holding the process lifecycle lock.
         try {
-            server.init(socketAddress);
-        } catch (IOException e) {
-            exception.handleException(e);
-            throw new RuntimeException(e);
+            stop();
+        } catch (Throwable cleanupFailure) {
+            failure.addSuppressed(cleanupFailure);
         }
-
-        Registries.freeze(registries);
-
-        // Start server
-        server.start();
-        startDispatcher();
-        tickScheduler = new TickSchedulerThread(this);
-        tickScheduler.start();
-
-        LOGGER.info("{} server started successfully.", brand);
-
-        // Stop the server on SIGINT
-        if (ServerProperties.SHUTDOWN_ON_SIGNAL.get()) {
-            shutdownHook = new Thread(this::stop, "Minestom shutdown");
-            Runtime.getRuntime().addShutdownHook(shutdownHook);
+        switch (failure) {
+            case RuntimeException runtime -> throw runtime;
+            case Error error -> throw error;
+            default -> throw new RuntimeException("Unable to start server", failure);
         }
     }
 
@@ -347,40 +370,48 @@ final class ServerProcessImpl implements ServerProcess {
 
     @Override
     public void stop() {
+        final Thread hook;
         synchronized (this) {
             if (!stopped.compareAndSet(false, true)) return;
-            if (shutdownHook != null) {
-                try {
-                    Runtime.getRuntime().removeShutdownHook(shutdownHook);
-                } catch (IllegalStateException _) {
-                    // Shutdown hooks cannot be removed once JVM shutdown has begun.
-                }
-                shutdownHook = null;
+            hook = shutdownHook;
+            shutdownHook = null;
+        }
+        LOGGER.info("Stopping {} server.", brandName);
+        var failures = new ArrayList<Throwable>();
+        if (hook != null) {
+            try {
+                Runtime.getRuntime().removeShutdownHook(hook);
+            } catch (IllegalStateException _) {
+                // Shutdown hooks cannot be removed once JVM shutdown has begun.
+            } catch (Throwable failure) {
+                failures.add(failure);
             }
         }
-        final String brand = brandName;
-        LOGGER.info("Stopping {} server.", brand);
-        packetBatcher.close();
-        scheduler.shutdown();
-        connection.shutdown();
-        bossBar.clear();
-        advancement.clear();
-        clickCallbackManager.clear();
-        audiences.registry().clear();
-        server.stop();
-        packetBuffers.close();
-        LOGGER.info("Shutting down all thread pools.");
-        dispatcher.shutdown();
+        for (Runnable cleanup : List.<Runnable>of(packetBatcher::close, scheduler::shutdown, connection::shutdown,
+                bossBar::clear, advancement::clear, clickCallbackManager::clear, audiences.registry()::clear,
+                server::stop, packetBuffers::close, dispatcher::shutdown)) {
+            try {
+                cleanup.run();
+            } catch (Throwable failure) {
+                failures.add(failure);
+            }
+        }
         // A tick worker can request shutdown while the scheduler is awaiting its tick.
         if (!(Thread.currentThread() instanceof TickThread) && Thread.currentThread() != tickScheduler) {
             try {
                 if (tickScheduler != null) tickScheduler.join();
                 for (var thread : dispatcher.threads()) thread.join();
-            } catch (InterruptedException _) {
+            } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
+                failures.add(interrupted);
             }
         }
-        LOGGER.info("{} server stopped successfully.", brand);
+        if (!failures.isEmpty()) {
+            var failure = new IllegalStateException("Failed to completely stop server " + id);
+            failures.forEach(failure::addSuppressed);
+            exception.handleException(failure);
+        }
+        LOGGER.info("{} server stopped.", brandName);
     }
 
     @Override
@@ -428,7 +459,7 @@ final class ServerProcessImpl implements ServerProcess {
 
             // Monitoring
             {
-                final double acquisitionTimeMs = Acquirable.resetAcquiringTime() / 1e6D;
+                final double acquisitionTimeMs = dispatcher.resetAcquiringTime() / 1e6D;
                 final double tickTimeMs = (System.nanoTime() - nanoTime) / 1e6D;
                 final TickMonitor tickMonitor = new TickMonitor(tickTimeMs, acquisitionTimeMs);
                 eventHandler.call(new ServerTickMonitorEvent(tickMonitor));

@@ -4,6 +4,7 @@ import net.minestom.server.network.packet.server.login.LoginPluginRequestPacket;
 import net.minestom.server.network.player.PlayerConnection;
 import org.jetbrains.annotations.ApiStatus;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,6 +17,7 @@ public class LoginPluginMessageProcessor {
 
     private final Map<Integer, LoginPlugin.Request> requestByMsgId = new ConcurrentHashMap<>();
     private final PlayerConnection connection;
+    private boolean closed;
 
     public LoginPluginMessageProcessor(PlayerConnection connection) {
         this.connection = connection;
@@ -25,7 +27,10 @@ public class LoginPluginMessageProcessor {
         LoginPlugin.Request request = new LoginPlugin.Request(channel, requestPayload);
 
         final int messageId = nextMessageId();
-        requestByMsgId.put(messageId, request);
+        synchronized (this) {
+            if (closed || !connection.isOnline()) throw new IllegalStateException("Connection is closed");
+            requestByMsgId.put(messageId, request);
+        }
         connection.sendPacket(new LoginPluginRequestPacket(messageId, request.channel(), request.payload()));
 
         return request.responseFuture();
@@ -53,6 +58,16 @@ public class LoginPluginMessageProcessor {
                 .map(LoginPlugin.Request::responseFuture)
                 .toArray(CompletableFuture[]::new);
         CompletableFuture.allOf(futures).get(timeout, timeUnit);
+    }
+
+    public void close() {
+        final List<LoginPlugin.Request> pending;
+        synchronized (this) {
+            closed = true;
+            pending = List.copyOf(requestByMsgId.values());
+            requestByMsgId.clear();
+        }
+        pending.forEach(request -> request.responseFuture().cancel(false));
     }
 
     private int nextMessageId() {

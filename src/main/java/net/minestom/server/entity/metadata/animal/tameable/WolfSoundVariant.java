@@ -25,7 +25,7 @@ public sealed interface WolfSoundVariant extends WolfSoundVariants permits WolfS
     /**
      * Creates a new instance of the "minecraft:wolf_sound_variant" registry containing the vanilla contents.
      *
-     * @see net.minestom.server.MinecraftServer to get an existing instance of the registry
+     * @see net.minestom.server.registry.Registries
      */
     @ApiStatus.Internal
     static DynamicRegistry<WolfSoundVariant> createDefaultRegistry() {

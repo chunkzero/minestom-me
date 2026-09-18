@@ -33,7 +33,7 @@ public sealed interface WolfVariant extends WolfVariants permits WolfVariantImpl
     /**
      * Creates a new instance of the "minecraft:wolf_variant" registry containing the vanilla contents.
      *
-     * @see net.minestom.server.MinecraftServer to get an existing instance of the registry
+     * @see net.minestom.server.registry.Registries
      */
     @ApiStatus.Internal
     static DynamicRegistry<WolfVariant> createDefaultRegistry() {

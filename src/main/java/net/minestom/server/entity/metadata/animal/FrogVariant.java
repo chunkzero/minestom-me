@@ -21,7 +21,7 @@ public sealed interface FrogVariant extends FrogVariants permits FrogVariantImpl
     /**
      * Creates a new instance of the "minecraft:frog_variant" registry containing the vanilla contents.
      *
-     * @see net.minestom.server.MinecraftServer to get an existing instance of the registry
+     * @see net.minestom.server.registry.Registries
      */
     @ApiStatus.Internal
     static DynamicRegistry<FrogVariant> createDefaultRegistry() {

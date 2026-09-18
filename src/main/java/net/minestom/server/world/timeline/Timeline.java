@@ -55,7 +55,7 @@ public sealed interface Timeline extends Timelines permits TimelineImpl {
 
     /// Creates a new registry for timelines, loading the vanilla timelines.
     ///
-    /// @see net.minestom.server.MinecraftServer to get an existing instance of the registry
+    /// @see net.minestom.server.registry.Registries
     @ApiStatus.Internal
     static DynamicRegistry<Timeline> createDefaultRegistry(Registries registries) {
         return DynamicRegistry.create(BuiltinRegistries.TIMELINE, REGISTRY_CODEC, registries);

@@ -35,7 +35,7 @@ public class EntityProjectileCollisionIntegrationTest {
         final Instance instance = env.createFlatInstance();
         instance.setWorldBorder(WorldBorder.DEFAULT_BORDER.withDiameter(1000));
 
-        final Entity shooter = new Entity(EntityType.SKELETON);
+        final Entity shooter = new Entity(env.process(), EntityType.SKELETON);
         shooter.setInstance(instance, new Pos(0, 40, 0)).join();
 
         final EntityProjectile projectile = new EntityProjectile(shooter, EntityType.ARROW);
@@ -79,7 +79,7 @@ public class EntityProjectileCollisionIntegrationTest {
         final Instance instance = env.createFlatInstance();
         instance.setWorldBorder(WorldBorder.DEFAULT_BORDER.withDiameter(1000));
 
-        final Entity shooter = new Entity(EntityType.SKELETON);
+        final Entity shooter = new Entity(env.process(), EntityType.SKELETON);
         shooter.setInstance(instance, new Pos(0, 40, 0)).join();
 
         for (double dx = 1; dx <= 3; dx += .2) {
@@ -96,7 +96,7 @@ public class EntityProjectileCollisionIntegrationTest {
         final EntityProjectile projectile = new EntityProjectile(shooter, EntityType.ARROW);
         projectile.setInstance(instance, shooter.getPosition().withY(y -> y + shooter.getEyeHeight())).join();
 
-        final LivingEntity target = new LivingEntity(EntityType.RABBIT);
+        final LivingEntity target = new LivingEntity(env.process(), EntityType.RABBIT);
         target.setInstance(instance, targetPosition.asPos()).join();
         projectile.shoot(targetPosition, 1, 0);
 
@@ -128,7 +128,7 @@ public class EntityProjectileCollisionIntegrationTest {
         final Instance instance = env.createFlatInstance();
         instance.setWorldBorder(WorldBorder.DEFAULT_BORDER.withDiameter(1000));
 
-        final LivingEntity shooter = new LivingEntity(EntityType.SKELETON);
+        final LivingEntity shooter = new LivingEntity(env.process(), EntityType.SKELETON);
         shooter.setInstance(instance, new Pos(0, 40, 0)).join();
 
         final EntityProjectile projectile = new EntityProjectile(shooter, EntityType.ARROW);

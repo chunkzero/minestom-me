@@ -1,7 +1,6 @@
 package net.minestom.server.extras.lan;
 
-import net.minestom.server.MinecraftServer;
-import net.minestom.server.event.EventDispatcher;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.event.server.ServerListPingEvent;
 import net.minestom.server.timer.Task;
 import org.jetbrains.annotations.Nullable;
@@ -25,16 +24,18 @@ import static net.minestom.server.ping.ServerListPingType.OPEN_TO_LAN;
  * that this is a single-player world that has been opened to LAN for it to be displayed on
  * the bottom of the server list.
  *
- * @deprecated Scheduled for deletion. LAN advertisement must own its process, task, and socket.
  * @see <a href="https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Server_List_Ping#Ping_via_LAN_(Open_to_LAN_in_Singleplayer)">the Minecraft wiki</a>
  */
-@Deprecated(forRemoval = true)
 public final class OpenToLAN {
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     private static final Logger LOGGER = LoggerFactory.getLogger(OpenToLAN.class);
-    private static volatile @Nullable State state = null;
+    private volatile @Nullable State state = null;
 
-    private OpenToLAN() {
+    private final ServerProcess process;
+
+    @SuppressWarnings("this-escape") // Fields are initialized before registering shutdown cleanup.
+    public OpenToLAN(ServerProcess process) {
+        this.process = Objects.requireNonNull(process);
+        process.scheduler().buildShutdownTask(this::close);
     }
 
     /**
@@ -42,7 +43,7 @@ public final class OpenToLAN {
      *
      * @return {@code true} if it was opened successfully, {@code false} otherwise
      */
-    public static boolean open() {
+    public boolean open() {
         return open(new OpenToLANConfig());
     }
 
@@ -52,8 +53,7 @@ public final class OpenToLAN {
      * @param config the configuration
      * @return {@code true} if it was opened successfully, {@code false} otherwise
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    public static synchronized boolean open(OpenToLANConfig config) {
+    public synchronized boolean open(OpenToLANConfig config) {
         Objects.requireNonNull(config, "config");
         if (state != null) return false;
         final long eventDelayNanos = config.delayBetweenEvent.toNanos();
@@ -66,7 +66,7 @@ public final class OpenToLAN {
         }
         final Task task;
         try {
-            task = MinecraftServer.getSchedulerManager().buildTask(OpenToLAN::ping)
+            task = process.scheduler().buildTask(this::ping)
                     .repeat(config.delayBetweenPings)
                     .schedule();
         } catch (RuntimeException exception) {
@@ -82,7 +82,7 @@ public final class OpenToLAN {
      *
      * @return {@code true} if it was closed, {@code false} if it was already closed
      */
-    public static synchronized boolean close() {
+    public synchronized boolean close() {
         final State current = state;
         if (current == null) return false;
         state = null;
@@ -96,29 +96,28 @@ public final class OpenToLAN {
      *
      * @return {@code true} if it is, {@code false} otherwise
      */
-    public static boolean isOpen() {
+    public boolean isOpen() {
         return state != null;
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    private static void ping() {
+    private void ping() {
         final State current = state;
         if (current == null) return;
         Thread.startVirtualThread(() -> {
             try {
-                if (state != current || !MinecraftServer.getServer().isOpen()) return;
+                if (state != current || !process.server().isOpen()) return;
                 final DatagramPacket packet = current.resolvePacket();
                 if (state != current) return;
                 current.socket.send(packet);
             } catch (IOException e) {
                 if (state == current) LOGGER.warn("Could not send Open to LAN packet!", e);
             } catch (Exception e) {
-                MinecraftServer.getExceptionManager().handleException(e);
+                process.exception().handleException(e);
             }
         });
     }
 
-    private static final class State {
+    private final class State {
         private final DatagramSocket socket;
         private final Task task;
         private final long eventDelayNanos;
@@ -128,18 +127,16 @@ public final class OpenToLAN {
             this.socket = socket;
             this.task = task;
             this.eventDelayNanos = eventDelayNanos;
-            super();
         }
 
-        @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
         private synchronized DatagramPacket resolvePacket() {
             final long now = System.nanoTime();
             if (snapshot != null && now - snapshot.timestampNanos < eventDelayNanos) {
                 return snapshot.packet;
             }
             final ServerListPingEvent event = new ServerListPingEvent(OPEN_TO_LAN);
-            EventDispatcher.call(event);
-            final byte[] data = OPEN_TO_LAN.getPingResponse(event.getStatus()).getBytes(StandardCharsets.UTF_8);
+            process.eventHandler().call(event);
+            final byte[] data = OPEN_TO_LAN.getPingResponse(event.getStatus(), process.server().getPort()).getBytes(StandardCharsets.UTF_8);
             final DatagramPacket packet = new DatagramPacket(data, data.length,
                     new InetSocketAddress("224.0.2.60", 4445));
             this.snapshot = new Snapshot(packet, now);

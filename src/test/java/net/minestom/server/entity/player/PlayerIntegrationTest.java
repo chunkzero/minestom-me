@@ -378,7 +378,7 @@ public class PlayerIntegrationTest {
         tracker.assertSingle(FacePlayerPacket.class, packet -> assertEquals(pointLookAt, packet.target()));
 
         tracker = connection.trackIncoming(FacePlayerPacket.class);
-        Entity entity = new Entity(EntityType.ZOMBIE);
+        Entity entity = new Entity(env.process(), EntityType.ZOMBIE);
         entity.setInstance(player.getInstance(), new Pos(9, 9, 9)).join();
         player.lookAt(entity);
         tracker.assertSingle(FacePlayerPacket.class, packet -> assertEquals(entity.getEntityId(), packet.entityId()));

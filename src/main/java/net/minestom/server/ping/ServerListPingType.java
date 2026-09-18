@@ -3,12 +3,11 @@ package net.minestom.server.ping;
 import com.google.gson.JsonObject;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.codec.Transcoder;
 import net.minestom.server.event.server.ServerListPingEvent;
 import net.minestom.server.extras.lan.OpenToLAN;
 
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 /**
  * An enum containing the different types of server list ping responses.
@@ -20,22 +19,22 @@ public enum ServerListPingType {
     /**
      * The client is on version 1.16 or higher and supports full RGB with JSON text formatting.
      */
-    MODERN_FULL_RGB(data -> getModernPingResponse(data, true).toString()),
+    MODERN_FULL_RGB((data, _) -> getModernPingResponse(data, true).toString()),
 
     /**
      * The client is on version 1.7 or higher and doesn't support full RGB but does support JSON text formatting.
      */
-    MODERN_NAMED_COLORS(data -> getModernPingResponse(data, false).toString()),
+    MODERN_NAMED_COLORS((data, _) -> getModernPingResponse(data, false).toString()),
 
     /**
      * The client is on version 1.4 or higher and supports a description, the player count and the version information.
      */
-    LEGACY_VERSIONED(data -> getLegacyPingResponse(data, true)),
+    LEGACY_VERSIONED((data, _) -> getLegacyPingResponse(data, true)),
 
     /**
      * The client is on version 1.3.2 or lower and supports a description and the player count.
      */
-    LEGACY_UNVERSIONED(data -> getLegacyPingResponse(data, false)),
+    LEGACY_UNVERSIONED((data, _) -> getLegacyPingResponse(data, false)),
 
     /**
      * The ping that is sent when {@link OpenToLAN} is enabled and sending packets.
@@ -44,20 +43,28 @@ public enum ServerListPingType {
      */
     OPEN_TO_LAN(ServerListPingType::getOpenToLANPing);
 
-    private final Function<Status, String> pingResponseCreator;
+    private final BiFunction<Status, Integer, String> pingResponseCreator;
 
-    ServerListPingType(Function<Status, String> pingResponseCreator) {
+    ServerListPingType(BiFunction<Status, Integer, String> pingResponseCreator) {
         this.pingResponseCreator = pingResponseCreator;
     }
 
     /**
      * Gets the ping response for this version.
+     * Use {@link #getPingResponse(Status, int)} for {@link #OPEN_TO_LAN}, supplying the owning server's port.
      *
      * @param status the response data
      * @return the response
+     * @throws IllegalStateException if this is {@link #OPEN_TO_LAN} and no port was supplied
      */
     public String getPingResponse(Status status) {
-        return this.pingResponseCreator.apply(status);
+        if (this == OPEN_TO_LAN) throw new IllegalStateException("LAN responses require the server port");
+        return getPingResponse(status, 0);
+    }
+
+    /** Creates a response with the owning server's explicit listening port. */
+    public String getPingResponse(Status status, int port) {
+        return this.pingResponseCreator.apply(status, port);
     }
 
     private static final LegacyComponentSerializer SECTION = LegacyComponentSerializer.legacySection();
@@ -69,9 +76,8 @@ public enum ServerListPingType {
      * @return the ping
      * @see OpenToLAN
      */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    public static String getOpenToLANPing(Status status) {
-        return String.format("[MOTD]%s[/MOTD][AD]%s[/AD]", SECTION.serialize(status.description()), MinecraftServer.getServer().getPort());
+    public static String getOpenToLANPing(Status status, int port) {
+        return String.format("[MOTD]%s[/MOTD][AD]%s[/AD]", SECTION.serialize(status.description()), port);
     }
 
     /**

@@ -4,15 +4,9 @@ import net.kyori.adventure.nbt.BinaryTag;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
 import net.kyori.adventure.nbt.TagStringIO;
 import net.kyori.adventure.nbt.api.BinaryTagHolder;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.util.Codec;
-import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.function.BiFunction;
 
 /**
  * Adventure related constants, etc.
@@ -32,12 +26,6 @@ public final class MinestomAdventure {
     public static final Codec<CompoundBinaryTag, String, IOException, IOException> NBT_CODEC
             = Codec.codec(tagStringIO::asCompound, tagStringIO::asString);
 
-    // todo: Need to properly add a translator interface so it can check for presence of a key for the flattener.
-    @SuppressWarnings("ConstantField")
-    public static BiFunction<Component, Locale, Component> COMPONENT_TRANSLATOR = GlobalTranslator::render;
-
-    private static Locale defaultLocale = Locale.getDefault();
-
     private MinestomAdventure() {
     }
 
@@ -50,24 +38,6 @@ public final class MinestomAdventure {
      */
     public static TagStringIO tagStringIO() {
         return tagStringIO;
-    }
-
-    /**
-     * Gets the default locale used to translate components when no overriding locale has been provided.
-     *
-     * @return the default locale
-     */
-    public static Locale getDefaultLocale() {
-        return defaultLocale;
-    }
-
-    /**
-     * Sets the default locale used to translate components when no overriding locale has been provided.
-     *
-     * @param defaultLocale the new default, or {@code null} to return to {@link Locale#getDefault()}
-     */
-    public static void setDefaultLocale(@Nullable Locale defaultLocale) {
-        MinestomAdventure.defaultLocale = Objects.requireNonNullElseGet(defaultLocale, Locale::getDefault);
     }
 
     public static BinaryTagHolder wrapNbt(BinaryTag nbt) {

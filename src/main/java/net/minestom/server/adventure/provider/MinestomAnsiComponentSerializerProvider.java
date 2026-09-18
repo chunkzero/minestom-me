@@ -1,5 +1,6 @@
 package net.minestom.server.adventure.provider;
 
+import net.kyori.adventure.text.flattener.ComponentFlattener;
 import net.kyori.adventure.text.serializer.ansi.ANSIComponentSerializer;
 
 import java.util.function.Consumer;
@@ -15,6 +16,6 @@ public final class MinestomAnsiComponentSerializerProvider implements ANSICompon
 
     @Override
     public Consumer<ANSIComponentSerializer.Builder> builder() {
-        return builder -> builder.flattener(MinestomFlattenerProvider.INSTANCE);
+        return builder -> builder.flattener(ComponentFlattener.basic());
     }
 }

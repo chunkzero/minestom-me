@@ -18,7 +18,7 @@ public class EntityCancellableEffectIntegrationTest {
         var instance = env.createFlatInstance();
         instance.loadChunk(0, 0).join();
 
-        LivingEntity entity = new LivingEntity(EntityType.ZOMBIE);
+        LivingEntity entity = new LivingEntity(env.process(), EntityType.ZOMBIE);
         entity.setInstance(instance, new Vec(0, 0, 0)).join();
 
         Potion potion = new Potion(PotionEffect.ABSORPTION, 0, Potion.INFINITE_DURATION);

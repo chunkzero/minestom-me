@@ -37,7 +37,7 @@ public sealed interface SulfurCubeArchetype extends SulfurCubeArchetypes permits
     /**
      * Creates a new instance of the "minecraft:sulfur_cube_archetype" registry containing the vanilla contents.
      *
-     * @see net.minestom.server.MinecraftServer to get an existing instance of the registry
+     * @see net.minestom.server.registry.Registries
      */
     @ApiStatus.Internal
     static DynamicRegistry<SulfurCubeArchetype> createDefaultRegistry(Registries registries) {

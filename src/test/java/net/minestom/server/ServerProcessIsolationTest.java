@@ -1,6 +1,13 @@
 package net.minestom.server;
 
+import net.minestom.server.inventory.Inventory;
+import net.minestom.server.inventory.InventoryType;
+import net.minestom.server.item.Material;
 import net.minestom.server.network.player.PlayerSocketConnection;
+import net.minestom.server.recipe.Recipe;
+import net.minestom.server.recipe.RecipeBookCategory;
+import net.minestom.server.recipe.display.RecipeDisplay;
+import net.minestom.server.recipe.display.SlotDisplay;
 import net.minestom.server.property.ServerProperties;
 import net.minestom.server.registry.Registries;
 import net.minestom.server.world.DimensionType;
@@ -13,6 +20,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.channels.SocketChannel;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,15 +32,42 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ServerProcessIsolationTest {
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
-    void constructionDoesNotReplaceDefaultProcess() throws IOException {
-        final var defaultProcess = MinecraftServer.process();
+    void inventoryAndRecipeIdsAreAllocatedWithinEachProcess() {
+        try (var pair = new ServerProcessPair()) {
+            var first = new Inventory(pair.first(), InventoryType.CHEST_1_ROW, "First");
+            new Inventory(pair.first(), InventoryType.CHEST_1_ROW, "Another");
+            var second = new Inventory(pair.second(), InventoryType.CHEST_1_ROW, "Second");
+            assertEquals(first.getWindowId(), second.getWindowId());
+            var result = new SlotDisplay.Item(Material.STONE);
+            var display = new RecipeDisplay.CraftingShapeless(List.of(result), result, new SlotDisplay.Item(Material.CRAFTING_TABLE));
+            var recipe = new Recipe() {
+                @Override
+                public List<RecipeDisplay> createRecipeDisplays() {
+                    return List.of(display);
+                }
+
+                @Override
+                public RecipeBookCategory recipeBookCategory() {
+                    return RecipeBookCategory.CRAFTING_BUILDING_BLOCKS;
+                }
+            };
+            pair.first().recipe().addRecipe(recipe);
+            pair.second().recipe().addRecipe(recipe);
+            assertSame(display, pair.first().recipe().getRecipeDisplay(0, null));
+            assertSame(display, pair.second().recipe().getRecipeDisplay(0, null));
+            pair.first().close();
+            assertSame(display, pair.second().recipe().getRecipeDisplay(0, null));
+            assertEquals(second.getWindowId() + 1, new Inventory(pair.second(), InventoryType.CHEST_1_ROW, "Next").getWindowId());
+        }
+    }
+
+    @Test
+    void constructionOwnsIndependentManagers() throws IOException {
         try (var processes = new ServerProcessPair();
              var channel = SocketChannel.open()) {
             var first = processes.first();
             var second = processes.second();
-            assertSame(defaultProcess, MinecraftServer.process());
             assertNotSame(first.registries(), second.registries());
             assertNotSame(first.command(), second.command());
             assertNotSame(first.eventHandler(), second.eventHandler());
@@ -44,18 +79,16 @@ class ServerProcessIsolationTest {
             var connection = new PlayerSocketConnection(second, channel,
                     new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), Thread.currentThread(), Thread.currentThread());
             assertSame(second, connection.process());
-            assertSame(defaultProcess, MinecraftServer.process());
         }
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Test
-    void settingsBelongToTheirProcessAndStaticAccessUsesTheDefault() {
-        try (var first = MinecraftServer.updateProcess();
+    void settingsBelongToTheirProcess() {
+        try (var first = ServerProcess.create();
              var second = ServerProcess.create()) {
-            MinecraftServer.setBrandName("First");
-            MinecraftServer.setDifficulty(Difficulty.HARD);
-            MinecraftServer.setCompressionThreshold(0);
+            first.setBrandName("First");
+            first.setDifficulty(Difficulty.HARD);
+            first.setCompressionThreshold(0);
             second.setBrandName("Second");
             second.setDifficulty(Difficulty.PEACEFUL);
             second.setCompressionThreshold(128);
@@ -63,16 +96,12 @@ class ServerProcessIsolationTest {
             assertEquals("First", first.brandName());
             assertEquals(Difficulty.HARD, first.difficulty());
             assertEquals(0, first.compressionThreshold());
-            assertEquals("First", MinecraftServer.getBrandName());
-            assertEquals(Difficulty.HARD, MinecraftServer.getDifficulty());
-            assertEquals(0, MinecraftServer.getCompressionThreshold());
             first.setBrandName("Updated");
-            assertEquals("Updated", MinecraftServer.getBrandName());
             assertEquals("Second", second.brandName());
             assertEquals(Difficulty.PEACEFUL, second.difficulty());
             assertEquals(128, second.compressionThreshold());
 
-            try (var replacement = MinecraftServer.updateProcess()) {
+            try (var replacement = ServerProcess.create()) {
                 assertEquals("Minestom", replacement.brandName());
                 assertEquals(Difficulty.NORMAL, replacement.difficulty());
                 assertEquals(256, replacement.compressionThreshold());

@@ -1,6 +1,6 @@
 package net.minestom.testing;
 
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerProcess;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -19,13 +19,12 @@ final class EnvTestExt implements
         System.setProperty("minestom.viewable-packet", "false");
     }
 
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
     @Override
     public Env resolveParameter(ParameterContext parameterContext,
                                 ExtensionContext extensionContext) {
         return extensionContext.getStore(ExtensionContext.Namespace.create(getClass()))
                 .computeIfAbsent(ENV_KEY,
-                        _ -> new EnvImpl(MinecraftServer.updateProcess()),
+                        _ -> new EnvImpl(ServerProcess.create()),
                         EnvImpl.class);
     }
 

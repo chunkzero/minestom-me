@@ -25,7 +25,7 @@ public class EntityTrackerIntegrationTest {
 
         final Player viewer = env.createPlayer(instance, spawnPos);
         final AtomicInteger viewersCount = new AtomicInteger();
-        final Entity entity = new Entity(EntityType.ZOMBIE) {
+        final Entity entity = new Entity(env.process(), EntityType.ZOMBIE) {
             @Override
             public void updateNewViewer(Player player) {
                 viewersCount.incrementAndGet();
@@ -55,7 +55,7 @@ public class EntityTrackerIntegrationTest {
 
         final Player viewer = env.createPlayer(instance, spawnPos);
         final AtomicInteger viewersCount = new AtomicInteger();
-        final Entity entity = new Entity(EntityType.ZOMBIE) {
+        final Entity entity = new Entity(env.process(), EntityType.ZOMBIE) {
             @Override
             public void updateNewViewer(Player player) {
                 viewersCount.incrementAndGet();

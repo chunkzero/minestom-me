@@ -12,7 +12,7 @@ public class EntityProjectileIntegrationTest {
     @Test
     public void gravityVelocity(Env env) {
         var instance = env.createFlatInstance();
-        var shooter = new EntityCreature(EntityType.SKELETON);
+        var shooter = new EntityCreature(env.process(), EntityType.SKELETON);
         shooter.setInstance(instance, new Pos(0, 42, 0)).join();
         var projectile = new EntityProjectile(shooter, EntityType.ARROW);
         var from = new Pos(0, 42, 0).add(0,
@@ -44,7 +44,7 @@ public class EntityProjectileIntegrationTest {
     @Test
     public void noGravityVelocity(Env env) {
         var instance = env.createFlatInstance();
-        var shooter = new EntityCreature(EntityType.SKELETON);
+        var shooter = new EntityCreature(env.process(), EntityType.SKELETON);
         shooter.setInstance(instance, new Pos(0, 42, 0)).join();
         var projectile = new EntityProjectile(shooter, EntityType.ARROW);
         var from = new Pos(0, 42, 0).add(0,

@@ -45,7 +45,7 @@ public sealed interface TrimMaterial extends Holder.Direct<TrimMaterial>, TrimMa
     /**
      * <p>Creates a new registry for trim materials, loading the vanilla trim materials.</p>
      *
-     * @see net.minestom.server.MinecraftServer to get an existing instance of the registry
+     * @see net.minestom.server.registry.Registries
      */
     @ApiStatus.Internal
     static DynamicRegistry<TrimMaterial> createDefaultRegistry() {

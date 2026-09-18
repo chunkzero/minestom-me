@@ -154,9 +154,9 @@ public class EntityViewerRuleIntegrationTest {
         var connection = env.createConnection();
         var spawnTracker = connection.trackIncoming(SpawnEntityPacket.class);
 
-        var vehicle = new Entity(EntityType.ZOMBIE);
+        var vehicle = new Entity(env.process(), EntityType.ZOMBIE);
         vehicle.setInstance(instance, new Pos(0, 40, 0)).join();
-        var passenger = new Entity(EntityType.PIG);
+        var passenger = new Entity(env.process(), EntityType.PIG);
         passenger.updateViewableRule(_ -> false);
         vehicle.addPassenger(passenger);
 
@@ -175,9 +175,9 @@ public class EntityViewerRuleIntegrationTest {
         var connection = env.createConnection();
         var spawnTracker = connection.trackIncoming(SpawnEntityPacket.class);
 
-        var vehicle = new Entity(EntityType.ZOMBIE);
+        var vehicle = new Entity(env.process(), EntityType.ZOMBIE);
         vehicle.setInstance(instance, new Pos(0, 40, 0)).join();
-        var passenger = new Entity(EntityType.PIG);
+        var passenger = new Entity(env.process(), EntityType.PIG);
         vehicle.addPassenger(passenger);
 
         var testPlayer = connection.connect(instance, new Pos(0, 40, 0));
@@ -200,9 +200,9 @@ public class EntityViewerRuleIntegrationTest {
         var connection = env.createConnection();
         var spawnTracker = connection.trackIncoming(SpawnEntityPacket.class);
 
-        var vehicle = new Entity(EntityType.ZOMBIE);
+        var vehicle = new Entity(env.process(), EntityType.ZOMBIE);
         vehicle.setInstance(instance, new Pos(0, 40, 0)).join();
-        var passenger = new Entity(EntityType.PIG);
+        var passenger = new Entity(env.process(), EntityType.PIG);
         vehicle.addPassenger(passenger);
 
         var testPlayer = connection.connect(instance, new Pos(0, 40, 0));
@@ -225,8 +225,8 @@ public class EntityViewerRuleIntegrationTest {
         var spawnTracker1 = connection.trackIncoming(SpawnEntityPacket.class);
         var spawnTracker2 = connection.trackIncoming(SpawnEntityPacket.class);
 
-        var vehicle = new Entity(EntityType.ZOMBIE);
-        var passenger = new Entity(EntityType.PIG);
+        var vehicle = new Entity(env.process(), EntityType.ZOMBIE);
+        var passenger = new Entity(env.process(), EntityType.PIG);
         vehicle.setInstance(instance, new Pos(0, 40, 0)).join();
 
         vehicle.setAutoViewable(false);
@@ -250,8 +250,8 @@ public class EntityViewerRuleIntegrationTest {
         var spawnTracker1 = connection.trackIncoming(SpawnEntityPacket.class);
         var spawnTracker2 = connection.trackIncoming(SpawnEntityPacket.class);
 
-        var vehicle = new Entity(EntityType.ZOMBIE);
-        var passenger = new Entity(EntityType.PIG);
+        var vehicle = new Entity(env.process(), EntityType.ZOMBIE);
+        var passenger = new Entity(env.process(), EntityType.PIG);
         vehicle.setInstance(instance, new Pos(0, 40, 0)).join();
 
         vehicle.setAutoViewable(false);

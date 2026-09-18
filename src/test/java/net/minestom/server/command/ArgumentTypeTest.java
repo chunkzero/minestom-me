@@ -41,7 +41,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@SuppressWarnings("removal") // Default-process bridge pending ownership migration.
 public class ArgumentTypeTest {
 
     @AutoClose
