@@ -274,7 +274,7 @@ public class TeamBuilder {
      * @return the built team
      */
     public Team build() {
-        if (!this.teamManager.exists(this.team)) this.teamManager.registerNewTeam(this.team);
+        this.teamManager.registerNewTeam(this.team);
         if (this.updateTeam) {
             this.team.sendUpdatePacket();
             this.updateTeam = false;

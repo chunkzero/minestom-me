@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -93,6 +94,27 @@ class ProcessGameplayOwnershipTest {
     }
 
     @Test
+    void teamExistenceUsesNamesWithinTheOwningProcess() {
+        try (var pair = new ServerProcessPair()) {
+            var first = pair.first().team();
+            var second = pair.second().team();
+            var original = first.createTeam("same");
+            var foreign = second.createTeam("same");
+            assertTrue(first.exists(original));
+            assertTrue(second.exists(foreign));
+            assertFalse(first.exists(foreign));
+            assertFalse(second.exists(original));
+
+            assertTrue(first.deleteTeam(original));
+            assertFalse(first.exists(original));
+            var replacement = first.createTeam("same");
+            assertNotSame(original, replacement);
+            assertTrue(first.exists(original));
+            assertSame(replacement, first.getTeam("same"));
+        }
+    }
+
+    @Test
     void buildersCannotRegisterDuplicateTeamNames() {
         try (var pair = new ServerProcessPair(); var env = Env.create(pair.first())) {
             var connection = env.createConnection();
@@ -104,6 +126,7 @@ class ProcessGameplayOwnershipTest {
             var team = first.build();
             assertThrows(IllegalArgumentException.class, second::build);
             assertSame(team, manager.getTeam("same"));
+            assertSame(team, first.build());
             assertSame(team, manager.createTeam("same"));
             assertEquals(Set.of(team), manager.getTeams());
             packets.assertSingle();

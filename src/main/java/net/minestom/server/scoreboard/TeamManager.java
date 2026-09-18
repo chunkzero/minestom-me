@@ -154,13 +154,13 @@ public final class TeamManager {
     }
 
     /**
-     * Checks if this exact {@link Team} is registered
+     * Checks if the team's name is registered in this manager and the team belongs to this process.
      *
      * @param team The searched team
-     * @return {@code true} if the team is registered, otherwise {@code false}
+     * @return {@code true} if the team belongs to this process and its name is registered, otherwise {@code false}
      */
     public boolean exists(Team team) {
-        return this.teams.contains(team);
+        return team.process() == process && exists(team.getTeamName());
     }
 
     /**
