@@ -1,5 +1,6 @@
 package net.minestom.server.instance;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Viewable;
 import net.minestom.server.coordinate.Point;
@@ -22,12 +23,10 @@ import java.util.function.Consumer;
  * <p>
  * Implementations are expected to be thread-safe.
  */
-public sealed interface EntityTracker permits EntityTrackerImpl {
+public sealed interface EntityTracker extends ProcessOwned permits EntityTrackerImpl {
     static EntityTracker newTracker(ServerProcess process) {
         return new EntityTrackerImpl(process);
     }
-
-    ServerProcess process();
 
     /**
      * Register an entity to be tracked.

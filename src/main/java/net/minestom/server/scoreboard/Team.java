@@ -4,6 +4,7 @@ import net.kyori.adventure.identity.Identity;
 import net.kyori.adventure.pointer.Pointers;
 import net.kyori.adventure.pointer.PointersSupplier;
 import net.kyori.adventure.text.Component;
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.adventure.audience.PacketGroupingAudience;
 import net.minestom.server.color.TeamColor;
@@ -27,7 +28,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 /**
  * This object represents a team on a scoreboard that has a common display theme and other properties.
  */
-public class Team implements PacketGroupingAudience {
+public class Team implements PacketGroupingAudience, ProcessOwned {
     private static final byte ALLOW_FRIENDLY_FIRE_BIT = 0x01;
     private static final byte SEE_INVISIBLE_PLAYERS_BIT = 0x02;
 
@@ -82,6 +83,7 @@ public class Team implements PacketGroupingAudience {
 
     private final ServerProcess process;
 
+    @Override
     public ServerProcess process() {
         return process;
     }

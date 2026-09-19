@@ -1,5 +1,6 @@
 package net.minestom.server.instance;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.instance.InstanceRegisterEvent;
@@ -19,7 +20,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 /**
  * Used to register {@link Instance}.
  */
-public final class InstanceManager {
+public final class InstanceManager implements ProcessOwned {
 
     private final ServerProcess process;
     private final Set<Instance> instances = new CopyOnWriteArraySet<>();
@@ -28,6 +29,7 @@ public final class InstanceManager {
         this.process = Objects.requireNonNull(process);
     }
 
+    @Override
     public ServerProcess process() {
         return process;
     }

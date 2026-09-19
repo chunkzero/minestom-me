@@ -1,5 +1,6 @@
 package net.minestom.server.event;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
@@ -67,7 +68,7 @@ class EventProcessTest {
             var filter = EventFilter.from(TargetEvent.class, Object.class, TargetEvent::target);
             for (var target : List.of(second, second.eventHandler(), second.instanceManager(), second.connectionManager(), second.server(),
                     instance, instance.getEntityTracker(), new DynamicChunk(instance, 0, 0),
-                    new Entity(second, EntityType.ZOMBIE), connection(second))) {
+                    new Entity(second, EntityType.ZOMBIE), connection(second), (ProcessOwned) () -> second)) {
                 assertThrows(IllegalArgumentException.class, () -> first.eventHandler().map(target, filter));
                 var node = EventNode.all("mapped-before-attachment");
                 var mapped = node.map(target, filter);

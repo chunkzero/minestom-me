@@ -2,6 +2,7 @@ package net.minestom.server.utils.entity;
 
 import it.unimi.dsi.fastutil.objects.Object2BooleanMaps;
 import it.unimi.dsi.fastutil.objects.Object2BooleanOpenHashMap;
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.coordinate.Point;
@@ -28,7 +29,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * A query for entities belonging to one process, based on command target selectors.
  * Entities are looked up when the query is resolved, rather than when it is constructed.
  */
-public class EntityFinder {
+public class EntityFinder implements ProcessOwned {
 
     private final ServerProcess process;
 
@@ -58,6 +59,7 @@ public class EntityFinder {
         this.process = Objects.requireNonNull(process);
     }
 
+    @Override
     public final ServerProcess process() {
         return process;
     }

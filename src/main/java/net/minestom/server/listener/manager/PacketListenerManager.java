@@ -1,5 +1,6 @@
 package net.minestom.server.listener.manager;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.event.player.PlayerPacketEvent;
 import net.minestom.server.listener.AbilitiesListener;
@@ -115,7 +116,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class PacketListenerManager {
+public final class PacketListenerManager implements ProcessOwned {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(PacketListenerManager.class);
 
@@ -205,6 +206,11 @@ public final class PacketListenerManager {
         setPlayListener(ClientUpdateSignPacket.class, EditSignListener::listener);
         setPlayListener(ClientDebugSubscriptionRequestPacket.class, DebugSubscriptionListener::requestListener);
         setPlayListener(ClientSetGameRulesPacket.class, PlayerSettingsMenuListener::setGameRules);
+    }
+
+    @Override
+    public ServerProcess process() {
+        return process;
     }
 
     /**

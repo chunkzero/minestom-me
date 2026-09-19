@@ -1,5 +1,6 @@
 package net.minestom.server.inventory;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Viewable;
 import net.minestom.server.entity.Player;
@@ -32,7 +33,7 @@ import java.util.function.UnaryOperator;
 /**
  * Represents an inventory where items can be modified/retrieved.
  */
-public sealed abstract class AbstractInventory implements InventoryClickHandler, Taggable, Viewable, EventHandler<InventoryEvent>
+public sealed abstract class AbstractInventory implements InventoryClickHandler, Taggable, Viewable, EventHandler<InventoryEvent>, ProcessOwned
         permits Inventory, PlayerInventory {
 
     private static final VarHandle ITEM_UPDATER = MethodHandles.arrayElementVarHandle(ItemStack[].class);
@@ -66,6 +67,7 @@ public sealed abstract class AbstractInventory implements InventoryClickHandler,
         Check.argCondition(player.process() != process, "Inventory player belongs to another process");
     }
 
+    @Override
     public final ServerProcess process() {
         return process;
     }

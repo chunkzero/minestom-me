@@ -1,5 +1,6 @@
 package net.minestom.server.network;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Viewable;
 import net.minestom.server.entity.Player;
@@ -23,10 +24,33 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Timeout(10)
 class PacketBatcherTest {
+    @Test
+    void ownedViewablesRejectForeignProcessesBeforeQueuing() {
+        record OwnedViewable(ServerProcess process, Set<Player> getViewers) implements Viewable, ProcessOwned {
+            @Override public boolean addViewer(Player player) { throw new UnsupportedOperationException(); }
+            @Override public boolean removeViewer(Player player) { throw new UnsupportedOperationException(); }
+        }
+        try (var pair = new ServerProcessPair()) {
+            var connection = new RecordingConnection(pair.first());
+            var viewers = Set.of(connection.player());
+            var packet = new KeepAlivePacket(1);
+            var batcher = pair.first().packetBatcher();
+            var foreign = new OwnedViewable(pair.second(), viewers);
+            assertThrows(IllegalArgumentException.class, () -> batcher.prepareViewablePacket(foreign, packet));
+            batcher.flush();
+            assertTrue(connection.packets.isEmpty());
+
+            batcher.prepareViewablePacket(new OwnedViewable(pair.first(), viewers), packet);
+            batcher.flush();
+            assertEquals(List.of(packet), connection.packets);
+        }
+    }
+
     @Test
     void preparationDuringFlushPreservesTheNextBatchAndNonSocketExclusions() throws Exception {
         try (var pair = new ServerProcessPair(); var executor = Executors.newSingleThreadExecutor()) {

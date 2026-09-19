@@ -3,6 +3,7 @@ package net.minestom.server.command;
 import net.kyori.adventure.identity.Identity;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
@@ -32,6 +33,31 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProcessCommandOwnershipTest {
+    @Test
+    void ownedSendersRejectForeignProcessesBeforeExecuting() {
+        record OwnedSender(ServerProcess process, TagHandler tagHandler) implements CommandSender, ProcessOwned {
+            @Override public Identity identity() { return Identity.nil(); }
+        }
+        try (var pair = new ServerProcessPair()) {
+            var calls = new ArrayList<CommandSender>();
+            var command = new Command("owned");
+            command.setDefaultExecutor((sender, _) -> calls.add(sender));
+            var manager = pair.first().commandManager();
+            manager.register(command);
+            var foreign = new OwnedSender(pair.second(), TagHandler.newHandler());
+            assertThrows(IllegalArgumentException.class, () -> manager.execute(foreign, "owned"));
+            assertThrows(IllegalArgumentException.class, () -> manager.parseCommand(foreign, "owned"));
+            assertTrue(calls.isEmpty());
+
+            var senders = List.of(new OwnedSender(pair.first(), TagHandler.newHandler()),
+                    manager.getConsoleSender(), new CustomSender());
+            for (var sender : senders) {
+                assertEquals(CommandResult.Type.SUCCESS, manager.execute(sender, "owned").getType());
+            }
+            assertEquals(senders, calls);
+        }
+    }
+
     @Test
     void parsingDefaultsConditionsSuggestionsAndErrorsReceiveTheExecutingContext() {
         try (var pair = new ServerProcessPair()) {

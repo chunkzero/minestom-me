@@ -2,6 +2,7 @@ package net.minestom.server.adventure.bossbar;
 
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.bossbar.BossBar;
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Player;
 import net.minestom.server.utils.PacketSendingUtils;
@@ -28,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @see Audience#showBossBar(BossBar)
  * @see Audience#hideBossBar(BossBar)
  */
-public class BossBarManager {
+public class BossBarManager implements ProcessOwned {
     private final ServerProcess process;
     @SuppressWarnings("this-escape") // deliberate self registration during construction
     private final BossBarListener listener = new BossBarListener(this);
@@ -42,6 +43,11 @@ public class BossBarManager {
      */
     public BossBarManager(ServerProcess process) {
         this.process = Objects.requireNonNull(process);
+    }
+
+    @Override
+    public ServerProcess process() {
+        return process;
     }
 
     private void checkOwner(Player player) {

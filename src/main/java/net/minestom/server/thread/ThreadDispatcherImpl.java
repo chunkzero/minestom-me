@@ -1,9 +1,8 @@
 package net.minestom.server.thread;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Tickable;
-import net.minestom.server.entity.Entity;
-import net.minestom.server.instance.Chunk;
 import net.minestom.server.utils.collection.ConcurrentMessageQueues;
 import net.minestom.server.utils.validate.Check;
 import org.jctools.queues.MessagePassingQueue;
@@ -158,12 +157,8 @@ final class ThreadDispatcherImpl<P, E extends Tickable> implements ThreadDispatc
     }
 
     private void checkOwner(Object value) {
-        final ServerProcess owner = switch (value) {
-            case Entity entity -> entity.process();
-            case Chunk chunk -> chunk.getInstance().process();
-            default -> null;
-        };
-        Check.argCondition(process != null && owner != null && owner != process, "Game object belongs to another process");
+        Check.argCondition(process != null && value instanceof ProcessOwned owner && owner.process() != process,
+                "Game object belongs to another process");
     }
 
     private void processLoadedPartition(P partition) {

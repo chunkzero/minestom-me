@@ -2,6 +2,7 @@ package net.minestom.server.network;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
@@ -57,7 +58,7 @@ import java.util.function.Function;
 /**
  * Manages the connected clients.
  */
-public final class ConnectionManager {
+public final class ConnectionManager implements ProcessOwned {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConnectionManager.class);
 
     private static final Component TIMEOUT_TEXT = Component.text("Timeout", NamedTextColor.RED);
@@ -71,6 +72,7 @@ public final class ConnectionManager {
         this.process = Objects.requireNonNull(process);
     }
 
+    @Override
     public ServerProcess process() {
         return process;
     }

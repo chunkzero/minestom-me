@@ -1,5 +1,6 @@
 package net.minestom.server.command.builder;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.command.builder.arguments.Argument;
@@ -21,7 +22,7 @@ import java.util.function.Supplier;
  * is called, it means that all of its arguments are correct. Be aware that trying to retrieve an argument not present
  * in the syntax will result in a {@link NullPointerException}.
  */
-public class CommandContext {
+public class CommandContext implements ProcessOwned {
 
     private final CommandManager commandManager;
     private final String input;
@@ -53,6 +54,7 @@ public class CommandContext {
         this.rawArgs = new HashMap<>(source.rawArgs);
     }
 
+    @Override
     public ServerProcess process() {
         return commandManager.process();
     }

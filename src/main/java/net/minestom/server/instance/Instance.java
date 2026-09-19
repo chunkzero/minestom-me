@@ -12,6 +12,7 @@ import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.pointer.Pointers;
 import net.kyori.adventure.pointer.PointersSupplier;
 import net.kyori.adventure.sound.Sound;
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Tickable;
 import net.minestom.server.adventure.AdventurePacketConvertor;
@@ -92,7 +93,8 @@ import java.util.stream.Collectors;
  * you need to be sure to signal the {@link ThreadDispatcher} of every partition/element changes.
  */
 public abstract class Instance implements Block.Getter, Block.Setter, Biome.Getter, Biome.Setter,
-        Tickable, Schedulable, Snapshotable, EventHandler<InstanceEvent>, Taggable, PacketGroupingAudience, Pointered, Identified {
+        Tickable, Schedulable, Snapshotable, EventHandler<InstanceEvent>, Taggable, PacketGroupingAudience, Pointered, Identified,
+        ProcessOwned {
 
     // Adventure pointers
     protected static final PointersSupplier<Instance> INSTANCE_POINTERS_SUPPLIER = PointersSupplier.<Instance>builder()
@@ -184,7 +186,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         this(process, uuid, dimensionType, dimensionType.key());
     }
 
-    /** The process that owns this object's lifetime and services. */
+    @Override
     public final ServerProcess process() {
         return process;
     }
