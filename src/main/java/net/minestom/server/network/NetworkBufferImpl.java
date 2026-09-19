@@ -1,5 +1,6 @@
 package net.minestom.server.network;
 
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.registry.Registries;
 import net.minestom.server.utils.ObjectPool;
 import org.jetbrains.annotations.Contract;
@@ -36,16 +37,18 @@ final class NetworkBufferImpl implements NetworkBuffer {
 
     private final @Nullable AutoResize autoResize;
     private @Nullable Registries registries;
+    private final ServerProperties properties;
 
     NetworkBufferImpl(@Nullable MemorySegment segment,
                       long readIndex, long writeIndex,
                       @Nullable AutoResize autoResize,
-                      @Nullable Registries registries) {
+                      @Nullable Registries registries, ServerProperties properties) {
         this.segment = segment;
         this.readIndex = readIndex;
         this.writeIndex = writeIndex;
         this.autoResize = autoResize;
         this.registries = registries;
+        this.properties = Objects.requireNonNull(properties);
     }
 
     @Override
@@ -178,7 +181,7 @@ final class NetworkBufferImpl implements NetworkBuffer {
     public NetworkBuffer readOnly() {
         final MemorySegment segment = this.segment;
         assertDummy(segment);
-        return new NetworkBufferImpl(segment.asReadOnly(), this.readIndex, this.writeIndex, null, this.registries);
+        return new NetworkBufferImpl(segment.asReadOnly(), this.readIndex, this.writeIndex, null, this.registries, this.properties);
     }
 
     @Override
@@ -250,7 +253,7 @@ final class NetworkBufferImpl implements NetworkBuffer {
         Objects.checkFromIndexSize(index, length, capacity());
         final MemorySegment newSegment = Arena.ofAuto().allocate(length);
         MemorySegment.copy(segment, index, newSegment, 0, length);
-        return new NetworkBufferImpl(newSegment, readIndex, writeIndex, autoResize, registries);
+        return new NetworkBufferImpl(newSegment, readIndex, writeIndex, autoResize, registries, properties);
     }
 
     @Override
@@ -359,6 +362,11 @@ final class NetworkBufferImpl implements NetworkBuffer {
     }
 
     @Override
+    public ServerProperties properties() {
+        return properties;
+    }
+
+    @Override
     public @Nullable Registries registries() {
         return registries;
     }
@@ -373,7 +381,7 @@ final class NetworkBufferImpl implements NetworkBuffer {
         final MemorySegment segment = this.segment;
         assertDummy(segment);
         final MemorySegment slice = segment.asSlice(offset, byteLength);
-        return new NetworkBufferImpl(slice, readIndex, writeIndex, null, registries);
+        return new NetworkBufferImpl(slice, readIndex, writeIndex, null, registries, properties);
     }
 
     @Deprecated(forRemoval = true)
@@ -540,8 +548,8 @@ final class NetworkBufferImpl implements NetworkBuffer {
         MemorySegment.copy(segment, DOUBLE_LAYOUT, index, value, 0, value.length);
     }
 
-    static NetworkBuffer wrap(MemorySegment segment, long readIndex, long writeIndex, @Nullable Registries registries) {
-        return new NetworkBufferImpl(segment, readIndex, writeIndex, null, registries);
+    static NetworkBuffer wrap(MemorySegment segment, long readIndex, long writeIndex, @Nullable Registries registries, ServerProperties properties) {
+        return new NetworkBufferImpl(segment, readIndex, writeIndex, null, registries, properties);
     }
 
     static void copy(NetworkBuffer srcBuffer, long srcOffset,
@@ -599,6 +607,7 @@ final class NetworkBufferImpl implements NetworkBuffer {
         private final long initialSize;
         private @Nullable AutoResize autoResize;
         private @Nullable Registries registries;
+        private @Nullable ServerProperties properties;
 
         public Builder(long initialSize) {
             this.initialSize = initialSize;
@@ -617,16 +626,27 @@ final class NetworkBufferImpl implements NetworkBuffer {
         }
 
         @Override
+        public NetworkBuffer.Builder properties(ServerProperties properties) {
+            this.properties = Objects.requireNonNull(properties);
+            return this;
+        }
+
+        @Override
         public NetworkBuffer build() {
             final MemorySegment segment = Arena.ofAuto().allocate(initialSize);
-            return new NetworkBufferImpl(segment, 0, 0, autoResize, registries);
+            return new NetworkBufferImpl(segment, 0, 0, autoResize, registries,
+                    properties != null ? properties : ServerProperties.defaults());
         }
     }
 
     static NetworkBufferImpl dummy(@Nullable Registries registries) {
+        return dummy(registries, ServerProperties.defaults());
+    }
+
+    static NetworkBufferImpl dummy(@Nullable Registries registries, ServerProperties properties) {
         // Dummy buffer with no memory allocated
         // Useful for size calculations
-        return new NetworkBufferImpl(null, 0, 0, null, registries);
+        return new NetworkBufferImpl(null, 0, 0, null, registries, properties);
     }
 
     static NetworkBufferImpl impl(NetworkBuffer buffer) {

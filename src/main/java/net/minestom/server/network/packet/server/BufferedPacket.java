@@ -14,7 +14,8 @@ public record BufferedPacket(PacketEncodingContext context,
                              NetworkBuffer buffer,
                              long index, long length) implements SendablePacket {
     public BufferedPacket {
-        if (buffer.registries() != context.registries()) throw new IllegalArgumentException("Foreign buffer registries");
+        if (buffer.registries() != context.registries() || buffer.properties() != context.properties())
+            throw new IllegalArgumentException("Foreign buffer registries or properties");
         if (index < 0 || length < 0 || index > buffer.writeIndex() - length)
             throw new IndexOutOfBoundsException("Invalid packet range");
         buffer = buffer.readOnly();

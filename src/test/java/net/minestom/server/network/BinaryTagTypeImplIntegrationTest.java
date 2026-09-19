@@ -139,14 +139,14 @@ public class BinaryTagTypeImplIntegrationTest {
 
     @Test
     public void deepNesting() {
-        // ServerProperties.NBT_MAX_DEPTH.get() containers is the deepest which round trips, one more must fail either way
-        final BinaryTag deepest = nestedCompounds(ServerProperties.NBT_MAX_DEPTH.get());
+        // ServerProperties.fromSystemProperties().nbtMaxDepth().get() containers is the deepest which round trips, one more must fail either way
+        final BinaryTag deepest = nestedCompounds(ServerProperties.fromSystemProperties().nbtMaxDepth().get());
         assertEquals(deepest, read(bytes(deepest)));
 
-        final BinaryTag tooDeep = nestedCompounds(ServerProperties.NBT_MAX_DEPTH.get() + 1);
+        final BinaryTag tooDeep = nestedCompounds(ServerProperties.fromSystemProperties().nbtMaxDepth().get() + 1);
         assertThrows(IllegalArgumentException.class, () -> bytes(tooDeep));
 
-        final byte[] data = nestedCompoundBytes(ServerProperties.NBT_MAX_DEPTH.get() + 1);
+        final byte[] data = nestedCompoundBytes(ServerProperties.fromSystemProperties().nbtMaxDepth().get() + 1);
         assertThrows(IllegalArgumentException.class, () -> read(data));
     }
 
@@ -189,7 +189,7 @@ public class BinaryTagTypeImplIntegrationTest {
         }
 
         assertEquals(2_080_006, buffer.writeIndex());
-        assertTrue(buffer.writeIndex() < ServerProperties.MAX_PACKET_SIZE.get(),
+        assertTrue(buffer.writeIndex() < ServerProperties.fromSystemProperties().maxPacketSize().get(),
                 "The encoded NBT fits in one packet despite exceeding its allocation budget");
         final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
                 () -> buffer.read(UNTRUSTED_NBT));
@@ -225,7 +225,7 @@ public class BinaryTagTypeImplIntegrationTest {
 
         final NetworkBuffer framed = NetworkBuffer.resizableBuffer();
         PacketWriting.writeFramedPacket(framed, ConnectionState.PLAY, packet, 0);
-        assertTrue(framed.writeIndex() < ServerProperties.MAX_PACKET_SIZE.get(),
+        assertTrue(framed.writeIndex() < ServerProperties.fromSystemProperties().maxPacketSize().get(),
                 "The high-object-count NBT fits in one permitted play packet");
 
         final RuntimeException exception = assertThrows(RuntimeException.class,

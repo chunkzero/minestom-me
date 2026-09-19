@@ -290,7 +290,7 @@ public class DynamicChunk extends Chunk {
                     final short fluidCount = (short) countFluids(blockPalette);
                     networkBuffer.write(sectionSerializer, new ChunkData.Section(blockCount, fluidCount, blockPalette, section.biomePalette()));
                 }
-            });
+            }, instance.registries(), instance.process().properties());
 
             return new ChunkDataPacket(chunkX, chunkZ,
                     new ChunkData(heightmaps, data, entries),

@@ -230,7 +230,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     private final AtomicInteger teleportId = new AtomicInteger();
     private int receivedTeleportId;
 
-    private final MessagePassingQueue<ClientPacket> packets = ConcurrentMessageQueues.mpscArrayQueue(ServerProperties.PLAYER_PACKET_QUEUE_SIZE.get());
+    private final MessagePassingQueue<ClientPacket> packets;
     private final boolean levelFlat;
     private ClientSettings settings = ClientSettings.DEFAULT;
     private float exp;
@@ -294,6 +294,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         this.username = gameProfile.name();
         this.usernameComponent = Component.text(username);
         this.playerConnection = playerConnection;
+        this.packets = ConcurrentMessageQueues.mpscArrayQueue(process().properties().playerPacketQueueSize().get());
 
         setRespawnPoint(Pos.ZERO);
 
@@ -2292,12 +2293,12 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
             try {
                 manager.processClientPacket(packet, playerConnection);
             } catch (Throwable e) {
-                if (playerConnection.getClientState().ordinal() > ServerProperties.SUPPRESS_MISUSED_PACKET_ERROR_LEVEL.get())
+                if (playerConnection.getClientState().ordinal() > process().properties().suppressMisusedPacketErrorLevel().get())
                     process().exceptionManager().handleException(e);
-                if (ServerProperties.REJECT_MISUSED_PACKET.get())
+                if (process().properties().rejectMisusedPacket().get())
                     kick(Component.translatable("multiplayer.disconnect.invalid_packet", "Invalid Packet", NamedTextColor.RED));
             }
-        }, ServerProperties.PLAYER_PACKET_PER_TICK.get());
+        }, process().properties().playerPacketPerTick().get());
     }
 
     /**

@@ -15,45 +15,46 @@ import net.minestom.server.property.ServerProperty;
  */
 @Deprecated(forRemoval = true)
 public final class ServerFlag {
+    private static final ServerProperties DEFAULT_PROPERTIES = ServerProperties.defaults();
 
     // Server Behavior
-    public static final boolean SHUTDOWN_ON_SIGNAL = ServerProperties.SHUTDOWN_ON_SIGNAL.get();
+    public static final boolean SHUTDOWN_ON_SIGNAL = DEFAULT_PROPERTIES.shutdownOnSignal().get();
     public static final int SERVER_TICKS_PER_SECOND = ServerProperties.SERVER_TICKS_PER_SECOND.get();
     public static final int SERVER_MAX_TICK_CATCH_UP = ServerProperties.SERVER_MAX_TICK_CATCH_UP.get();
     public static final int CHUNK_VIEW_DISTANCE = ServerProperties.CHUNK_VIEW_DISTANCE.get();
     public static final int ENTITY_VIEW_DISTANCE = ServerProperties.ENTITY_VIEW_DISTANCE.get();
     public static final int ENTITY_SYNCHRONIZATION_TICKS = ServerProperties.ENTITY_SYNCHRONIZATION_TICKS.get();
-    public static final int DISPATCHER_THREADS = ServerProperties.DISPATCHER_THREADS.get();
+    public static final int DISPATCHER_THREADS = DEFAULT_PROPERTIES.dispatcherThreads().get();
     public static final int SEND_LIGHT_AFTER_BLOCK_PLACEMENT_DELAY = ServerProperties.SEND_LIGHT_AFTER_BLOCK_PLACEMENT_DELAY.get();
-    public static final long LOGIN_PLUGIN_MESSAGE_TIMEOUT = ServerProperties.LOGIN_PLUGIN_MESSAGE_TIMEOUT.get();
-    public static final long KNOWN_PACKS_RESPONSE_TIMEOUT = ServerProperties.KNOWN_PACKS_RESPONSE_TIMEOUT.get();
-    public static final boolean ACCEPT_TRANSFERS = ServerProperties.ACCEPT_TRANSFERS.get();
-    public static final boolean AUTOMATIC_COMPONENT_TRANSLATION = ServerProperties.AUTOMATIC_COMPONENT_TRANSLATION.get();
+    public static final long LOGIN_PLUGIN_MESSAGE_TIMEOUT = DEFAULT_PROPERTIES.loginPluginMessageTimeout().get();
+    public static final long KNOWN_PACKS_RESPONSE_TIMEOUT = DEFAULT_PROPERTIES.knownPacksResponseTimeout().get();
+    public static final boolean ACCEPT_TRANSFERS = DEFAULT_PROPERTIES.acceptTransfers().get();
+    public static final boolean AUTOMATIC_COMPONENT_TRANSLATION = DEFAULT_PROPERTIES.automaticComponentTranslation().get();
 
     // Network rate limiting
-    public static final int PLAYER_PACKET_PER_TICK = ServerProperties.PLAYER_PACKET_PER_TICK.get();
-    public static final int PLAYER_PACKET_QUEUE_SIZE = ServerProperties.PLAYER_PACKET_QUEUE_SIZE.get();
-    public static final long KEEP_ALIVE_DELAY = ServerProperties.KEEP_ALIVE_DELAY.get();
-    public static final long KEEP_ALIVE_KICK = ServerProperties.KEEP_ALIVE_KICK.get();
+    public static final int PLAYER_PACKET_PER_TICK = DEFAULT_PROPERTIES.playerPacketPerTick().get();
+    public static final int PLAYER_PACKET_QUEUE_SIZE = DEFAULT_PROPERTIES.playerPacketQueueSize().get();
+    public static final long KEEP_ALIVE_DELAY = DEFAULT_PROPERTIES.keepAliveDelay().get();
+    public static final long KEEP_ALIVE_KICK = DEFAULT_PROPERTIES.keepAliveKick().get();
     public static final int PLAYER_CHUNK_UPDATE_LIMITER_HISTORY_SIZE = ServerProperties.PLAYER_CHUNK_UPDATE_LIMITER_HISTORY_SIZE.get();
 
     // Network error handling
-    public static final boolean SUPPRESS_CONNECTION_ACCEPT_ERRORS = ServerProperties.SUPPRESS_CONNECTION_ACCEPT_ERRORS.get();
-    public static final boolean SUPPRESS_CONNECTION_IO_ERRORS = ServerProperties.SUPPRESS_CONNECTION_IO_ERRORS.get();
-    public static final int SUPPRESS_MALFORMED_PACKET_ERROR_LEVEL = ServerProperties.SUPPRESS_MALFORMED_PACKET_ERROR_LEVEL.get();
-    public static final int SUPPRESS_MISUSED_PACKET_ERROR_LEVEL = ServerProperties.SUPPRESS_MISUSED_PACKET_ERROR_LEVEL.get();
-    public static final boolean REJECT_MALFORMED_PACKET = ServerProperties.REJECT_MALFORMED_PACKET.get();
-    public static final boolean REJECT_MISUSED_PACKET = ServerProperties.REJECT_MISUSED_PACKET.get();
-    public static final boolean WARN_PACKET_UNREAD_BYTES = ServerProperties.WARN_PACKET_UNREAD_BYTES.get();
+    public static final boolean SUPPRESS_CONNECTION_ACCEPT_ERRORS = DEFAULT_PROPERTIES.suppressConnectionAcceptErrors().get();
+    public static final boolean SUPPRESS_CONNECTION_IO_ERRORS = DEFAULT_PROPERTIES.suppressConnectionIoErrors().get();
+    public static final int SUPPRESS_MALFORMED_PACKET_ERROR_LEVEL = DEFAULT_PROPERTIES.suppressMalformedPacketErrorLevel().get();
+    public static final int SUPPRESS_MISUSED_PACKET_ERROR_LEVEL = DEFAULT_PROPERTIES.suppressMisusedPacketErrorLevel().get();
+    public static final boolean REJECT_MALFORMED_PACKET = DEFAULT_PROPERTIES.rejectMalformedPacket().get();
+    public static final boolean REJECT_MISUSED_PACKET = DEFAULT_PROPERTIES.rejectMisusedPacket().get();
+    public static final boolean WARN_PACKET_UNREAD_BYTES = DEFAULT_PROPERTIES.warnPacketUnreadBytes().get();
 
     // Network buffers
-    public static final int MAX_PACKET_SIZE = ServerProperties.MAX_PACKET_SIZE.get();
-    public static final int MAX_PACKET_SIZE_PRE_AUTH = ServerProperties.MAX_PACKET_SIZE_PRE_AUTH.get();
-    public static final int SOCKET_SEND_BUFFER_SIZE = ServerProperties.SOCKET_SEND_BUFFER_SIZE.get();
-    public static final int SOCKET_RECEIVE_BUFFER_SIZE = ServerProperties.SOCKET_RECEIVE_BUFFER_SIZE.get();
-    public static final boolean SOCKET_NO_DELAY = ServerProperties.SOCKET_NO_DELAY.get();
-    public static final int SOCKET_TIMEOUT = ServerProperties.SOCKET_TIMEOUT.get();
-    public static final int POOLED_BUFFER_SIZE = ServerProperties.POOLED_BUFFER_SIZE.get();
+    public static final int MAX_PACKET_SIZE = DEFAULT_PROPERTIES.maxPacketSize().get();
+    public static final int MAX_PACKET_SIZE_PRE_AUTH = DEFAULT_PROPERTIES.maxPacketSizePreAuth().get();
+    public static final int SOCKET_SEND_BUFFER_SIZE = DEFAULT_PROPERTIES.socketSendBufferSize().get();
+    public static final int SOCKET_RECEIVE_BUFFER_SIZE = DEFAULT_PROPERTIES.socketReceiveBufferSize().get();
+    public static final boolean SOCKET_NO_DELAY = DEFAULT_PROPERTIES.socketNoDelay().get();
+    public static final int SOCKET_TIMEOUT = DEFAULT_PROPERTIES.socketTimeout().get();
+    public static final int POOLED_BUFFER_SIZE = DEFAULT_PROPERTIES.pooledBufferSize().get();
 
     // Chunk update
     public static final float MIN_CHUNKS_PER_TICK = ServerProperties.MIN_CHUNKS_PER_TICK.get();
@@ -62,7 +63,7 @@ public final class ServerFlag {
 
     // Packet sending optimizations
     public static final boolean GROUPED_PACKET = ServerProperties.GROUPED_PACKET.get();
-    public static final boolean CACHED_PACKET = ServerProperties.CACHED_PACKET.get();
+    public static final boolean CACHED_PACKET = DEFAULT_PROPERTIES.cachedPacket().get();
     public static final boolean VIEWABLE_PACKET = ServerProperties.VIEWABLE_PACKET.get();
 
     // Tags
@@ -81,14 +82,14 @@ public final class ServerFlag {
 
     // Experimental/Unstable
     public static final boolean REGISTRY_UNSAFE_OPS = ServerProperties.REGISTRY_UNSAFE_OPS.get();
-    public static final boolean FASTER_SOCKET_WRITES = ServerProperties.FASTER_SOCKET_WRITES.get();
+    public static final boolean FASTER_SOCKET_WRITES = DEFAULT_PROPERTIES.fasterSocketWrites().get();
     public static final boolean ACQUIRABLE_STRICT = ServerProperties.ACQUIRABLE_STRICT.get();
     public static final boolean UNSAFE_COLLECTIONS = ServerProperties.UNSAFE_COLLECTIONS.get();
     public static final boolean TEMPLATE_COMPILER = ServerProperties.TEMPLATE_COMPILER.get();
-    public static final boolean PROXY_PROTOCOL = ServerProperties.PROXY_PROTOCOL.get();
-    public static final boolean PROXY_PROTOCOL_REQUIRED = ServerProperties.PROXY_PROTOCOL_REQUIRED.get();
-    public static final int NBT_MAX_DEPTH = ServerProperties.NBT_MAX_DEPTH.get();
-    public static final int NBT_MAX_BYTES = ServerProperties.NBT_MAX_BYTES.get();
+    public static final boolean PROXY_PROTOCOL = DEFAULT_PROPERTIES.proxyProtocol().get();
+    public static final boolean PROXY_PROTOCOL_REQUIRED = DEFAULT_PROPERTIES.proxyProtocolRequired().get();
+    public static final int NBT_MAX_DEPTH = DEFAULT_PROPERTIES.nbtMaxDepth().get();
+    public static final int NBT_MAX_BYTES = DEFAULT_PROPERTIES.nbtMaxBytes().get();
 
     public static final boolean INSIDE_TEST = ServerProperties.INSIDE_TEST.get();
 

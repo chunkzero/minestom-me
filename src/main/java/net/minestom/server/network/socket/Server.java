@@ -4,7 +4,6 @@ import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.network.packet.PacketParser;
 import net.minestom.server.network.player.PlayerSocketConnection;
-import net.minestom.server.property.ServerProperties;
 import net.minestom.server.thread.TickSchedulerThread;
 import net.minestom.server.thread.TickThread;
 import org.jetbrains.annotations.ApiStatus;
@@ -109,7 +108,7 @@ public final class Server implements ProcessOwned {
                 } catch (ClosedChannelException _) {
                     break; // We are exiting, bye bye!
                 } catch (IOException e) {
-                    if (!ServerProperties.SUPPRESS_CONNECTION_ACCEPT_ERRORS.get())
+                    if (!process().properties().suppressConnectionAcceptErrors().get())
                         process().exceptionManager().handleException(e);
                     continue;
                 }
@@ -141,7 +140,7 @@ public final class Server implements ProcessOwned {
                     } catch (IOException cleanupFailure) {
                         e.addSuppressed(cleanupFailure);
                     }
-                    if (!stop && !ServerProperties.SUPPRESS_CONNECTION_ACCEPT_ERRORS.get())
+                    if (!stop && !process().properties().suppressConnectionAcceptErrors().get())
                         process().exceptionManager().handleException(e);
                 }
             }
@@ -149,13 +148,13 @@ public final class Server implements ProcessOwned {
         acceptThread.start();
     }
 
-    private static void configureSocket(SocketChannel channel) throws IOException {
+    private void configureSocket(SocketChannel channel) throws IOException {
         if (channel.getLocalAddress() instanceof InetSocketAddress) {
             Socket socket = channel.socket();
-            socket.setSendBufferSize(ServerProperties.SOCKET_SEND_BUFFER_SIZE.get());
-            socket.setReceiveBufferSize(ServerProperties.SOCKET_RECEIVE_BUFFER_SIZE.get());
-            socket.setTcpNoDelay(ServerProperties.SOCKET_NO_DELAY.get());
-            socket.setSoTimeout(ServerProperties.SOCKET_TIMEOUT.get());
+            socket.setSendBufferSize(process().properties().socketSendBufferSize().get());
+            socket.setReceiveBufferSize(process().properties().socketReceiveBufferSize().get());
+            socket.setTcpNoDelay(process().properties().socketNoDelay().get());
+            socket.setSoTimeout(process().properties().socketTimeout().get());
         }
     }
 
@@ -166,7 +165,7 @@ public final class Server implements ProcessOwned {
         } catch (ClosedChannelException | EOFException _) {
             // The peer or shutdown closed the connection.
         } catch (IOException e) {
-            if (!stop && !ServerProperties.SUPPRESS_CONNECTION_IO_ERRORS.get())
+            if (!stop && !process().properties().suppressConnectionIoErrors().get())
                 process.exceptionManager().handleException(e);
         } catch (Throwable e) {
             if (!stop) process.exceptionManager().handleException(e);
@@ -182,7 +181,7 @@ public final class Server implements ProcessOwned {
         } catch (ClosedChannelException | EOFException _) {
             // The peer or shutdown closed the connection.
         } catch (IOException e) {
-            if (!stop && !ServerProperties.SUPPRESS_CONNECTION_IO_ERRORS.get())
+            if (!stop && !process().properties().suppressConnectionIoErrors().get())
                 process.exceptionManager().handleException(e);
         } catch (Throwable e) {
             if (!stop) process.exceptionManager().handleException(e);

@@ -65,6 +65,7 @@ import net.minestom.server.instance.block.BlockManager;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.ping.Status;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.recipe.RecipeBookCategory;
 import net.minestom.server.registry.RegistryKey;
 import net.minestom.server.registry.RegistryTag;
@@ -81,9 +82,11 @@ import java.util.Objects;
 public class Main {
 
     static void main(String[] args) {
-        System.setProperty("minestom.new-socket-write-lock", "true");
-        System.setProperty("minestom.registry.unsafe-ops", "true");
-        ServerProcess process = ServerProcess.create(new Auth.Offline());
+        var properties = ServerProperties.builder()
+                .fasterSocketWrites(true)
+                .freezeRegistriesOnStart(false)
+                .build();
+        ServerProcess process = ServerProcess.create(new Auth.Offline(), properties);
         process.setCompressionThreshold(0);
 
         BlockManager blockManager = process.blockManager();

@@ -76,7 +76,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ProcessConnectionTest {
     @Test
     void socketWriterReportsApplicationFailuresWhenIoErrorsAreSuppressed() throws Exception {
-        assertTrue(ServerProperties.SUPPRESS_CONNECTION_IO_ERRORS.get());
+        assertTrue(ServerProperties.fromSystemProperties().suppressConnectionIoErrors().get());
         try (var pair = new ServerProcessPair()) {
             var process = pair.first();
             var errors = new LinkedBlockingQueue<Throwable>();

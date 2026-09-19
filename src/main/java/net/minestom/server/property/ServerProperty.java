@@ -5,14 +5,14 @@ import java.util.function.Supplier;
 /**
  * A named server setting, initialized from the system property it is named after.
  *
- * <p>A property starts at its default value, or at the parsed value of the system property named
- * {@link #name()} when one is set. {@link #get()} returns the current value.</p>
+ * <p>A property starts at its default value, the parsed system property named {@link #name()}, or
+ * an explicit construction override. {@link #get()} returns the current value.</p>
  *
  * <p>A property is immutable unless {@code <name>.mutable} says otherwise, defaulting to the
  * {@code minestom.properties.mutable} system property. An immutable property fixes its value when it
- * is built, which lets the compiler fold reads away to a constant, and throws
- * {@link IllegalStateException} from {@link #set(Object)}. Configure one through its system property
- * instead, or make that one property writable and leave the rest foldable.</p>
+ * is built and throws {@link IllegalStateException} from {@link #set(Object)}. Process startup
+ * settings and serialization limits are always immutable, regardless of the mutable flags.
+ * Use {@link ServerProperties.Builder} to override initial values without requiring runtime writes.</p>
  *
  * <p>A written value is visible to other threads, but a write racing a read may or may not be seen.</p>
  *

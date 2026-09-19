@@ -79,7 +79,7 @@ public final class PacketBatcher implements AutoCloseable {
         for (var group : recipients.entrySet()) {
             if (closed) return;
             var context = group.getKey();
-            var buffer = NetworkBuffer.resizableBuffer(context.registries());
+            var buffer = NetworkBuffer.resizableBuffer(256, context.registries(), context.properties());
             long[] offsets = new long[entries.size() + 1];
             for (int i = 0; i < entries.size(); i++) {
                 context.write(buffer, entries.get(i).packet);

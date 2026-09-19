@@ -9,6 +9,7 @@ import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.EntityPose;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.registry.Registries;
 import net.minestom.server.utils.Direction;
 import net.minestom.server.utils.Either;
@@ -278,6 +279,9 @@ public sealed interface NetworkBuffer permits NetworkBufferImpl {
 
     long decompress(long start, long length, NetworkBuffer output) throws DataFormatException;
 
+    /** Configuration used by this buffer and all derived views and copies. */
+    ServerProperties properties();
+
     @Nullable Registries registries();
 
     void registries(@Nullable Registries registries);
@@ -293,7 +297,7 @@ public sealed interface NetworkBuffer permits NetworkBufferImpl {
      * @throws IllegalArgumentException if this buffer is a dummy
      * @apiNote With resized segments, you could observe behavior where you may see stale data or close arenas.
      * To avoid this, do not use resizable segments in a way where they are written or resized like {@link #resize(long)}.
-     * @implNote {@link #registries()} are copied into the new buffer
+     * @implNote {@link #registries()} and {@link #properties()} are copied into the new buffer
      */
     @Contract(pure = true, value = "_, _, _, _ -> new")
     NetworkBuffer slice(long offset, long byteLength, long readIndex, long writeIndex);
@@ -315,8 +319,12 @@ public sealed interface NetworkBuffer permits NetworkBufferImpl {
 
         T read(NetworkBuffer buffer);
 
+        default long sizeOf(T value, @Nullable Registries registries, ServerProperties properties) {
+            return NetworkBufferTypeImpl.sizeOf(this, value, registries, properties);
+        }
+
         default long sizeOf(T value, @Nullable Registries registries) {
-            return NetworkBufferTypeImpl.sizeOf(this, value, registries);
+            return sizeOf(value, registries, ServerProperties.defaults());
         }
 
         default long sizeOf(T value) {
@@ -372,12 +380,20 @@ public sealed interface NetworkBuffer permits NetworkBufferImpl {
         return new NetworkBufferImpl.Builder(size);
     }
 
+    static NetworkBuffer staticBuffer(long size, @Nullable Registries registries, ServerProperties properties) {
+        return builder(size).registry(registries).properties(properties).build();
+    }
+
     static NetworkBuffer staticBuffer(long size, Registries registries) {
         return builder(size).registry(registries).build();
     }
 
     static NetworkBuffer staticBuffer(long size) {
         return builder(size).build();
+    }
+
+    static NetworkBuffer resizableBuffer(long initialSize, @Nullable Registries registries, ServerProperties properties) {
+        return builder(initialSize).autoResize(AutoResize.DOUBLE).registry(registries).properties(properties).build();
     }
 
     static NetworkBuffer resizableBuffer(long initialSize, Registries registries) {
@@ -401,12 +417,22 @@ public sealed interface NetworkBuffer permits NetworkBufferImpl {
         return resizableBuffer(256);
     }
 
+    static NetworkBuffer wrap(MemorySegment segment, long readIndex, long writeIndex,
+                              @Nullable Registries registries, ServerProperties properties) {
+        return NetworkBufferImpl.wrap(segment, readIndex, writeIndex, registries, properties);
+    }
+
     static NetworkBuffer wrap(MemorySegment segment, long readIndex, long writeIndex, @Nullable Registries registries) {
-        return NetworkBufferImpl.wrap(segment, readIndex, writeIndex, registries);
+        return wrap(segment, readIndex, writeIndex, registries, ServerProperties.defaults());
     }
 
     static NetworkBuffer wrap(MemorySegment segment, long readIndex, long writeIndex) {
         return wrap(segment, readIndex, writeIndex, null);
+    }
+
+    static NetworkBuffer wrap(byte[] bytes, int readIndex, int writeIndex,
+                              @Nullable Registries registries, ServerProperties properties) {
+        return wrap(MemorySegment.ofArray(bytes), readIndex, writeIndex, registries, properties);
     }
 
     static NetworkBuffer wrap(byte[] bytes, int readIndex, int writeIndex, @Nullable Registries registries) {
@@ -421,6 +447,9 @@ public sealed interface NetworkBuffer permits NetworkBufferImpl {
         Builder autoResize(@Nullable AutoResize autoResize);
 
         Builder registry(@Nullable Registries registries);
+
+        /** Binds configuration without copying it. {@link ServerProperties#defaults()} applies when omitted. */
+        Builder properties(ServerProperties properties);
 
         NetworkBuffer build();
     }
@@ -543,14 +572,22 @@ public sealed interface NetworkBuffer permits NetworkBufferImpl {
         void writeUTF(String value);
     }
 
-    static byte[] makeArray(Consumer<NetworkBuffer> writing, @Nullable Registries registries) {
-        NetworkBuffer buffer = resizableBuffer(256, registries);
+    static byte[] makeArray(Consumer<NetworkBuffer> writing, @Nullable Registries registries, ServerProperties properties) {
+        NetworkBuffer buffer = resizableBuffer(256, registries, properties);
         writing.accept(buffer);
         return buffer.read(RAW_BYTES);
     }
 
+    static byte[] makeArray(Consumer<NetworkBuffer> writing, @Nullable Registries registries) {
+        return makeArray(writing, registries, ServerProperties.defaults());
+    }
+
     static byte[] makeArray(Consumer<NetworkBuffer> writing) {
         return makeArray(writing, null);
+    }
+
+    static <T> byte[] makeArray(Type<T> type, T value, @Nullable Registries registries, ServerProperties properties) {
+        return makeArray(buffer -> buffer.write(type, value), registries, properties);
     }
 
     static <T> byte[] makeArray(Type<T> type, T value, @Nullable Registries registries) {

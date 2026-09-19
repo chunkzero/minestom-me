@@ -196,7 +196,7 @@ record DataComponentMapImpl(Int2ObjectMap<@Nullable Object> components) implemen
                     type.write(buffer, entry.getValue());
                 } else {
                     // Need to length prefix it, so write to another buffer first then copy.
-                    final byte[] componentData = NetworkBuffer.makeArray(b -> type.write(b, entry.getValue()), buffer.registries());
+                    final byte[] componentData = NetworkBuffer.makeArray(b -> type.write(b, entry.getValue()), buffer.registries(), buffer.properties());
                     buffer.write(NetworkBuffer.BYTE_ARRAY, componentData);
                 }
             }

@@ -98,7 +98,7 @@ public class PlayerSocketConnection extends PlayerConnection {
     private int writeCompressionThreshold;
 
     // Write lock as the default behavior of the writing thread is to park itself
-    // Requires ServerProperties.FASTER_SOCKET_WRITES.get() to be enabled
+    // Requires process().properties().fasterSocketWrites().get() to be enabled
     private final AtomicBoolean writeSignaled = new AtomicBoolean(false);
 
     private final ListenerHandle<PlayerPacketOutEvent> outgoing;
@@ -106,7 +106,8 @@ public class PlayerSocketConnection extends PlayerConnection {
     public PlayerSocketConnection(ServerProcess process, SocketChannel channel, SocketAddress remoteAddress,
                                   Thread readThread, Thread writeThread) {
         super(process);
-        this.readBuffer = NetworkBuffer.resizableBuffer(ServerProperties.POOLED_BUFFER_SIZE.get(), process.registries());
+        this.readBuffer = NetworkBuffer.builder(process.properties().pooledBufferSize().get())
+                .autoResize(NetworkBuffer.AutoResize.DOUBLE).registry(process.registries()).properties(process.properties()).build();
         this.outgoing = process.eventHandler().getHandle(PlayerPacketOutEvent.class);
         this.channel = channel;
         this.remoteAddress = remoteAddress;
@@ -119,13 +120,13 @@ public class PlayerSocketConnection extends PlayerConnection {
         final long writeIndex = readBuffer.writeIndex();
         final int length = readBuffer.readChannel(channel);
 
-        if (ServerProperties.PROXY_PROTOCOL.get() && !attemptedProxyProtocolDetection) {
+        if (process().properties().proxyProtocol().get() && !attemptedProxyProtocolDetection) {
             final ProxyProtocolDecoder.Result result = ProxyProtocolDecoder.parse(remoteAddress, readBuffer);
             if (result.status() == ProxyProtocolDecoder.Status.NEED_MORE) return;
             attemptedProxyProtocolDetection = true;
             if (result.status() == ProxyProtocolDecoder.Status.PRESENT) {
                 this.remoteAddress = result.clientAddress();
-            } else if (ServerProperties.PROXY_PROTOCOL_REQUIRED.get()) {
+            } else if (process().properties().proxyProtocolRequired().get()) {
                 throw new IOException("Missing required PROXY protocol header");
             }
         }
@@ -158,11 +159,11 @@ public class PlayerSocketConnection extends PlayerConnection {
             // Errors thrown while still in the starting state are usually garbage
             // from scanners. A packet that errors after a state change within the
             // same batch is still checked against the starting state.
-            if (startingState.ordinal() > ServerProperties.SUPPRESS_MALFORMED_PACKET_ERROR_LEVEL.get())
+            if (startingState.ordinal() > process().properties().suppressMalformedPacketErrorLevel().get())
                 process().exceptionManager().handleException(e);
             // The remaining packets of the batch are lost, disconnect to avoid
             // reading from an invalid state.
-            if (ServerProperties.REJECT_MALFORMED_PACKET.get()) disconnect();
+            if (process().properties().rejectMalformedPacket().get()) disconnect();
             return;
         }
         switch (result) {
@@ -182,10 +183,10 @@ public class PlayerSocketConnection extends PlayerConnection {
                             player.addPacketToQueue(packet);
                         }
                     } catch (Throwable e) {
-                        if (startingState.ordinal() > ServerProperties.SUPPRESS_MISUSED_PACKET_ERROR_LEVEL.get())
+                        if (startingState.ordinal() > process().properties().suppressMisusedPacketErrorLevel().get())
                             process().exceptionManager().handleException(e);
                         // Packets already in the queue are unaffected.
-                        if (ServerProperties.REJECT_MISUSED_PACKET.get()) disconnect();
+                        if (process().properties().rejectMisusedPacket().get()) disconnect();
                     }
                 }
                 // Compact in case of incomplete read
@@ -257,9 +258,9 @@ public class PlayerSocketConnection extends PlayerConnection {
         unlockWriteThread();
     }
 
-    // Requires ServerProperties.FASTER_SOCKET_WRITES.get()
+    // Requires process().properties().fasterSocketWrites().get()
     private void unlockWriteThread() {
-        if (!ServerProperties.FASTER_SOCKET_WRITES.get()) return;
+        if (!process().properties().fasterSocketWrites().get()) return;
         if (!this.writeSignaled.compareAndExchange(false, true)) {
             LockSupport.unpark(writeThread);
         }
@@ -397,7 +398,7 @@ public class PlayerSocketConnection extends PlayerConnection {
                 }
             }
             // Translation
-            if (ServerProperties.AUTOMATIC_COMPONENT_TRANSLATION.get() && packet instanceof ServerPacket.ComponentHolding translatablePacket) {
+            if (process().properties().automaticComponentTranslation().get() && packet instanceof ServerPacket.ComponentHolding translatablePacket) {
                 packet = translatablePacket.copyWithOperator(component ->
                         process().translation().translate(component, player.getLocale()));
             }
@@ -483,7 +484,7 @@ public class PlayerSocketConnection extends PlayerConnection {
         // Consume queued packets
         var packetQueue = this.packetQueue;
         if (packetQueue.isEmpty()) {
-            if (!ServerProperties.FASTER_SOCKET_WRITES.get()) {
+            if (!process().properties().fasterSocketWrites().get()) {
                 try {
                     // Can probably be improved by waking up at the end of the tick
                     // But this work well enough and without additional state.

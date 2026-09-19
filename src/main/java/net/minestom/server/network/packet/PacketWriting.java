@@ -4,7 +4,6 @@ import net.minestom.server.network.ConnectionState;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.client.ClientPacket;
 import net.minestom.server.network.packet.server.ServerPacket;
-import net.minestom.server.property.ServerProperties;
 import org.jctools.queues.MessagePassingQueue;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
@@ -88,6 +87,7 @@ public final class PacketWriting {
         buffer.write(NetworkBuffer.VAR_INT, id);
         buffer.write(type, packet);
         final long finalSize = buffer.writeIndex() - (lengthIndex + 3);
+        checkPacketSize(buffer, finalSize);
         buffer.writeAt(lengthIndex, NetworkBuffer.VAR_INT_3, (int) finalSize);
     }
 
@@ -102,11 +102,12 @@ public final class PacketWriting {
         buffer.write(NetworkBuffer.VAR_INT, id);
         buffer.write(type, packet);
         final long packetSize = buffer.writeIndex() - contentStart;
+        checkPacketSize(buffer, packetSize);
         final boolean compressed = packetSize >= compressionThreshold;
         if (compressed) {
             // Write the compressed content into the pooled buffer
             // and compress it into the current buffer
-            NetworkBuffer input = pool != null ? pool.get() : NetworkBuffer.staticBuffer(packetSize);
+            NetworkBuffer input = pool != null ? pool.get() : NetworkBuffer.staticBuffer(packetSize, buffer.registries(), buffer.properties());
             try {
                 if (input.capacity() < packetSize) input.resize(packetSize);
                 NetworkBuffer.copy(buffer, contentStart, input, 0, packetSize);
@@ -117,8 +118,14 @@ public final class PacketWriting {
             }
         }
         // Packet header (Packet + Data Length)
+        checkPacketSize(buffer, buffer.writeIndex() - uncompressedIndex);
         buffer.writeAt(compressedIndex, NetworkBuffer.VAR_INT_3, (int) (buffer.writeIndex() - uncompressedIndex));
         buffer.writeAt(uncompressedIndex, NetworkBuffer.VAR_INT_3, compressed ? (int) packetSize : 0);
+    }
+
+    private static void checkPacketSize(NetworkBuffer buffer, long size) {
+        if (size > buffer.properties().maxPacketSize().get())
+            throw new IllegalStateException("Packet too large: " + size);
     }
 
     public static <T> NetworkBuffer allocateTrimmedPacket(
@@ -161,10 +168,10 @@ public final class PacketWriting {
                 writeFramedPacket(tmpBuffer, serializer, id, packet, compressionThreshold, pool);
                 return tmpBuffer.copy(0, tmpBuffer.writeIndex());
             } catch (IndexOutOfBoundsException _) {
-                final long sizeOf = serializer.sizeOf(packet, tmpBuffer.registries());
+                final long sizeOf = serializer.sizeOf(packet, tmpBuffer.registries(), tmpBuffer.properties());
                 // Leave room for the three framing varints, and retry if compression expands the payload.
-                final long maxCapacity = ServerProperties.MAX_PACKET_SIZE.get() + 15L;
-                if (sizeOf > ServerProperties.MAX_PACKET_SIZE.get() || tmpBuffer.capacity() >= maxCapacity) {
+                final long maxCapacity = tmpBuffer.properties().maxPacketSize().get() + 15L;
+                if (sizeOf > tmpBuffer.properties().maxPacketSize().get() || tmpBuffer.capacity() >= maxCapacity) {
                     throw new IllegalStateException("Packet too large: " + sizeOf);
                 }
                 tmpBuffer.resize(Math.min(maxCapacity, Math.max(sizeOf + 15, tmpBuffer.capacity() * 2)));
@@ -198,8 +205,8 @@ public final class PacketWriting {
                 buffer.writeIndex(index);
                 if (written < minWrite) {
                     // Try again with a bigger buffer
-                    final long newSize = Math.min(buffer.capacity() * 2, ServerProperties.MAX_PACKET_SIZE.get());
-                    if (newSize == buffer.capacity()) break; // We reached the maximum size
+                    final long newSize = Math.min(buffer.capacity() * 2, buffer.properties().maxPacketSize().get() + 15L);
+                    if (newSize <= buffer.capacity()) break; // We reached the maximum size
                     buffer.resize(newSize);
                 } else {
                     // At least one packet has been written

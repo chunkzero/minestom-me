@@ -1,6 +1,8 @@
 package net.minestom.server.network;
 
 import net.kyori.adventure.resource.ResourcePackInfo;
+import net.minestom.server.Auth;
+import net.minestom.server.MinecraftConstants;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.event.player.AsyncPlayerPreLoginEvent;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
@@ -13,6 +15,7 @@ import net.minestom.server.network.packet.server.configuration.SelectKnownPacksP
 import net.minestom.server.network.packet.server.login.LoginDisconnectPacket;
 import net.minestom.server.network.player.GameProfile;
 import net.minestom.server.network.player.PlayerConnection;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.testing.ServerProcessPair;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -23,6 +26,7 @@ import java.net.SocketAddress;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -36,6 +40,29 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProcessConnectionOwnershipTest {
+    @Test
+    void transferPolicyAndLiveChangesBelongToTheReceivingProcess() {
+        var source = new Properties();
+        source.setProperty("minestom.accept-transfers.mutable", "true");
+        var properties = ServerProperties.builder(source).acceptTransfers(true).build();
+        try (var first = ServerProcess.create(new Auth.Offline(), properties);
+             var second = ServerProcess.create(new Auth.Offline(), ServerProperties.builder().acceptTransfers(false).build())) {
+            var accepted = new ImmediateConnection(first);
+            var rejected = new ImmediateConnection(second);
+            var handshake = new ClientHandshakePacket(MinecraftConstants.PROTOCOL_VERSION, "localhost", 25565,
+                    ClientHandshakePacket.Intent.TRANSFER);
+            first.packetListenerManager().processClientPacket(handshake, accepted);
+            second.packetListenerManager().processClientPacket(handshake, rejected);
+            assertTrue(accepted.isOnline());
+            assertFalse(rejected.isOnline());
+            first.properties().acceptTransfers().set(false);
+            var afterChange = new ImmediateConnection(first);
+            first.packetListenerManager().processClientPacket(handshake, afterChange);
+            assertFalse(afterChange.isOnline());
+            assertTrue(properties.acceptTransfers().get());
+        }
+    }
+
     @ParameterizedTest
     @EnumSource(value = ConnectionState.class, names = {"LOGIN", "PLAY"})
     void cancellationCallbacksCanCloseTheProcessWithoutLosingPlayerTeardown(ConnectionState state) {

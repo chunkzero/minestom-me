@@ -26,7 +26,7 @@ import java.util.function.BiFunction;
  */
 public sealed interface DynamicRegistry<T> extends Registry<T> permits DynamicRegistryImpl {
 
-    /** Prevents further entry changes, unless unsafe registry operations are enabled. Tags remain mutable. */
+    /** Permanently prevents further entry changes. Tags remain mutable. */
     void freeze();
 
     /** Whether entry changes are currently prohibited. */
@@ -105,8 +105,8 @@ public sealed interface DynamicRegistry<T> extends Registry<T> permits DynamicRe
      * the configuration phase to receive new registry data. See {@link Player#startConfigurationPhase()}.</p>
      *
      * <p><b>WARNING:</b> Updating an existing entry is an inherently unsafe operation as it may cause desync with
-     * existing structures. <b>This behavior is disabled by default, and must be enabled by setting the system
-     * property <code>minestom.registry.unsafe-ops</code> to <code>true</code>.</b></p>
+     * existing structures. <b>Changes after startup require disabling
+     * {@link net.minestom.server.property.ServerProperties#freezeRegistriesOnStart()} when creating the process.</b></p>
      *
      * @param object The entry to register
      * @return The new ID of the registered object
@@ -134,7 +134,8 @@ public sealed interface DynamicRegistry<T> extends Registry<T> permits DynamicRe
      * with existing IDs may be incorrect. For example, loading a world with 0=plains, 1=desert, 2=badlands would store
      * those IDs in the palette. If you then deleted entry 1 (desert), any desert biomes in the loaded world would
      * become badlands, and any badlands would become invalid. <b>This behavior is disabled by default, and must be
-     * enabled by setting the system property <code>minestom.registry.unsafe-ops</code> to <code>true</code>.</b></p>
+     * enabled after startup by disabling
+     * {@link net.minestom.server.property.ServerProperties#freezeRegistriesOnStart()} when creating the process.</b></p>
      *
      * <p>Note: the new registry will not be sent to existing players. They must be returned to
      * the configuration phase to receive new registry data. See {@link Player#startConfigurationPhase()}.</p>

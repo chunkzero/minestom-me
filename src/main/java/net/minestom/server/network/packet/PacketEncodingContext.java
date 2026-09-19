@@ -3,6 +3,7 @@ package net.minestom.server.network.packet;
 import net.minestom.server.network.ConnectionState;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.server.ServerPacket;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.registry.Registries;
 import org.jetbrains.annotations.ApiStatus;
 
@@ -23,12 +24,17 @@ public record PacketEncodingContext(PacketBufferPool buffers, ConnectionState st
         if (compressionThreshold < 0) throw new IllegalArgumentException("Negative compression threshold");
     }
 
+    public ServerProperties properties() {
+        return buffers.properties();
+    }
+
     public Registries registries() {
         return buffers.registries();
     }
 
     public void write(NetworkBuffer buffer, ServerPacket packet) {
-        if (buffer.registries() != registries()) throw new IllegalArgumentException("Foreign buffer registries");
+        if (buffer.registries() != registries() || buffer.properties() != properties())
+            throw new IllegalArgumentException("Foreign buffer registries or properties");
         @SuppressWarnings("unchecked") // The packet must be valid for this protocol state.
         var registry = (PacketRegistry<ServerPacket>) PacketVanilla.SERVER_PACKET_PARSER.stateRegistry(state);
         var info = registry.packetInfo(packet);

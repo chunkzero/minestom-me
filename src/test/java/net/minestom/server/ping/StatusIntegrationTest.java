@@ -38,11 +38,11 @@ public class StatusIntegrationTest {
 
     @Test
     void statusPacketLengthUsesPreAuthLimit() {
-        assertEquals(ServerProperties.MAX_PACKET_SIZE_PRE_AUTH.get(),
+        assertEquals(ServerProperties.fromSystemProperties().maxPacketSizePreAuth().get(),
                 PacketReading.maxPacketSize(ConnectionState.STATUS));
 
-        final NetworkBuffer buffer = NetworkBuffer.staticBuffer(ServerProperties.POOLED_BUFFER_SIZE.get());
-        buffer.write(NetworkBuffer.VAR_INT, ServerProperties.MAX_PACKET_SIZE_PRE_AUTH.get() + 1);
+        final NetworkBuffer buffer = NetworkBuffer.staticBuffer(ServerProperties.fromSystemProperties().pooledBufferSize().get());
+        buffer.write(NetworkBuffer.VAR_INT, ServerProperties.fromSystemProperties().maxPacketSizePreAuth().get() + 1);
 
         assertThrows(DataFormatException.class,
                 () -> PacketReading.readClients(buffer, ConnectionState.STATUS, false));
