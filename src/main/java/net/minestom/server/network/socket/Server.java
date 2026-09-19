@@ -1,5 +1,6 @@
 package net.minestom.server.network.socket;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.network.packet.PacketParser;
 import net.minestom.server.network.player.PlayerSocketConnection;
@@ -30,7 +31,7 @@ import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-public final class Server {
+public final class Server implements ProcessOwned {
     private volatile boolean stop;
     private final Set<PlayerSocketConnection> connections = new HashSet<>();
     private @UnknownNullability Thread acceptThread;
@@ -48,6 +49,7 @@ public final class Server {
         this.packetParser = packetParser;
     }
 
+    @Override
     public ServerProcess process() {
         return process;
     }

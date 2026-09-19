@@ -3,6 +3,7 @@ package net.minestom.server.network.player;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftConstants;
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.crypto.PlayerPublicKey;
 import net.minestom.server.entity.Player;
@@ -36,7 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * A PlayerConnection is an object needed for all created {@link Player}.
  * It can be extended to create a new kind of player (NPC for instance).
  */
-public abstract class PlayerConnection {
+public abstract class PlayerConnection implements ProcessOwned {
     private Player player;
     private final ServerProcess process;
 
@@ -66,7 +67,7 @@ public abstract class PlayerConnection {
         this.clientState = ConnectionState.HANDSHAKE;
     }
 
-    /** The process captured when this connection was constructed. */
+    @Override
     public ServerProcess process() {
         return process;
     }

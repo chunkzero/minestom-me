@@ -1,5 +1,6 @@
 package net.minestom.server.advancements;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Viewable;
 import net.minestom.server.entity.Player;
@@ -14,6 +15,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -25,7 +27,7 @@ import java.util.Set;
  * Be sure to use {@link #addViewer(Player)} and {@link #removeViewer(Player)} to control which players can see the tab.
  * (all viewers will see the same tab, with the same amount of validated advancements etc... so shared).
  */
-public class AdvancementTab implements Viewable {
+public class AdvancementTab implements Viewable, ProcessOwned {
 
     private final ServerProcess process;
 
@@ -42,10 +44,15 @@ public class AdvancementTab implements Viewable {
 
     @SuppressWarnings("this-escape") // deliberate self registration during construction
     protected AdvancementTab(ServerProcess process, String rootIdentifier, AdvancementRoot root) {
-        this.process = process;
+        this.process = Objects.requireNonNull(process);
         this.root = root;
         cacheAdvancement(rootIdentifier, root, null);
         this.removePacket = new AdvancementsPacket(false, List.of(), List.of(rootIdentifier), List.of(), true);
+    }
+
+    @Override
+    public ServerProcess process() {
+        return process;
     }
 
     /**

@@ -1,5 +1,6 @@
 package net.minestom.server.command;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
@@ -26,7 +27,7 @@ import java.util.Set;
  * <p>
  * It is also possible to simulate a command using {@link #execute(CommandSender, String)}.
  */
-public final class CommandManager {
+public final class CommandManager implements ProcessOwned {
 
     public static final String COMMAND_PREFIX = "/";
 
@@ -45,6 +46,7 @@ public final class CommandManager {
         this.process = Objects.requireNonNull(process);
     }
 
+    @Override
     public ServerProcess process() {
         return process;
     }

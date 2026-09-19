@@ -1,5 +1,6 @@
 package net.minestom.server.event;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 
 import java.util.Objects;
@@ -7,7 +8,7 @@ import java.util.Objects;
 /**
  * Root event node owned by one server process. Dispatch supplies that process to all listeners.
  */
-public final class ProcessEventHandler extends EventNodeImpl<Event> {
+public final class ProcessEventHandler extends EventNodeImpl<Event> implements ProcessOwned {
     private final ServerProcess process;
 
     public ProcessEventHandler(ServerProcess process) {

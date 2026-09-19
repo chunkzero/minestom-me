@@ -1,5 +1,6 @@
 package net.minestom.server.advancements;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.Player;
 import net.minestom.server.utils.validate.Check;
@@ -21,12 +22,17 @@ import java.util.concurrent.CopyOnWriteArraySet;
  * Use {@link #createTab(String, AdvancementRoot)} to create a tab with the appropriate {@link AdvancementRoot}.
  * Use {@link #removeTab(String)} to remove an advancement tab with the appropriate root identifier
  */
-public class AdvancementManager {
+public class AdvancementManager implements ProcessOwned {
     private final ServerProcess process;
     private final Map<UUID, Set<AdvancementTab>> playerTabs = new ConcurrentHashMap<>();
 
     public AdvancementManager(ServerProcess process) {
         this.process = Objects.requireNonNull(process);
+    }
+
+    @Override
+    public ServerProcess process() {
+        return process;
     }
 
     public @Nullable Set<AdvancementTab> getTabs(Player player) {

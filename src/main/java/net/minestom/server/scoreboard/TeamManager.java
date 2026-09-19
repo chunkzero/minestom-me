@@ -1,6 +1,7 @@
 package net.minestom.server.scoreboard;
 
 import net.kyori.adventure.text.Component;
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.color.TeamColor;
 import net.minestom.server.entity.LivingEntity;
@@ -20,7 +21,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 /**
  * An object which manages all the {@link Team}'s
  */
-public final class TeamManager {
+public final class TeamManager implements ProcessOwned {
     private final ServerProcess process;
 
     /**
@@ -36,6 +37,7 @@ public final class TeamManager {
         this.teams = new CopyOnWriteArraySet<>();
     }
 
+    @Override
     public ServerProcess process() {
         return process;
     }

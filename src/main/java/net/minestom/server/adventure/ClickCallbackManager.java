@@ -5,6 +5,7 @@ import net.kyori.adventure.key.Key;
 import net.kyori.adventure.nbt.IntArrayBinaryTag;
 import net.kyori.adventure.text.event.ClickCallback;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Tickable;
 import net.minestom.server.entity.Player;
@@ -21,11 +22,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Manager for Adventure click callbacks.
  */
-public final class ClickCallbackManager implements Tickable {
+public final class ClickCallbackManager implements Tickable, ProcessOwned {
     private final ServerProcess process;
 
     public ClickCallbackManager(ServerProcess process) {
         this.process = Objects.requireNonNull(process);
+    }
+
+    @Override
+    public ServerProcess process() {
+        return process;
     }
 
     public void clear() {
