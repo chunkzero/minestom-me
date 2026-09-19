@@ -22,8 +22,8 @@ public class PassengerIntegrationTest {
     @Test
     public void passenger(Env env) {
         var instance = env.createFlatInstance();
-        var vehicle = new Entity(EntityType.ZOMBIE);
-        var passenger = new Entity(EntityType.ZOMBIE);
+        var vehicle = new Entity(env.process(), EntityType.ZOMBIE);
+        var passenger = new Entity(env.process(), EntityType.ZOMBIE);
 
         vehicle.setInstance(instance, new Pos(0, 40, 0)).join();
         passenger.setInstance(instance, new Pos(0, 40, 0)).join();
@@ -39,8 +39,8 @@ public class PassengerIntegrationTest {
     @Test
     public void passengerTeleport(Env env) {
         var instance = env.createFlatInstance();
-        var vehicle = new Entity(EntityType.ZOMBIE);
-        var passenger = new Entity(EntityType.ZOMBIE);
+        var vehicle = new Entity(env.process(), EntityType.ZOMBIE);
+        var passenger = new Entity(env.process(), EntityType.ZOMBIE);
 
         vehicle.setInstance(instance, new Pos(0, 40, 0)).join();
         passenger.setInstance(instance, new Pos(0, 40, 5000)).join();
@@ -58,12 +58,12 @@ public class PassengerIntegrationTest {
     @Test
     public void passengerPacketOrder(Env env) {
         var instance = env.createFlatInstance();
-        var vehicle = new Entity(EntityType.ZOMBIE);
+        var vehicle = new Entity(env.process(), EntityType.ZOMBIE);
         vehicle.setInstance(instance, new Pos(0, 40, 0)).join();
         // Add 3 passengers to vehicle to test Entity#updateNewViewer recursion
-        var passenger1 = new Entity(EntityType.ZOMBIE);
-        var passenger2 = new Entity(EntityType.ZOMBIE);
-        var passenger3 = new Entity(EntityType.ZOMBIE);
+        var passenger1 = new Entity(env.process(), EntityType.ZOMBIE);
+        var passenger2 = new Entity(env.process(), EntityType.ZOMBIE);
+        var passenger3 = new Entity(env.process(), EntityType.ZOMBIE);
         vehicle.addPassenger(passenger1);
         passenger1.addPassenger(passenger2);
         passenger2.addPassenger(passenger3);
@@ -96,10 +96,10 @@ public class PassengerIntegrationTest {
     @Test
     public void passengersOnCamelsAtDifferentHeights(Env env) {
         var instance = env.createFlatInstance();
-        var camel1 = new Entity(EntityType.CAMEL);
-        var camel2 = new Entity(EntityType.CAMEL);
-        var rider1 = new Entity(EntityType.ZOMBIE);
-        var rider2 = new Entity(EntityType.ZOMBIE);
+        var camel1 = new Entity(env.process(), EntityType.CAMEL);
+        var camel2 = new Entity(env.process(), EntityType.CAMEL);
+        var rider1 = new Entity(env.process(), EntityType.ZOMBIE);
+        var rider2 = new Entity(env.process(), EntityType.ZOMBIE);
 
         camel1.setInstance(instance, new Pos(0, 42, 0)).join();
         camel2.setInstance(instance, new Pos(0, 42, 0)).join();
@@ -114,8 +114,8 @@ public class PassengerIntegrationTest {
     @Test
     public void passengerOffsetProcessedCorrectly(Env env) {
         var instance = env.createFlatInstance();
-        var vehicle = new Entity(EntityType.ZOMBIE);
-        var passenger = new Entity(EntityType.SKELETON);
+        var vehicle = new Entity(env.process(), EntityType.ZOMBIE);
+        var passenger = new Entity(env.process(), EntityType.SKELETON);
 
         vehicle.setInstance(instance, new Pos(0, 42, 0, 0, 0)).join();
         vehicle.addPassenger(passenger);

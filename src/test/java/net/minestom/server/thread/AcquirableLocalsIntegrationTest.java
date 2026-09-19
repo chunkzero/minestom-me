@@ -22,7 +22,7 @@ public class AcquirableLocalsIntegrationTest {
     @Test
     public void localTest(Env env) {
         var instance = env.createFlatInstance();
-        var zombie = new Entity(EntityType.ZOMBIE) {
+        var zombie = new Entity(env.process(), EntityType.ZOMBIE) {
             @Override
             public void tick(long time) {
                 super.tick(time);

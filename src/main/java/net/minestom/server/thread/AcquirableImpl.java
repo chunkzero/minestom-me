@@ -5,13 +5,11 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 final class AcquirableImpl<T> implements Acquirable<T> {
     private static final boolean ASSERTIONS_ENABLED = AcquirableImpl.class.desiredAssertionStatus();
-    static final AtomicLong WAIT_COUNTER_NANO = new AtomicLong();
 
     /**
      * Global lock used for synchronization.
@@ -137,7 +135,7 @@ final class AcquirableImpl<T> implements Acquirable<T> {
         }
         final ReentrantLock targetLock = elementThread.lock();
         targetLock.lock();
-        WAIT_COUNTER_NANO.addAndGet(System.nanoTime() - time);
+        elementThread.acquiringTime.addAndGet(System.nanoTime() - time);
         return targetLock;
     }
 

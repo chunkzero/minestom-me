@@ -26,7 +26,7 @@ public class EntityAttributeIntegrationTest {
         var instance = env.createFlatInstance();
         instance.loadChunk(0, 0).join();
 
-        LivingEntity entity = new LivingEntity(EntityTypes.CHICKEN);
+        LivingEntity entity = new LivingEntity(env.process(), EntityTypes.CHICKEN);
         entity.setInstance(instance).join();
 
         double addition = 10;
@@ -92,9 +92,9 @@ public class EntityAttributeIntegrationTest {
     }
 
     @Test
-    public void testEntityDefaultAttributes(Env ignored) {
-        var ironGolem = new EntityCreature(EntityType.IRON_GOLEM);
-        var zombie = new EntityCreature(EntityType.ZOMBIE);
+    public void testEntityDefaultAttributes(Env env) {
+        var ironGolem = new EntityCreature(env.process(), EntityType.IRON_GOLEM);
+        var zombie = new EntityCreature(env.process(), EntityType.ZOMBIE);
 
         var golemHealth = ironGolem.getAttribute(Attribute.MAX_HEALTH);
         assertNotNull(golemHealth);
@@ -108,8 +108,8 @@ public class EntityAttributeIntegrationTest {
     }
 
     @Test
-    public void testEntitySpawnsWithCorrectHealth(Env ignored) {
-        var ironGolem = new EntityCreature(EntityType.IRON_GOLEM);
+    public void testEntitySpawnsWithCorrectHealth(Env env) {
+        var ironGolem = new EntityCreature(env.process(), EntityType.IRON_GOLEM);
         assertEquals(100.0f, ironGolem.getHealth(), 0.001f);
     }
 

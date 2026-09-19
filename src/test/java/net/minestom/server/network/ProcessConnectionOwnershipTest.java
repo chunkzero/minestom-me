@@ -1,7 +1,10 @@
 package net.minestom.server.network;
 
+import net.kyori.adventure.resource.ResourcePackInfo;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.event.player.AsyncPlayerPreLoginEvent;
+import net.minestom.server.event.player.PlayerDisconnectEvent;
+import net.minestom.server.instance.ChunkLoader;
 import net.minestom.server.listener.preplay.LoginListener;
 import net.minestom.server.network.packet.client.handshake.ClientHandshakePacket;
 import net.minestom.server.network.packet.client.login.ClientLoginStartPacket;
@@ -12,9 +15,12 @@ import net.minestom.server.network.player.GameProfile;
 import net.minestom.server.network.player.PlayerConnection;
 import net.minestom.testing.ServerProcessPair;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -30,6 +36,73 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProcessConnectionOwnershipTest {
+    @ParameterizedTest
+    @EnumSource(value = ConnectionState.class, names = {"LOGIN", "PLAY"})
+    void cancellationCallbacksCanCloseTheProcessWithoutLosingPlayerTeardown(ConnectionState state) {
+        try (var pair = new ServerProcessPair()) {
+            var process = pair.first();
+            var connection = new ImmediateConnection(process);
+            connection.setClientState(state);
+            connection.setServerState(state);
+            var player = process.connection().createPlayer(connection, new GameProfile(UUID.randomUUID(), "Closing"));
+            var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
+            if (state == ConnectionState.PLAY) {
+                player.setInstance(instance).join();
+                process.ticker().tick(System.nanoTime());
+            }
+            var disconnected = new CopyOnWriteArrayList<PlayerDisconnectEvent>();
+            process.eventHandler().addListener(PlayerDisconnectEvent.class, event -> disconnected.add(event));
+            var task = player.scheduler().scheduleNextTick(() -> {});
+            var callback = connection.fetchCookie("test:pending").whenComplete((_, _) -> process.close());
+            connection.disconnect();
+            assertTrue(callback.isCompletedExceptionally());
+            assertFalse(connection.isOnline());
+            assertFalse(task.isAlive());
+            assertNull(process.connection().getPlayer(connection));
+            assertEquals(1, disconnected.size());
+            assertSame(player, disconnected.getFirst().getPlayer());
+            assertFalse(instance.getEntities().contains(player));
+            connection.disconnect();
+            assertEquals(1, disconnected.size());
+            pair.second().ticker().tick(System.nanoTime());
+        }
+    }
+
+    @Test
+    void disconnectCancelsPendingRepliesAndShutdownRejectsLateAdmission() {
+        try (var pair = new ServerProcessPair()) {
+            var first = new ImmediateConnection(pair.first());
+            var second = new ImmediateConnection(pair.second());
+            first.setClientState(ConnectionState.LOGIN);
+            second.setClientState(ConnectionState.LOGIN);
+            first.answerKnownPacks = false;
+            var knownPacks = first.requestKnownPacks(List.of());
+            var plugin = first.loginPluginMessageProcessor().request("test:pending", new byte[0]);
+            var cookie = first.fetchCookie("test:pending");
+            var otherCookie = second.fetchCookie("test:pending");
+            var profile = new GameProfile(UUID.randomUUID(), "Pending");
+            var player = pair.first().connection().createPlayer(first, profile);
+            var task = player.scheduler().scheduleNextTick(() -> {});
+            player.sendResourcePacks(ResourcePackInfo.resourcePackInfo(UUID.randomUUID(), URI.create("https://example.com/pack.zip"), "test"));
+            var resourcePacks = player.getResourcePackFuture();
+            pair.first().close();
+            assertTrue(plugin.isCancelled());
+            assertTrue(knownPacks.isCancelled());
+            assertTrue(resourcePacks.isCancelled());
+            assertTrue(cookie.isCancelled());
+            assertFalse(task.isAlive());
+            assertFalse(otherCookie.isDone());
+            assertThrows(IllegalStateException.class, () -> first.fetchCookie("test:closed"));
+            assertThrows(IllegalStateException.class, () -> first.requestKnownPacks(List.of()));
+            assertThrows(IllegalStateException.class, () -> first.loginPluginMessageProcessor().request("test:closed", new byte[0]));
+            assertThrows(IllegalStateException.class, () -> pair.first().connection().createPlayer(new ImmediateConnection(pair.first()), profile));
+            pair.first().connection().doConfiguration(player, true);
+            assertTrue(pair.first().connection().getConfigPlayers().isEmpty());
+            second.receiveCookieResponse("test:pending", new byte[0]);
+            assertTrue(otherCookie.isDone());
+        }
+    }
+
     @Test
     void foreignConnectionsAndPlayersAreRejectedBeforeAdmission() {
         try (var pair = new ServerProcessPair()) {
@@ -115,6 +188,7 @@ class ProcessConnectionOwnershipTest {
 
     private static final class ImmediateConnection extends PlayerConnection {
         private final List<SendablePacket> packets = new CopyOnWriteArrayList<>();
+        private boolean answerKnownPacks = true;
 
         ImmediateConnection(ServerProcess process) {
             super(process);
@@ -123,7 +197,7 @@ class ProcessConnectionOwnershipTest {
         @Override
         public void sendPacket(SendablePacket packet) {
             packets.add(packet);
-            if (packet instanceof SelectKnownPacksPacket) receiveKnownPacksResponse(List.of());
+            if (answerKnownPacks && packet instanceof SelectKnownPacksPacket) receiveKnownPacksResponse(List.of());
         }
 
         @Override

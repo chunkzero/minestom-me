@@ -5,7 +5,6 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.coordinate.BlockVec;
 import net.minestom.server.coordinate.CoordConversion;
@@ -101,23 +100,6 @@ public class InstanceContainer extends Instance {
     // Fields for instance copy
     protected InstanceContainer srcInstance; // only present if this instance has been created using a copy
     private volatile long lastBlockChangeTime; // Time at which the last block change happened (#setBlock)
-
-    public InstanceContainer(UUID uuid, RegistryKey<DimensionType> dimensionType) {
-        this(uuid, dimensionType, null, dimensionType.key());
-    }
-
-    public InstanceContainer(UUID uuid, RegistryKey<DimensionType> dimensionType, Key dimensionName) {
-        this(uuid, dimensionType, null, dimensionName);
-    }
-
-    public InstanceContainer(UUID uuid, RegistryKey<DimensionType> dimensionType, @Nullable ChunkLoader loader) {
-        this(uuid, dimensionType, loader, dimensionType.key());
-    }
-
-    @SuppressWarnings({"removal", "this-escape"}) // deliberate self registration during construction
-    public InstanceContainer(UUID uuid, RegistryKey<DimensionType> dimensionType, @Nullable ChunkLoader loader, Key dimensionName) {
-        this(MinecraftServer.process(), uuid, dimensionType, loader, dimensionName);
-    }
 
     @SuppressWarnings("this-escape") // deliberate self registration during construction
     public InstanceContainer(

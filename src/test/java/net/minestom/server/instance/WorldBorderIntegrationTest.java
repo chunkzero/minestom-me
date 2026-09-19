@@ -80,7 +80,7 @@ public class WorldBorderIntegrationTest {
     public void entityBoundsIncludeBoundingBox(Env env) {
         Instance instance = env.createFlatInstance();
         WorldBorder border = new WorldBorder(4, 0, 0, 0, 0);
-        Entity entity = new Entity(EntityType.ZOMBIE);
+        Entity entity = new Entity(env.process(), EntityType.ZOMBIE);
         double maximumEntityX = 2 - entity.getBoundingBox().maxX();
         entity.setInstance(instance, new Pos(maximumEntityX, 42, 0)).join();
 

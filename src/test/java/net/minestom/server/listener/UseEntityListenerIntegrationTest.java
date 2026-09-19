@@ -32,7 +32,7 @@ public class UseEntityListenerIntegrationTest {
         player = env.createPlayer(instance, new Pos(0, 0, 0));
         player.getAttribute(Attribute.ENTITY_INTERACTION_RANGE).setBaseValue(5.0);
 
-        targetEntity = new Entity(EntityType.SLIME);
+        targetEntity = new Entity(env.process(), EntityType.SLIME);
         targetEntity.setInstance(instance, new Pos(2, 0, 2)).join();
 
         eventWasCalled = false;

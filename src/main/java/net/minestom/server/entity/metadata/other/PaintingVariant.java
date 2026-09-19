@@ -56,7 +56,7 @@ public sealed interface PaintingVariant extends Holder.Direct<PaintingVariant>, 
     /**
      * <p>Creates a new registry for painting variants, loading the vanilla painting variants.</p>
      *
-     * @see net.minestom.server.MinecraftServer to get an existing instance of the registry
+     * @see net.minestom.server.registry.Registries
      */
     @ApiStatus.Internal
     static DynamicRegistry<PaintingVariant> createDefaultRegistry() {

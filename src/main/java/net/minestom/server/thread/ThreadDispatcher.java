@@ -1,6 +1,5 @@
 package net.minestom.server.thread;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Tickable;
 import org.jetbrains.annotations.ApiStatus;
@@ -28,7 +27,7 @@ public sealed interface ThreadDispatcher<P, E extends Tickable> permits ThreadDi
     /** Creates a dispatcher whose game objects and exceptions belong to the supplied process. */
     static <P, E extends Tickable> ThreadDispatcher<P, E> dispatcher(ServerProcess process, ThreadProvider<P> provider, int threadCount) {
         return new ThreadDispatcherImpl<>(process, provider, threadCount,
-                index -> new TickThread(MinecraftServer.THREAD_NAME_TICK + "-" + process.id() + "-" + index, process.exception()::handleException));
+                index -> new TickThread("Ms-Tick-" + process.id() + "-" + index, process.exception()::handleException));
     }
 
     /**
@@ -84,6 +83,12 @@ public sealed interface ThreadDispatcher<P, E extends Tickable> permits ThreadDi
     @Unmodifiable
     @ApiStatus.Internal
     List<TickThread> threads();
+
+    /** Retrieves and resets acquisition time for this dispatcher's threads only. */
+    @ApiStatus.Internal
+    default long resetAcquiringTime() {
+        return threads().stream().mapToLong(thread -> thread.acquiringTime.getAndSet(0)).sum();
+    }
 
     /**
      * Prepares the update by creating the {@link TickThread} tasks.

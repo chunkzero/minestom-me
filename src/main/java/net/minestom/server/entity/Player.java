@@ -285,7 +285,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
 
     private final Map<UUID, PendingResourcePack> pendingResourcePacks = new HashMap<>();
     // The future is non-null when a resource pack is in-flight, and completed when all statuses have been received.
-    private @Nullable CompletableFuture<Void> resourcePackFuture = null;
+    private volatile @Nullable CompletableFuture<Void> resourcePackFuture = null;
 
     @SuppressWarnings("this-escape") // deliberate self registration during construction
     public Player(PlayerConnection playerConnection, GameProfile gameProfile) {
@@ -1452,6 +1452,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
             if (resourcePackFuture == null) {
                 resourcePackFuture = new CompletableFuture<>();
             }
+            if (!isOnline()) resourcePackFuture.cancel(false);
         }
     }
 

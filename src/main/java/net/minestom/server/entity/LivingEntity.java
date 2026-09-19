@@ -3,7 +3,6 @@ package net.minestom.server.entity;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.sound.Sound.Source;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.adventure.AdventurePacketConvertor;
 import net.minestom.server.collision.BoundingBox;
@@ -108,14 +107,6 @@ public class LivingEntity extends Entity implements EquipmentHandler {
     private ItemStack bodyEquipment = ItemStack.AIR;
     private ItemStack saddleEquipment = ItemStack.AIR;
 
-    /**
-     * Constructor which allows to specify an UUID. Only use if you know what you are doing!
-     */
-    @SuppressWarnings("removal") // Temporary default-process constructor.
-    public LivingEntity(EntityType entityType, UUID uuid) {
-        this(MinecraftServer.process(), entityType, uuid);
-    }
-
     @SuppressWarnings("this-escape") // Entity initialization.
     public LivingEntity(ServerProcess process, EntityType entityType, UUID uuid) {
         super(process, entityType, uuid);
@@ -124,10 +115,6 @@ public class LivingEntity extends Entity implements EquipmentHandler {
     /** Creates an ownerless living-entity builder using the destination instance's process. */
     public static EntityBuilder<? extends LivingEntity, ?> builder(EntityType entityType) {
         return Entity.builder(entityType, LivingEntity::new);
-    }
-
-    public LivingEntity(EntityType entityType) {
-        this(entityType, UUID.randomUUID());
     }
 
     public LivingEntity(ServerProcess process, EntityType entityType) {

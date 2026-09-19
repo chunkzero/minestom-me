@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
 public final class RecipeManager {
-    private static final AtomicInteger NEXT_DISPLAY_ID = new AtomicInteger();
+    private final AtomicInteger nextDisplayId = new AtomicInteger();
 
     private record RecipeData(
             Recipe recipe,
@@ -58,7 +58,7 @@ public final class RecipeManager {
         final RecipeBookCategory recipeBookCategory = recipe.recipeBookCategory();
         if (recipeBookCategory != null) {
             for (var display : recipe.createRecipeDisplays()) {
-                int displayId = NEXT_DISPLAY_ID.getAndIncrement();
+                int displayId = nextDisplayId.getAndIncrement();
                 recipeBookEntries.add(new RecipeBookAddPacket.Entry( //todo groups
                         displayId, display, null, recipeBookCategory,
                         recipe.craftingRequirements(), false, false

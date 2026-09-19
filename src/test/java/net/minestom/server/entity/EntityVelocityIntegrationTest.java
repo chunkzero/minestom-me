@@ -27,7 +27,7 @@ public class EntityVelocityIntegrationTest {
         var instance = env.createFlatInstance();
         loadChunks(instance);
 
-        var entity = new Entity(EntityTypes.ZOMBIE);
+        var entity = new Entity(env.process(), EntityTypes.ZOMBIE);
         entity.setInstance(instance, new Pos(0, 42, 0)).join();
         env.tick(); // Ensure velocity downwards is present
 
@@ -46,7 +46,7 @@ public class EntityVelocityIntegrationTest {
         var instance = env.createFlatInstance();
         loadChunks(instance);
 
-        var entity = new Entity(EntityTypes.ZOMBIE);
+        var entity = new Entity(env.process(), EntityTypes.ZOMBIE);
         entity.setInstance(instance, new Pos(0, 40, 0)).join();
         env.tick();
         env.tick(); // Ensures the entity is onGround
@@ -77,7 +77,7 @@ public class EntityVelocityIntegrationTest {
         var instance = env.createFlatInstance();
         loadChunks(instance);
 
-        var entity = new Entity(EntityTypes.ZOMBIE);
+        var entity = new Entity(env.process(), EntityTypes.ZOMBIE);
         entity.setInstance(instance, new Pos(0, 40, 0)).join();
         env.tick();
         env.tick(); // Ensures the entity is onGround
@@ -151,7 +151,7 @@ public class EntityVelocityIntegrationTest {
         var instance = env.createFlatInstance();
         loadChunks(instance);
 
-        var entity = new Entity(EntityType.ZOMBIE);
+        var entity = new Entity(env.process(), EntityType.ZOMBIE);
         // Should  be false because the new entity should have no velocity
         assertFalse(entity.hasVelocity());
 
@@ -178,7 +178,7 @@ public class EntityVelocityIntegrationTest {
         var instance = env.createFlatInstance();
         var viewerConnection = env.createConnection();
         viewerConnection.connect(instance, new Pos(1, 40, 1));
-        var entity = new Entity(EntityType.ZOMBIE);
+        var entity = new Entity(env.process(), EntityType.ZOMBIE);
         entity.setInstance(instance, new Pos(0, 40, 0)).join();
         instance.setBlock(new Vec(0, 39, 0), Block.STONE);
         env.tick(); // Tick because the entity is in the air, they'll send velocity from gravity
@@ -198,7 +198,7 @@ public class EntityVelocityIntegrationTest {
         var instance = env.createFlatInstance();
         loadChunks(instance);
 
-        var entity = new Entity(EntityTypes.ZOMBIE);
+        var entity = new Entity(env.process(), EntityTypes.ZOMBIE);
         var point = new Pos(1.5, 40, 0.2);
         instance.setWorldBorder(new WorldBorder(4, 0, 0, 0, 0));
         instance.setBlock(new Vec(1, 39, 0), Block.ICE);

@@ -27,7 +27,7 @@ public sealed interface CowVariant extends CowVariants permits CowVariantImpl {
     /**
      * Creates a new instance of the "minecraft:cow_variant" registry containing the vanilla contents.
      *
-     * @see net.minestom.server.MinecraftServer to get an existing instance of the registry
+     * @see net.minestom.server.registry.Registries
      */
     @ApiStatus.Internal
     static DynamicRegistry<CowVariant> createDefaultRegistry() {

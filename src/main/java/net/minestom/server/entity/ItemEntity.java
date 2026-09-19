@@ -1,6 +1,5 @@
 package net.minestom.server.entity;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.entity.metadata.item.ItemEntityMeta;
 import net.minestom.server.event.entity.EntityItemMergeEvent;
@@ -44,11 +43,6 @@ public class ItemEntity extends Entity {
     private long spawnTime;
     // pickup delay in nanos
     private long pickupDelay;
-
-    @SuppressWarnings("removal") // Temporary default-process constructor.
-    public ItemEntity(ItemStack itemStack) {
-        this(MinecraftServer.process(), itemStack);
-    }
 
     @SuppressWarnings("this-escape") // Entity initialization.
     public ItemEntity(ServerProcess process, ItemStack itemStack) {

@@ -16,7 +16,7 @@ public class EntityViewIntegrationTest {
     @Test
     public void emptyEntity(Env env) {
         var instance = env.createFlatInstance();
-        var entity = new Entity(EntityType.ZOMBIE);
+        var entity = new Entity(env.process(), EntityType.ZOMBIE);
         entity.setInstance(instance, new Pos(0, 40, 42)).join();
         assertEquals(0, entity.getViewers().size());
     }
@@ -130,8 +130,8 @@ public class EntityViewIntegrationTest {
         var connection = env.createConnection();
         var player = connection.connect(instance, new Pos(0, 40, 0));
 
-        var vehicle = new Entity(EntityType.ZOMBIE);
-        var passenger = new Entity(EntityType.ZOMBIE);
+        var vehicle = new Entity(env.process(), EntityType.ZOMBIE);
+        var passenger = new Entity(env.process(), EntityType.ZOMBIE);
 
         var tracker = connection.trackIncoming(SpawnEntityPacket.class);
 
@@ -158,8 +158,8 @@ public class EntityViewIntegrationTest {
     public void sendsSpawnPacketsToExistingViewers(Env env) {
         var instance = env.createFlatInstance();
         var connection = env.createConnection();
-        var vehicle = new Entity(EntityType.ZOMBIE);
-        var passenger = new Entity(EntityType.ZOMBIE);
+        var vehicle = new Entity(env.process(), EntityType.ZOMBIE);
+        var passenger = new Entity(env.process(), EntityType.ZOMBIE);
 
         vehicle.setInstance(instance, new Pos(0, 40, 0)).join();
         vehicle.addPassenger(passenger);
@@ -183,11 +183,11 @@ public class EntityViewIntegrationTest {
         var p1 = env.createPlayer(instance, new Pos(0, 40, 0));
         var p2 = env.createPlayer(instance, new Pos(0, 40, 0));
 
-        var vehicle1 = new Entity(EntityType.ZOMBIE);
+        var vehicle1 = new Entity(env.process(), EntityType.ZOMBIE);
         vehicle1.setInstance(instance, new Pos(0, 40, 0)).join();
         vehicle1.addPassenger(p1);
 
-        var vehicle2 = new Entity(EntityType.ZOMBIE);
+        var vehicle2 = new Entity(env.process(), EntityType.ZOMBIE);
         vehicle2.setInstance(instance, new Pos(0, 40, 0)).join();
         vehicle2.addPassenger(p2);
 
@@ -201,7 +201,7 @@ public class EntityViewIntegrationTest {
     @Test
     public void sizeMatchesIteratorIncludingNullPlayers(Env env) {
         var instance = env.createFlatInstance();
-        var entity = new Entity(EntityType.ZOMBIE);
+        var entity = new Entity(env.process(), EntityType.ZOMBIE);
         entity.setInstance(instance, new Pos(0, 40, 0)).join();
         var set = entity.getViewers();
 

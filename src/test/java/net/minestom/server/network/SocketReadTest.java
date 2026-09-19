@@ -12,7 +12,7 @@ import java.util.zip.DataFormatException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class SocketReadIntegrationTest {
+public class SocketReadTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {false, true})

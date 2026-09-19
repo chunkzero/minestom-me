@@ -43,7 +43,7 @@ public sealed interface TrimPattern extends Holder.Direct<TrimPattern>, TrimPatt
     /**
      * <p>Creates a new registry for trim materials, loading the vanilla trim materials.</p>
      *
-     * @see net.minestom.server.MinecraftServer to get an existing instance of the registry
+     * @see net.minestom.server.registry.Registries
      */
     @ApiStatus.Internal
     static DynamicRegistry<TrimPattern> createDefaultRegistry() {

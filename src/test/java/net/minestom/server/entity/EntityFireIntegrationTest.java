@@ -22,7 +22,7 @@ public class EntityFireIntegrationTest
         instance.loadChunk(0, 0).join();
 
         final int fireTicks = 10;
-        LivingEntity entity = new LivingEntity(EntityType.ZOMBIE);
+        LivingEntity entity = new LivingEntity(env.process(), EntityType.ZOMBIE);
         entity.setInstance(instance, new Vec(0, 0, 0)).join();
 
         entity.setFireTicks(fireTicks);
@@ -43,7 +43,7 @@ public class EntityFireIntegrationTest
         var instance = env.createFlatInstance();
         instance.loadChunk(0, 0).join();
 
-        LivingEntity entity = new LivingEntity(EntityType.ZOMBIE);
+        LivingEntity entity = new LivingEntity(env.process(), EntityType.ZOMBIE);
         entity.setInstance(instance, new Vec(0, 0, 0)).join();
 
         // Natural fire decay
@@ -68,7 +68,7 @@ public class EntityFireIntegrationTest
         var instance = env.createFlatInstance();
         instance.loadChunk(0, 0).join();
 
-        LivingEntity entity = new LivingEntity(EntityType.ZOMBIE);
+        LivingEntity entity = new LivingEntity(env.process(), EntityType.ZOMBIE);
         entity.setInstance(instance, new Vec(0, 0, 0)).join();
 
         // Do not extinguish an entity when they're set on fire explicitly
@@ -89,7 +89,7 @@ public class EntityFireIntegrationTest
         var instance = env.createFlatInstance();
         instance.loadChunk(0, 0).join();
 
-        LivingEntity entity = new LivingEntity(EntityType.ZOMBIE);
+        LivingEntity entity = new LivingEntity(env.process(), EntityType.ZOMBIE);
         entity.setInstance(instance, new Vec(0, 0, 0)).join();
 
         AtomicInteger callCount = new AtomicInteger();

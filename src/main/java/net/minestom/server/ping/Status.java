@@ -2,7 +2,7 @@ package net.minestom.server.ping;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
-import net.minestom.server.MinecraftServer;
+import net.minestom.server.MinecraftConstants;
 import net.minestom.server.codec.Codec;
 import net.minestom.server.codec.StructCodec;
 import net.minestom.server.entity.Player;
@@ -59,7 +59,7 @@ public record Status(
     }
 
     public record VersionInfo(String name, int protocolVersion) {
-        public static final VersionInfo DEFAULT = new VersionInfo(MinecraftServer.VERSION_NAME, MinecraftServer.PROTOCOL_VERSION);
+        public static final VersionInfo DEFAULT = new VersionInfo(MinecraftConstants.VERSION_NAME, MinecraftConstants.PROTOCOL_VERSION);
         public static final Codec<VersionInfo> CODEC = StructCodec.struct(
                 "name", Codec.STRING, VersionInfo::name,
                 "protocol", Codec.INT, VersionInfo::protocolVersion,

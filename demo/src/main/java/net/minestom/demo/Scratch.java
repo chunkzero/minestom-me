@@ -68,7 +68,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static net.minestom.server.MinecraftServer.PROTOCOL_VERSION;
+import static net.minestom.server.MinecraftConstants.PROTOCOL_VERSION;
 
 /**
  * A deliberately small Minecraft server built directly on Minestom's packet/data API.

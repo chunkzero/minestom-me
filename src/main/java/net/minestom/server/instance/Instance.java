@@ -12,7 +12,6 @@ import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.pointer.Pointers;
 import net.kyori.adventure.pointer.PointersSupplier;
 import net.kyori.adventure.sound.Sound;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Tickable;
 import net.minestom.server.adventure.AdventurePacketConvertor;
@@ -51,6 +50,7 @@ import net.minestom.server.tag.Taggable;
 import net.minestom.server.thread.ThreadDispatcher;
 import net.minestom.server.timer.Schedulable;
 import net.minestom.server.timer.Scheduler;
+import net.minestom.server.utils.time.Tick;
 import net.minestom.server.utils.ArrayUtils;
 import net.minestom.server.utils.PacketSendingUtils;
 import net.minestom.server.utils.chunk.ChunkCache;
@@ -149,27 +149,6 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
 
     // the explosion supplier
     private ExplosionSupplier explosionSupplier;
-
-    /**
-     * Creates a new instance.
-     *
-     * @param uuid          the {@link UUID} of the instance
-     * @param dimensionType the {@link DimensionType} of the instance
-     */
-    public Instance(UUID uuid, RegistryKey<DimensionType> dimensionType) {
-        this(uuid, dimensionType, dimensionType.key());
-    }
-
-    /**
-     * Creates a new instance.
-     *
-     * @param uuid          the {@link UUID} of the instance
-     * @param dimensionType the {@link DimensionType} of the instance
-     */
-    @SuppressWarnings("removal") // Default-process bridge pending ownership migration.
-    public Instance(UUID uuid, RegistryKey<DimensionType> dimensionType, Key dimensionName) {
-        this(MinecraftServer.process(), uuid, dimensionType, dimensionName);
-    }
 
     /**
      * Creates a new instance.
@@ -620,7 +599,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         sendNewWorldBorderPackets(worldBorder, transitionMilliseconds);
 
         this.targetBorderDiameter = worldBorder.diameter();
-        long transitionTicks = transitionMilliseconds / MinecraftServer.TICK_MS;
+        long transitionTicks = transitionMilliseconds / Tick.SERVER_TICKS.getDuration().toMillis();
         remainingWorldBorderTransitionTicks = transitionTicks;
         if (transitionTicks == 0) this.worldBorder = worldBorder;
         else this.worldBorder = worldBorder.withDiameter(this.worldBorder.diameter());
@@ -638,7 +617,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
      * Creates the {@link InitializeWorldBorderPacket} sent to players who join this instance.
      */
     public InitializeWorldBorderPacket createInitializeWorldBorderPacket() {
-        return worldBorder.createInitializePacket(targetBorderDiameter, remainingWorldBorderTransitionTicks * MinecraftServer.TICK_MS);
+        return worldBorder.createInitializePacket(targetBorderDiameter, remainingWorldBorderTransitionTicks * Tick.SERVER_TICKS.getDuration().toMillis());
     }
 
     private void sendNewWorldBorderPackets(WorldBorder newBorder, long transitionMilliseconds) {

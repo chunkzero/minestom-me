@@ -43,7 +43,7 @@ public sealed interface Enchantment extends Enchantments permits EnchantmentImpl
     /**
      * <p>Creates a new registry for enchantments, loading the vanilla enchantments.</p>
      *
-     * @see net.minestom.server.MinecraftServer to get an existing instance of the registry
+     * @see net.minestom.server.registry.Registries
      */
     @ApiStatus.Internal
     static DynamicRegistry<Enchantment> createDefaultRegistry(Registries registries) {

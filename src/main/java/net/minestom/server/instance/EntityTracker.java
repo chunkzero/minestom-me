@@ -1,6 +1,5 @@
 package net.minestom.server.instance;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Viewable;
 import net.minestom.server.coordinate.Point;
@@ -24,11 +23,6 @@ import java.util.function.Consumer;
  * Implementations are expected to be thread-safe.
  */
 public sealed interface EntityTracker permits EntityTrackerImpl {
-    @SuppressWarnings("removal") // Temporary default-process factory.
-    static EntityTracker newTracker() {
-        return newTracker(MinecraftServer.process());
-    }
-
     static EntityTracker newTracker(ServerProcess process) {
         return new EntityTrackerImpl(process);
     }
