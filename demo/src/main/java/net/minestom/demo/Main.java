@@ -86,13 +86,13 @@ public class Main {
         ServerProcess process = ServerProcess.create(new Auth.Offline());
         process.setCompressionThreshold(0);
 
-        BlockManager blockManager = process.block();
+        BlockManager blockManager = process.blockManager();
         blockManager.registerBlockPlacementRule(new DripstonePlacementRule());
         var beds = Block.values().stream().filter(block -> block.key().value().contains("bed")).toList();
         beds.forEach(block -> blockManager.registerBlockPlacementRule(new BedPlacementRule(block)));
         blockManager.registerHandler(TestBlockHandler.INSTANCE.getKey(), () -> TestBlockHandler.INSTANCE);
 
-        CommandManager commandManager = process.command();
+        CommandManager commandManager = process.commandManager();
         commandManager.register(new TestCommand());
         commandManager.register(new EntitySelectorCommand());
         commandManager.register(new HealthCommand());
@@ -140,7 +140,7 @@ public class Main {
 
         commandManager.setUnknownCommandCallback((sender, _) -> sender.sendMessage(Component.text("Unknown command", NamedTextColor.RED)));
 
-        process.scheduler().buildShutdownTask(() -> System.out.println("Good night"));
+        process.schedulerManager().buildShutdownTask(() -> System.out.println("Good night"));
 
         var blocks = process.registries().blocks();
         RegistryTag<Block> tag = blocks.getTag(TagKey.ofHash("#minecraft:all_signs"));
@@ -158,7 +158,7 @@ public class Main {
         }
 
         process.eventHandler().addListener(ServerListPingEvent.class, (owner, event) -> {
-            Status.PlayerInfo.Builder builder = Status.PlayerInfo.builder(Status.PlayerInfo.online(owner.connection().getOnlinePlayers(), 20))
+            Status.PlayerInfo.Builder builder = Status.PlayerInfo.builder(Status.PlayerInfo.online(owner.connectionManager().getOnlinePlayers(), 20))
                     .sample("The first line is separated from the others")
                     .sample("Could be a name, or a message");
 
@@ -195,7 +195,7 @@ public class Main {
                     .build());
         });
 
-        process.recipe().addRecipe(new ShapelessRecipe(
+        process.recipeManager().addRecipe(new ShapelessRecipe(
                 RecipeBookCategory.CRAFTING_MISC,
                 List.of(Material.DIRT),
                 ItemStack.builder(Material.GOLD_BLOCK)

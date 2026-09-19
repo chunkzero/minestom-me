@@ -28,16 +28,14 @@ Closing is idempotent. Failed startup closes that process, and a new one should 
 
 | Old getter | Replacement | Old getter | Replacement |
 | --- | --- | --- | --- |
-| `getInstanceManager()` | `process.instance()` | `getConnectionManager()` | `process.connection()` |
-| `getCommandManager()` | `process.command()` | `getBlockManager()` | `process.block()` |
-| `getRecipeManager()` | `process.recipe()` | `getTeamManager()` | `process.team()` |
-| `getAdvancementManager()` | `process.advancement()` | `getBossBarManager()` | `process.bossBar()` |
-| `getSchedulerManager()` | `process.scheduler()` | `getExceptionManager()` | `process.exception()` |
-| `getGlobalEventHandler()` | `process.eventHandler()` | `getPacketListenerManager()` | `process.packetListener()` |
+| `getInstanceManager()` | `process.instanceManager()` | `getConnectionManager()` | `process.connectionManager()` |
+| `getCommandManager()` | `process.commandManager()` | `getBlockManager()` | `process.blockManager()` |
+| `getRecipeManager()` | `process.recipeManager()` | `getTeamManager()` | `process.teamManager()` |
+| `getAdvancementManager()` | `process.advancementManager()` | `getBossBarManager()` | `process.bossBarManager()` |
+| `getSchedulerManager()` | `process.schedulerManager()` | `getExceptionManager()` | `process.exceptionManager()` |
+| `getGlobalEventHandler()` | `process.eventHandler()` | `getPacketListenerManager()` | `process.packetListenerManager()` |
 | `getPacketParser()` | `process.packetParser()` | `getClickCallbackManager()` | `process.clickCallbackManager()` |
 | `getRegistries()` | `process.registries()` | `getServer()` | `process.server()` |
-
-Note that these will be changed slightly to something like `process.instanceManager()`.
 
 | Area | Current behavior |
 | --- | --- |
@@ -53,7 +51,7 @@ Note that these will be changed slightly to something like `process.instanceMana
 
 | Operation | Migration / semantics |
 | --- | --- |
-| Create instances | Prefer `process.instance().createInstanceContainer()`. Direct `InstanceContainer` constructors take `process` first. Shared instances and copies derive it from their source. |
+| Create instances | Prefer `process.instanceManager().createInstanceContainer()`. Direct `InstanceContainer` constructors take `process` first. Shared instances and copies derive it from their source. |
 | Load/save worlds | `AnvilLoader` construction is unchanged. Load/save operations obtain registries and exception handling from the instance/chunk. |
 | Create entities | `new Entity(process, type)`; `LivingEntity` and `EntityCreature` also require an owner. Custom subclasses pass it to `super`. |
 | Items and orbs | `new ItemEntity(process, item)` and `new ExperienceOrb(process, count)`. |
@@ -64,7 +62,7 @@ Note that these will be changed slightly to something like `process.instanceMana
 | Entity IDs | `process.generateEntityId()` replaces `Entity.generateId()`. IDs can overlap across processes. External state should be indexed by the process and ID together. |
 | Moving entities | Moving between instances of one process works. Foreign-process placement, viewers, passengers, leashes, and related owned references are rejected. Client transfer creates a new connection/player at the destination. |
 | Inventories | `new Inventory(process, type, title)`; typed inventories and direct `PlayerInventory` construction also take an owner. `player.getInventory()`, item mutation, and opening APIs stay familiar. Foreign viewers are rejected. |
-| Teams | Create through `process.team()`. `exists(team)` checks its name in the owning manager; registration rejects a different object with that name. Rebuilding the same registered team does not resend creation packets. |
+| Teams | Create through `process.teamManager()`. `exists(team)` checks its name in the owning manager; registration rejects a different object with that name. Rebuilding the same registered team does not resend creation packets. |
 | Recipes, advancements, boss bars | Use the process's managers. Advancement membership remains UUID-to-tab-set, scoped to that manager. Normal player boss-bar and sidebar APIs stay the same. |
 | Damage | Direct `Damage` / `PositionalDamage` construction and `Damage.fromPosition(...)` take a process. Entity/projectile factories infer it; `livingEntity.damage(...)` supplies its owner. Will probably be simplified in the future. |
 
@@ -113,8 +111,8 @@ Command and argument definitions remain reusable across processes. The executing
 
 | Operation | Current behavior |
 | --- | --- |
-| Schedule work | `process.scheduler().buildTask(...).delay(...).repeat(...).schedule()`; normal task APIs remain. |
-| Independent scheduler | `Scheduler.newScheduler(process)` or `process.scheduler().createScheduler()`. The caller drives its ticks. |
+| Schedule work | `process.schedulerManager().buildTask(...).delay(...).repeat(...).schedule()`; normal task APIs remain. |
+| Independent scheduler | `Scheduler.newScheduler(process)` or `process.schedulerManager().createScheduler()`. The caller drives its ticks. |
 | Timer ownership | Child schedulers share one timer within their process. Closing A does not stop B's timers. |
 | Close/cancel | Schedulers implement `AutoCloseable`; `isClosed()` reports closure. Pending work is cancelled, and new submissions/child schedulers are rejected after closure. |
 | Object removal | Entity removal and instance unregistration close their associated schedulers. |

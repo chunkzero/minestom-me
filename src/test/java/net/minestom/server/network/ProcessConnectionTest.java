@@ -80,7 +80,7 @@ class ProcessConnectionTest {
         try (var pair = new ServerProcessPair()) {
             var process = pair.first();
             var errors = new LinkedBlockingQueue<Throwable>();
-            process.exception().setExceptionHandler(errors::add);
+            process.exceptionManager().setExceptionHandler(errors::add);
             var admitted = new CompletableFuture<PlayerSocketConnection>();
             process.eventHandler().addListener(AsyncPlayerPreLoginEvent.class,
                     event -> admitted.complete((PlayerSocketConnection) event.getConnection()));
@@ -107,8 +107,8 @@ class ProcessConnectionTest {
             var release = new CompletableFuture<Void>();
             var entered = new CompletableFuture<Thread>();
             var errors = new LinkedBlockingQueue<Throwable>();
-            process.exception().setExceptionHandler(errors::add);
-            process.connection().setPlayerProvider((connection, profile) -> {
+            process.exceptionManager().setExceptionHandler(errors::add);
+            process.connectionManager().setPlayerProvider((connection, profile) -> {
                 entered.complete(Thread.currentThread());
                 release.join(); // Deliberately ignores the shutdown interrupt.
                 return new Player(connection, profile);
@@ -180,7 +180,7 @@ class ProcessConnectionTest {
             connection.setClientState(ConnectionState.PLAY);
             connection.setServerState(ConnectionState.CONFIGURATION);
             // Isolate the incoming state transition from the asynchronous configuration response.
-            process.packetListener().setPlayListener(ClientConfigurationAckPacket.class, (_, _) -> {});
+            process.packetListenerManager().setPlayListener(ClientConfigurationAckPacket.class, (_, _) -> {});
             var settings = settings(Locale.GERMAN);
             var buffer = NetworkBuffer.resizableBuffer(process.registries());
             try {
@@ -214,14 +214,14 @@ class ProcessConnectionTest {
             second.setBrandName("Second");
             first.setDifficulty(Difficulty.PEACEFUL);
             second.setDifficulty(Difficulty.HARD);
-            first.command().register(new Command("first"));
-            second.command().register(new Command("second"));
+            first.commandManager().register(new Command("first"));
+            second.commandManager().register(new Command("second"));
             var firstDimension = first.registries().dimensionType().register("test:shared", DimensionType.builder().ambientLight(0.1f).build());
             second.registries().dimensionType().register("test:padding", DimensionType.builder().build());
             var secondDimension = second.registries().dimensionType().register("test:shared", DimensionType.builder().ambientLight(0.9f).build());
             assertNotEquals(first.registries().dimensionType().getId(firstDimension), second.registries().dimensionType().getId(secondDimension));
-            var firstInstance = first.instance().createInstanceContainer(firstDimension);
-            var secondInstance = second.instance().createInstanceContainer(secondDimension);
+            var firstInstance = first.instanceManager().createInstanceContainer(firstDimension);
+            var secondInstance = second.instanceManager().createInstanceContainer(secondDimension);
             var firstEvents = new SessionEvents(first, firstInstance);
             var secondEvents = new SessionEvents(second, secondInstance);
             first.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
@@ -239,8 +239,8 @@ class ProcessConnectionTest {
                 assertNotNull(secondPlayer);
                 assertSame(first, firstPlayer.process());
                 assertSame(second, secondPlayer.process());
-                assertEquals(Set.of(firstPlayer), first.connection().getOnlinePlayers());
-                assertEquals(Set.of(secondPlayer), second.connection().getOnlinePlayers());
+                assertEquals(Set.of(firstPlayer), first.connectionManager().getOnlinePlayers());
+                assertEquals(Set.of(secondPlayer), second.connectionManager().getOnlinePlayers());
                 assertEquals(firstPlayer.getEntityId(), secondPlayer.getEntityId());
                 assertEquals(settings(Locale.ENGLISH), firstEvents.settings.poll(5, TimeUnit.SECONDS));
                 assertEquals(Locale.ENGLISH, firstPlayer.getSettings().locale());
@@ -290,12 +290,12 @@ class ProcessConnectionTest {
                 first.close();
                 a.readThrough(DisconnectPacket.class);
                 assertEquals(firstPlayer, firstEvents.disconnected.poll(5, TimeUnit.SECONDS));
-                assertEquals(0, first.connection().getOnlinePlayerCount());
+                assertEquals(0, first.connectionManager().getOnlinePlayerCount());
                 b.send(new ClientSettingsPacket(settings(Locale.ITALIAN)));
                 assertEquals(settings(Locale.ITALIAN), secondEvents.settings.poll(5, TimeUnit.SECONDS));
                 assertEquals(Locale.ITALIAN, secondPlayer.getSettings().locale());
                 ping(b, 6);
-                assertEquals(Set.of(secondPlayer), second.connection().getOnlinePlayers());
+                assertEquals(Set.of(secondPlayer), second.connectionManager().getOnlinePlayers());
                 assertTrue(secondPlayer.isOnline());
                 assertTrue(firstEvents.errors.isEmpty(), firstEvents.errors.toString());
                 assertTrue(secondEvents.errors.isEmpty(), secondEvents.errors.toString());
@@ -306,13 +306,13 @@ class ProcessConnectionTest {
     @Test
     void packetListenersCancellationAndErrorsStayWithTheirOwner() throws Exception {
         try (var pair = new ServerProcessPair()) {
-            var aEvents = new SessionEvents(pair.first(), pair.first().instance().createInstanceContainer());
-            var bEvents = new SessionEvents(pair.second(), pair.second().instance().createInstanceContainer());
+            var aEvents = new SessionEvents(pair.first(), pair.first().instanceManager().createInstanceContainer());
+            var bEvents = new SessionEvents(pair.second(), pair.second().instanceManager().createInstanceContainer());
             var expected = new IllegalStateException("second listener");
             pair.first().eventHandler().addListener(PlayerPacketEvent.class, event -> {
                 if (event.getPacket() instanceof ClientPingRequestPacket ping && ping.number() == 10) event.setCancelled(true);
             });
-            pair.second().packetListener().setPlayListener(ClientPingRequestPacket.class, (packet, player) -> {
+            pair.second().packetListenerManager().setPlayListener(ClientPingRequestPacket.class, (packet, player) -> {
                 if (packet.number() == 20) throw expected;
                 player.sendPacket(new PingResponsePacket(packet.number() + 100));
             });
@@ -340,8 +340,8 @@ class ProcessConnectionTest {
     @Test
     void backendReconnectCreatesADestinationPlayerRepresentation() throws Exception {
         try (var pair = new ServerProcessPair()) {
-            var firstEvents = new SessionEvents(pair.first(), pair.first().instance().createInstanceContainer());
-            var secondEvents = new SessionEvents(pair.second(), pair.second().instance().createInstanceContainer());
+            var firstEvents = new SessionEvents(pair.first(), pair.first().instanceManager().createInstanceContainer());
+            var secondEvents = new SessionEvents(pair.second(), pair.second().instanceManager().createInstanceContainer());
             var firstTransfers = new AtomicInteger();
             var secondTransfers = new AtomicInteger();
             pair.first().eventHandler().addListener(OutgoingTransferEvent.class, _ -> firstTransfers.incrementAndGet());
@@ -370,8 +370,8 @@ class ProcessConnectionTest {
                 assertEquals(source.getUuid(), destination.getUuid());
                 assertSame(pair.second(), destination.process());
                 assertSame(pair.first(), source.process());
-                assertEquals(0, pair.first().connection().getOnlinePlayerCount());
-                assertEquals(Set.of(destination), pair.second().connection().getOnlinePlayers());
+                assertEquals(0, pair.first().connectionManager().getOnlinePlayerCount());
+                assertEquals(Set.of(destination), pair.second().connectionManager().getOnlinePlayers());
                 assertEquals(1, firstTransfers.get());
                 assertEquals(0, secondTransfers.get());
                 ping(client, 1);
@@ -425,8 +425,8 @@ class ProcessConnectionTest {
         final LinkedBlockingQueue<ClientSettings> settings = new LinkedBlockingQueue<>();
 
         SessionEvents(ServerProcess process, Instance instance) {
-            process.exception().setExceptionHandler(errors::add);
-            process.connection().setPlayerProvider((connection, profile) -> {
+            process.exceptionManager().setExceptionHandler(errors::add);
+            process.connectionManager().setPlayerProvider((connection, profile) -> {
                 assertSame(process, connection.process());
                 return new Player(connection, profile);
             });

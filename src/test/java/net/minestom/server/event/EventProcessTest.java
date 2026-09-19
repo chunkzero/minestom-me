@@ -63,9 +63,9 @@ class EventProcessTest {
         try (var pair = new ServerProcessPair()) {
             var first = pair.first();
             var second = pair.second();
-            var instance = second.instance().createInstanceContainer(ChunkLoader.noop());
+            var instance = second.instanceManager().createInstanceContainer(ChunkLoader.noop());
             var filter = EventFilter.from(TargetEvent.class, Object.class, TargetEvent::target);
-            for (var target : List.of(second, second.eventHandler(), second.instance(), second.connection(), second.server(),
+            for (var target : List.of(second, second.eventHandler(), second.instanceManager(), second.connectionManager(), second.server(),
                     instance, instance.getEntityTracker(), new DynamicChunk(instance, 0, 0),
                     new Entity(second, EntityType.ZOMBIE), connection(second))) {
                 assertThrows(IllegalArgumentException.class, () -> first.eventHandler().map(target, filter));
@@ -88,7 +88,7 @@ class EventProcessTest {
         try (var pair = new ServerProcessPair()) {
             var process = pair.first();
             var errors = new ArrayList<Throwable>();
-            process.exception().setExceptionHandler(errors::add);
+            process.exceptionManager().setExceptionHandler(errors::add);
             var entity = new LivingEntity(process, EntityType.ZOMBIE);
             entity.setAutoViewable(false);
             var calls = new ArrayList<Class<?>>();
@@ -110,7 +110,7 @@ class EventProcessTest {
             assertEquals(types, calls);
             assertNull(entity.getInstance());
 
-            var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
+            var instance = process.instanceManager().createInstanceContainer(ChunkLoader.noop());
             var instanceCalls = new AtomicInteger();
             instance.eventNode().addListener(EntitySpawnEvent.class, event -> {
                 assertSame(instance, event.getInstance());
@@ -152,7 +152,7 @@ class EventProcessTest {
             var mapped = first.eventHandler().map(target, filter);
             var calls = new AtomicInteger();
             var errors = new ArrayList<Throwable>();
-            first.exception().setExceptionHandler(errors::add);
+            first.exceptionManager().setExceptionHandler(errors::add);
             mapped.addListener(TargetEvent.class, _ -> calls.incrementAndGet());
             var handle = first.eventHandler().getHandle(TargetEvent.class);
             var mappedHandle = mapped.getHandle(TargetEvent.class);
@@ -182,8 +182,8 @@ class EventProcessTest {
             var local = new Entity(first, EntityType.ZOMBIE);
             var foreign = new Entity(second, EntityType.ZOMBIE);
             var player = new Player(connection(first), new GameProfile(UUID.randomUUID(), "test"));
-            var localInstance = first.instance().createInstanceContainer(ChunkLoader.noop());
-            var foreignInstance = second.instance().createInstanceContainer(ChunkLoader.noop());
+            var localInstance = first.instanceManager().createInstanceContainer(ChunkLoader.noop());
+            var foreignInstance = second.instanceManager().createInstanceContainer(ChunkLoader.noop());
             List<Event> invalid = List.of(
                     new InstanceTargetEvent(local, foreignInstance),
                     new EntitySpawnEvent(local, foreignInstance),
@@ -355,8 +355,8 @@ class EventProcessTest {
             var second = pair.second();
             var firstErrors = new ArrayList<Throwable>();
             var secondErrors = new ArrayList<Throwable>();
-            first.exception().setExceptionHandler(firstErrors::add);
-            second.exception().setExceptionHandler(secondErrors::add);
+            first.exceptionManager().setExceptionHandler(firstErrors::add);
+            second.exceptionManager().setExceptionHandler(secondErrors::add);
             var expected = new IllegalStateException("listener failure");
             first.eventHandler().addListener(TestEvent.class, (_, _) -> { throw expected; });
             var calls = new AtomicInteger();

@@ -422,7 +422,7 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
             try {
                 listener.accept(process, event);
             } catch (Throwable e) {
-                process.exception().handleException(e);
+                process.exceptionManager().handleException(e);
             }
         }
 

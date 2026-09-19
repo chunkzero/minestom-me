@@ -62,20 +62,20 @@ public interface Env extends AutoCloseable {
     }
 
     default Instance createFlatInstance(@Nullable ChunkLoader chunkLoader) {
-        var instance = process().instance().createInstanceContainer(chunkLoader);
+        var instance = process().instanceManager().createInstanceContainer(chunkLoader);
         instance.setGenerator(unit -> unit.modifier().fillHeight(0, 40, Block.STONE));
         return instance;
     }
 
     default Instance createEmptyInstance() {
-        return process().instance().createInstanceContainer();
+        return process().instanceManager().createInstanceContainer();
     }
 
     default Instance createEmptyInstance(ChunkLoader chunkLoader) {
-        return process().instance().createInstanceContainer(chunkLoader);
+        return process().instanceManager().createInstanceContainer(chunkLoader);
     }
 
     default void destroyInstance(Instance instance) {
-        process().instance().unregisterInstance(instance);
+        process().instanceManager().unregisterInstance(instance);
     }
 }

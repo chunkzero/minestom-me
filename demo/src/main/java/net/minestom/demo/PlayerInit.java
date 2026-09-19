@@ -157,7 +157,7 @@ public class PlayerInit {
                 // Show off adding and removing feature flags
                 event.removeFeatureFlag(FeatureFlag.TRADE_REBALANCE); // not enabled by default, just removed for demonstration
 
-                var instances = process.instance().getInstances();
+                var instances = process.instanceManager().getInstances();
                 Instance instance = instances.stream().skip(new Random().nextInt(instances.size())).findFirst().orElse(null);
                 event.setSpawningInstance(instance);
                 player.setRespawnPoint(new Pos(0, 40f, 0));
@@ -434,7 +434,7 @@ public class PlayerInit {
                 Block block = event.getBlock();
                 BlockHandler handler = block.handler();
                 if (handler != null) return;
-                event.setBlock(event.getBlock().withHandler(process.block().getHandler(block.key().asString())));
+                event.setBlock(event.getBlock().withHandler(process.blockManager().getHandler(block.key().asString())));
             })
             .addListener(PlayerEditSignEvent.class, event -> event.getLines()
                     .stream()
@@ -460,7 +460,7 @@ public class PlayerInit {
     public PlayerInit(ServerProcess process) {
         this.process = process;
         this.demoNode = createEventNode();
-        InstanceManager instanceManager = process.instance();
+        InstanceManager instanceManager = process.instanceManager();
 
         InstanceContainer instanceContainer = instanceManager.createInstanceContainer();
         instanceContainer.setGenerator(unit -> {
@@ -487,8 +487,8 @@ public class PlayerInit {
 
         eventHandler.addListener(ServerTickMonitorEvent.class, event -> lastTick.set(event.getTickMonitor()));
 
-        process.scheduler().buildTask(() -> {
-            if (lastTick.get() == null || process.connection().getOnlinePlayerCount() == 0)
+        process.schedulerManager().buildTask(() -> {
+            if (lastTick.get() == null || process.connectionManager().getOnlinePlayerCount() == 0)
                 return;
 
             long ramUsage = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
@@ -500,7 +500,7 @@ public class PlayerInit {
                     .append(Component.text("TICK TIME: " + MathUtils.round(tickMonitor.getTickTime(), 2) + "ms"))
                     .append(Component.newline())
                     .append(Component.text("ACQ TIME: " + MathUtils.round(tickMonitor.getAcquisitionTime(), 2) + "ms"));
-            PacketGroupingAudience.of(process.connection().getOnlinePlayers()).sendPlayerListHeader(header);
+            PacketGroupingAudience.of(process.connectionManager().getOnlinePlayers()).sendPlayerListHeader(header);
         }).repeat(10, TimeUnit.SERVER_TICK).schedule();
     }
 

@@ -95,12 +95,12 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     /**
      * Handles incoming connections/players.
      */
-    ConnectionManager connection();
+    ConnectionManager connectionManager();
 
     /**
      * Handles registered instances.
      */
-    InstanceManager instance();
+    InstanceManager instanceManager();
 
     /**
      * Allocates an entity ID shared by all instances in this process, including packet-only entities.
@@ -112,22 +112,22 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
      * Handles {@link net.minestom.server.instance.block.BlockHandler block handlers}
      * and {@link BlockPlacementRule placement rules}.
      */
-    BlockManager block();
+    BlockManager blockManager();
 
     /**
      * Handles registered commands.
      */
-    CommandManager command();
+    CommandManager commandManager();
 
     /**
      * Handles registered recipes shown to clients.
      */
-    RecipeManager recipe();
+    RecipeManager recipeManager();
 
     /**
      * Handles registered teams.
      */
-    TeamManager team();
+    TeamManager teamManager();
 
     /**
      * Gets the event root owned by this process.
@@ -139,17 +139,17 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     /**
      * Main scheduler ticked at the server rate.
      */
-    SchedulerManager scheduler();
+    SchedulerManager schedulerManager();
 
     /**
      * Handles registered advancements.
      */
-    AdvancementManager advancement();
+    AdvancementManager advancementManager();
 
     /**
      * Handles registered boss bars.
      */
-    BossBarManager bossBar();
+    BossBarManager bossBarManager();
 
     /**
      * Provides this process's players, console, and custom audience registrations.
@@ -159,12 +159,12 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
     /**
      * Handles all thrown exceptions from the server.
      */
-    ExceptionManager exception();
+    ExceptionManager exceptionManager();
 
     /**
      * Handles incoming packets.
      */
-    PacketListenerManager packetListener();
+    PacketListenerManager packetListenerManager();
 
     /**
      * Gets the object handling the client packets parsing.

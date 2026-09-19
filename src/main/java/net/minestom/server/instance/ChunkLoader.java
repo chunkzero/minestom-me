@@ -75,7 +75,7 @@ public interface ChunkLoader {
                     try {
                         saveChunk(chunk);
                     } catch (Throwable e) {
-                        chunk.getInstance().process().exception().handleException(e);
+                        chunk.getInstance().process().exceptionManager().handleException(e);
                     } finally {
                         phaser.arriveAndDeregister();
                     }

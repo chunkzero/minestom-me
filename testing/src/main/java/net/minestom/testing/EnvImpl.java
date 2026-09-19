@@ -21,11 +21,11 @@ final class EnvImpl implements Env {
     public EnvImpl(ServerProcess process) {
         this.process = process;
         // If exceptions reach the exception handler, by default fail the test.
-        process().exception().setExceptionHandler(EnvImpl::handleException);
+        process().exceptionManager().setExceptionHandler(EnvImpl::handleException);
 
         // Use player provider to disable queued chunk sending.
         // Set here to allow an individual test to override if they want.
-        process.connection().setPlayerProvider(TestConnectionImpl.TestPlayerImpl::new);
+        process.connectionManager().setPlayerProvider(TestConnectionImpl.TestPlayerImpl::new);
     }
 
     static void handleException(Throwable exception) {

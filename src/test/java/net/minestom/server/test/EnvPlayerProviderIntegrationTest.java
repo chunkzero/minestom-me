@@ -25,7 +25,7 @@ public class EnvPlayerProviderIntegrationTest {
         // overriding in a particular test will mean that chunk packets are not received consistently (they require the
         // chunk queue interaction). However, this is not a problem for many tests, so we do support it.
 
-        env.process().connection().setPlayerProvider(CustomPlayer::new);
+        env.process().connectionManager().setPlayerProvider(CustomPlayer::new);
         var instance = env.createFlatInstance();
         var player = env.createPlayer(instance, new Pos(0, 42, 0));
         assertInstanceOf(CustomPlayer.class, player);

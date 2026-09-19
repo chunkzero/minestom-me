@@ -38,7 +38,7 @@ class SchedulerRemovalTest {
         try (var pair = new ServerProcessPair()) {
             var process = pair.first();
             var errors = new ArrayList<Throwable>();
-            process.exception().setExceptionHandler(errors::add);
+            process.exceptionManager().setExceptionHandler(errors::add);
             var tasks = new ArrayList<Task>();
             var calls = new AtomicInteger();
             var entity = new Entity(process, EntityType.ZOMBIE) {
@@ -51,13 +51,13 @@ class SchedulerRemovalTest {
                 tasks.add(entity.scheduler().scheduleNextTick(calls::incrementAndGet));
             });
             entity.remove();
-            var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
+            var instance = process.instanceManager().createInstanceContainer(ChunkLoader.noop());
             instance.eventNode().addListener(InstanceUnregisterEvent.class, _ -> {
                 tasks.add(instance.scheduler().scheduleNextTick(calls::incrementAndGet));
             });
-            process.instance().unregisterInstance(instance);
+            process.instanceManager().unregisterInstance(instance);
             var connection = new QuietConnection(process);
-            var player = process.connection().createPlayer(connection, new GameProfile(UUID.randomUUID(), "removal"));
+            var player = process.connectionManager().createPlayer(connection, new GameProfile(UUID.randomUUID(), "removal"));
             player.eventNode().addListener(PlayerDisconnectEvent.class, _ -> {
                 tasks.add(player.scheduler().scheduleNextTick(calls::incrementAndGet));
             });
@@ -80,9 +80,9 @@ class SchedulerRemovalTest {
         try (var pair = new ServerProcessPair()) {
             var process = pair.first();
             var errors = new ArrayList<Throwable>();
-            process.exception().setExceptionHandler(errors::add);
+            process.exceptionManager().setExceptionHandler(errors::add);
             var connection = new QuietConnection(process);
-            var player = process.connection().createPlayer(connection, new GameProfile(UUID.randomUUID(), "explicit"));
+            var player = process.connectionManager().createPlayer(connection, new GameProfile(UUID.randomUUID(), "explicit"));
             connection.setServerState(ConnectionState.PLAY);
             var tasks = new ArrayList<Task>();
             player.eventNode().addListener(PlayerDisconnectEvent.class, _ -> {
@@ -103,16 +103,16 @@ class SchedulerRemovalTest {
         try (var pair = new ServerProcessPair()) {
             var first = pair.first();
             var errors = new CopyOnWriteArrayList<Throwable>();
-            first.exception().setExceptionHandler(errors::add);
+            first.exceptionManager().setExceptionHandler(errors::add);
             var connection = new QuietConnection(first);
-            var player = first.connection().createPlayer(connection, new GameProfile(UUID.randomUUID(), "shutdown"));
+            var player = first.connectionManager().createPlayer(connection, new GameProfile(UUID.randomUUID(), "shutdown"));
             connection.setServerState(ConnectionState.PLAY);
             var disconnects = new AtomicInteger();
             first.eventHandler().addListener(PlayerDisconnectEvent.class, event -> {
                 event.getPlayer().acquirable().assertOwnership();
                 disconnects.incrementAndGet();
             });
-            var instance = first.instance().createInstanceContainer(ChunkLoader.noop());
+            var instance = first.instanceManager().createInstanceContainer(ChunkLoader.noop());
             first.dispatcher().updateElement(player, instance.loadChunk(0, 0).join());
             first.ticker().tick(System.nanoTime());
             assertNotNull(player.acquirable().assignedThread());
@@ -121,7 +121,7 @@ class SchedulerRemovalTest {
             assertFalse(connection.isOnline());
             assertTrue(player.isRemoved());
             assertTrue(player.scheduler().isClosed());
-            assertNull(first.connection().getPlayer(connection));
+            assertNull(first.connectionManager().getPlayer(connection));
             assertEquals(1, disconnects.get());
             assertFalse(first.server().isOpen());
             assertFalse(first.dispatcher().isAlive());
@@ -136,10 +136,10 @@ class SchedulerRemovalTest {
         try (var pair = new ServerProcessPair()) {
             var first = pair.first();
             var errors = new ArrayList<Throwable>();
-            first.exception().setExceptionHandler(errors::add);
+            first.exceptionManager().setExceptionHandler(errors::add);
             for (boolean closeProcess : List.of(false, true)) {
                 var connection = new QuietConnection(first);
-                var player = first.connection().createPlayer(connection, new GameProfile(UUID.randomUUID(), "pending"));
+                var player = first.connectionManager().createPlayer(connection, new GameProfile(UUID.randomUUID(), "pending"));
                 connection.setServerState(ConnectionState.PLAY);
                 connection.disconnect();
                 assertFalse(player.isRemoved(), "Ordinary disconnect defers removal until a tick");
@@ -148,7 +148,7 @@ class SchedulerRemovalTest {
                 else first.ticker().tick(System.nanoTime());
                 assertTrue(player.isRemoved());
                 assertTrue(player.scheduler().isClosed());
-                assertNull(first.connection().getPlayer(connection));
+                assertNull(first.connectionManager().getPlayer(connection));
             }
             assertTrue(errors.isEmpty(), errors::toString);
         }

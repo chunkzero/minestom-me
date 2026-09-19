@@ -203,7 +203,7 @@ public class ChunkBatch implements Batch<ChunkCallback> {
             if (inverse != null) inverse.readyLatch.countDown();
             updateChunk(instance, chunk, callback, safeCallback);
         } catch (Exception e) {
-            instance.process().exception().handleException(e);
+            instance.process().exceptionManager().handleException(e);
         }
     }
 

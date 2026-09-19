@@ -23,7 +23,7 @@ class IterableAudienceProvider implements AudienceProvider<Iterable<? extends Au
 
     protected IterableAudienceProvider(ServerProcess process) {
         this.process = process;
-        this.console = List.of(process.command().getConsoleSender());
+        this.console = List.of(process.commandManager().getConsoleSender());
     }
 
     @Override
@@ -37,12 +37,12 @@ class IterableAudienceProvider implements AudienceProvider<Iterable<? extends Au
 
     @Override
     public Iterable<? extends Audience> players() {
-        return process.connection().getOnlinePlayers();
+        return process.connectionManager().getOnlinePlayers();
     }
 
     @Override
     public Iterable<? extends Audience> players(Predicate<? super Player> filter) {
-        return process.connection().getOnlinePlayers().stream().filter(filter).toList();
+        return process.connectionManager().getOnlinePlayers().stream().filter(filter).toList();
     }
 
     @Override

@@ -18,12 +18,12 @@ public class SaveCommand extends Command {
     }
 
     private static void execute(CommandSender commandSender, CommandContext commandContext) {
-        for(var instance : commandContext.process().instance().getInstances()) {
+        for(var instance : commandContext.process().instanceManager().getInstances()) {
             CompletableFuture<Void> instanceSave = instance.saveInstance().thenCompose(_ -> instance.saveChunksToStorage());
             try {
                 instanceSave.get();
             } catch (InterruptedException | ExecutionException e) {
-                commandContext.process().exception().handleException(e);
+                commandContext.process().exceptionManager().handleException(e);
             }
         }
         commandSender.sendMessage("Saving done!");

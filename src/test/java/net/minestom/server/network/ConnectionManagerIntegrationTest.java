@@ -39,7 +39,7 @@ public class ConnectionManagerIntegrationTest {
     public void testPartialFind(Env env) {
         Instance instance = env.createEmptyInstance();
         Player minestomPlayer = env.createConnection(profiles[0]).connect(instance, Pos.ZERO);
-        ConnectionManager connectionManager = env.process().connection();
+        ConnectionManager connectionManager = env.process().connectionManager();
 
         assertEquals(minestomPlayer, connectionManager.findOnlinePlayer("Mine"));
         assertNull(connectionManager.findOnlinePlayer("No"));
@@ -62,7 +62,7 @@ public class ConnectionManagerIntegrationTest {
             final CompletableFuture<GameProfile> future = new CompletableFuture<>();
             Thread.startVirtualThread(() -> {
                 try {
-                    future.complete(env.process().connection().transitionLoginToConfig(connection, profiles[0]));
+                    future.complete(env.process().connectionManager().transitionLoginToConfig(connection, profiles[0]));
                 } catch (Throwable throwable) {
                     future.completeExceptionally(throwable);
                 }

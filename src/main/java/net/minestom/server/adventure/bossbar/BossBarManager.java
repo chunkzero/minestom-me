@@ -38,7 +38,7 @@ public class BossBarManager {
     /**
      * Creates a new boss bar manager.
      *
-     * @see ServerProcess#bossBar()
+     * @see ServerProcess#bossBarManager()
      */
     public BossBarManager(ServerProcess process) {
         this.process = Objects.requireNonNull(process);

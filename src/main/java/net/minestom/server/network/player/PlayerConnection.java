@@ -174,7 +174,7 @@ public abstract class PlayerConnection {
             if (!online) return;
             online = false;
             // Reply cancellation can synchronously re-enter process shutdown.
-            player = process().connection().removePlayer(this);
+            player = process().connectionManager().removePlayer(this);
         }
         var pluginMessages = loginPluginMessageProcessor;
         if (pluginMessages != null) pluginMessages.close();
@@ -186,7 +186,7 @@ public abstract class PlayerConnection {
             var resourcePacks = player.getResourcePackFuture();
             if (resourcePacks != null) resourcePacks.cancel(false);
             if (serverState == ConnectionState.PLAY && !player.isRemoved())
-                process().connection().schedulePlayerRemoval(player);
+                process().connectionManager().schedulePlayerRemoval(player);
             else {
                 try {
                     process().eventHandler().call(new PlayerDisconnectEvent(player));

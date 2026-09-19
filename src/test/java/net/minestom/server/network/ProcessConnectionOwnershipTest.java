@@ -44,8 +44,8 @@ class ProcessConnectionOwnershipTest {
             var connection = new ImmediateConnection(process);
             connection.setClientState(state);
             connection.setServerState(state);
-            var player = process.connection().createPlayer(connection, new GameProfile(UUID.randomUUID(), "Closing"));
-            var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
+            var player = process.connectionManager().createPlayer(connection, new GameProfile(UUID.randomUUID(), "Closing"));
+            var instance = process.instanceManager().createInstanceContainer(ChunkLoader.noop());
             if (state == ConnectionState.PLAY) {
                 player.setInstance(instance).join();
                 process.ticker().tick(System.nanoTime());
@@ -58,7 +58,7 @@ class ProcessConnectionOwnershipTest {
             assertTrue(callback.isCompletedExceptionally());
             assertFalse(connection.isOnline());
             assertFalse(task.isAlive());
-            assertNull(process.connection().getPlayer(connection));
+            assertNull(process.connectionManager().getPlayer(connection));
             assertEquals(1, disconnected.size());
             assertSame(player, disconnected.getFirst().getPlayer());
             assertFalse(instance.getEntities().contains(player));
@@ -81,7 +81,7 @@ class ProcessConnectionOwnershipTest {
             var cookie = first.fetchCookie("test:pending");
             var otherCookie = second.fetchCookie("test:pending");
             var profile = new GameProfile(UUID.randomUUID(), "Pending");
-            var player = pair.first().connection().createPlayer(first, profile);
+            var player = pair.first().connectionManager().createPlayer(first, profile);
             var task = player.scheduler().scheduleNextTick(() -> {});
             player.sendResourcePacks(ResourcePackInfo.resourcePackInfo(UUID.randomUUID(), URI.create("https://example.com/pack.zip"), "test"));
             var resourcePacks = player.getResourcePackFuture();
@@ -95,9 +95,9 @@ class ProcessConnectionOwnershipTest {
             assertThrows(IllegalStateException.class, () -> first.fetchCookie("test:closed"));
             assertThrows(IllegalStateException.class, () -> first.requestKnownPacks(List.of()));
             assertThrows(IllegalStateException.class, () -> first.loginPluginMessageProcessor().request("test:closed", new byte[0]));
-            assertThrows(IllegalStateException.class, () -> pair.first().connection().createPlayer(new ImmediateConnection(pair.first()), profile));
-            pair.first().connection().doConfiguration(player, true);
-            assertTrue(pair.first().connection().getConfigPlayers().isEmpty());
+            assertThrows(IllegalStateException.class, () -> pair.first().connectionManager().createPlayer(new ImmediateConnection(pair.first()), profile));
+            pair.first().connectionManager().doConfiguration(player, true);
+            assertTrue(pair.first().connectionManager().getConfigPlayers().isEmpty());
             second.receiveCookieResponse("test:pending", new byte[0]);
             assertTrue(otherCookie.isDone());
         }
@@ -109,18 +109,18 @@ class ProcessConnectionOwnershipTest {
             var firstConnection = new ImmediateConnection(pair.first());
             var secondConnection = new ImmediateConnection(pair.second());
             var profile = new GameProfile(UUID.randomUUID(), "Player");
-            var player = pair.first().connection().createPlayer(firstConnection, profile);
-            assertThrows(IllegalArgumentException.class, () -> pair.second().connection().createPlayer(firstConnection, profile));
-            assertThrows(IllegalArgumentException.class, () -> pair.second().connection().transitionLoginToConfig(firstConnection, profile));
-            assertThrows(IllegalArgumentException.class, () -> pair.second().connection().doConfiguration(player, true));
-            assertThrows(IllegalArgumentException.class, () -> pair.second().connection().transitionConfigToPlay(player));
-            assertThrows(IllegalArgumentException.class, () -> pair.second().connection().transitionPlayToConfig(player));
-            assertThrows(IllegalArgumentException.class, () -> pair.second().connection().removePlayer(firstConnection));
+            var player = pair.first().connectionManager().createPlayer(firstConnection, profile);
+            assertThrows(IllegalArgumentException.class, () -> pair.second().connectionManager().createPlayer(firstConnection, profile));
+            assertThrows(IllegalArgumentException.class, () -> pair.second().connectionManager().transitionLoginToConfig(firstConnection, profile));
+            assertThrows(IllegalArgumentException.class, () -> pair.second().connectionManager().doConfiguration(player, true));
+            assertThrows(IllegalArgumentException.class, () -> pair.second().connectionManager().transitionConfigToPlay(player));
+            assertThrows(IllegalArgumentException.class, () -> pair.second().connectionManager().transitionPlayToConfig(player));
+            assertThrows(IllegalArgumentException.class, () -> pair.second().connectionManager().removePlayer(firstConnection));
             assertThrows(IllegalArgumentException.class, () -> secondConnection.setPlayer(player));
-            assertThrows(IllegalArgumentException.class, () -> player.setPendingOptions(pair.second().instance().createInstanceContainer(), false));
+            assertThrows(IllegalArgumentException.class, () -> player.setPendingOptions(pair.second().instanceManager().createInstanceContainer(), false));
             assertNull(secondConnection.getPlayer());
-            assertTrue(pair.second().connection().getConfigPlayers().isEmpty());
-            assertTrue(pair.second().connection().getOnlinePlayers().isEmpty());
+            assertTrue(pair.second().connectionManager().getConfigPlayers().isEmpty());
+            assertTrue(pair.second().connectionManager().getOnlinePlayers().isEmpty());
             assertSame(player, firstConnection.getPlayer());
         }
     }
@@ -131,13 +131,13 @@ class ProcessConnectionOwnershipTest {
             var first = new ImmediateConnection(pair.first());
             var other = new ImmediateConnection(pair.first());
             var profile = new GameProfile(UUID.randomUUID(), "Player");
-            var player = pair.first().connection().createPlayer(first, profile);
-            pair.first().connection().setPlayerProvider((_, _) -> player);
-            assertThrows(IllegalArgumentException.class, () -> pair.first().connection().createPlayer(other, profile));
+            var player = pair.first().connectionManager().createPlayer(first, profile);
+            pair.first().connectionManager().setPlayerProvider((_, _) -> player);
+            assertThrows(IllegalArgumentException.class, () -> pair.first().connectionManager().createPlayer(other, profile));
             assertThrows(IllegalArgumentException.class, () -> other.setPlayer(player));
-            assertNull(pair.first().connection().getPlayer(other));
+            assertNull(pair.first().connectionManager().getPlayer(other));
             assertNull(other.getPlayer());
-            assertSame(player, pair.first().connection().getPlayer(first));
+            assertSame(player, pair.first().connectionManager().getPlayer(first));
         }
     }
 
@@ -146,10 +146,10 @@ class ProcessConnectionOwnershipTest {
         try (var pair = new ServerProcessPair()) {
             var connection = new ImmediateConnection(pair.first());
             var packet = new ClientHandshakePacket(0, "localhost", 25565, ClientHandshakePacket.Intent.STATUS);
-            assertThrows(IllegalArgumentException.class, () -> pair.second().packetListener().processClientPacket(packet, connection));
+            assertThrows(IllegalArgumentException.class, () -> pair.second().packetListenerManager().processClientPacket(packet, connection));
             assertEquals(ConnectionState.HANDSHAKE, connection.getClientState());
             assertEquals(ConnectionState.HANDSHAKE, connection.getServerState());
-            pair.first().packetListener().processClientPacket(packet, connection);
+            pair.first().packetListenerManager().processClientPacket(packet, connection);
             assertEquals(ConnectionState.STATUS, connection.getClientState());
         }
     }
@@ -172,7 +172,7 @@ class ProcessConnectionOwnershipTest {
             connection.setClientState(ConnectionState.LOGIN);
             var loginThread = new CompletableFuture<Thread>();
             var errors = new CopyOnWriteArrayList<Throwable>();
-            pair.second().exception().setExceptionHandler(errors::add);
+            pair.second().exceptionManager().setExceptionHandler(errors::add);
             pair.second().eventHandler().addListener(AsyncPlayerPreLoginEvent.class, event -> {
                 event.sendPluginRequest("test:failure", new byte[0]).completeExceptionally(new IllegalStateException("Invalid reply"));
                 loginThread.complete(Thread.currentThread());

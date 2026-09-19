@@ -483,7 +483,7 @@ public class Team implements PacketGroupingAudience {
             this.playerMembers.clear();
 
             for (String member : this.members) {
-                Player player = process.connection().getOnlinePlayerByUsername(member);
+                Player player = process.connectionManager().getOnlinePlayerByUsername(member);
 
                 if (player != null) {
                     this.playerMembers.add(player);

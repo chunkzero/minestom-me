@@ -35,8 +35,8 @@ class ProcessSchedulerTest {
     @Test
     void closingOneProcessCancelsItsDelayedAndRepeatingWorkOnly() throws Exception {
         try (var pair = new ServerProcessPair()) {
-            var first = pair.first().scheduler();
-            var second = pair.second().scheduler();
+            var first = pair.first().schedulerManager();
+            var second = pair.second().schedulerManager();
             var firstCalls = new AtomicInteger();
             var secondCalls = new AtomicInteger();
             var firstRepeat = first.scheduleTask(firstCalls::incrementAndGet, TaskSchedule.immediate(), TaskSchedule.hours(1));
@@ -75,14 +75,14 @@ class ProcessSchedulerTest {
         try (var pair = new ServerProcessPair()) {
             var firstErrors = new ArrayList<Throwable>();
             var secondErrors = new ArrayList<Throwable>();
-            pair.first().exception().setExceptionHandler(firstErrors::add);
-            pair.second().exception().setExceptionHandler(secondErrors::add);
+            pair.first().exceptionManager().setExceptionHandler(firstErrors::add);
+            pair.second().exceptionManager().setExceptionHandler(secondErrors::add);
             var expected = new IllegalStateException("scheduled failure");
             var completed = new AtomicInteger();
             for (var process : List.of(pair.first(), pair.second())) {
                 var entity = new Entity(process, EntityType.ZOMBIE);
-                var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
-                for (var scheduler : List.of(process.scheduler(), entity.scheduler(), instance.scheduler())) {
+                var instance = process.instanceManager().createInstanceContainer(ChunkLoader.noop());
+                for (var scheduler : List.of(process.schedulerManager(), entity.scheduler(), instance.scheduler())) {
                     scheduler.scheduleNextTick(() -> { throw expected; });
                     scheduler.scheduleNextTick(completed::incrementAndGet);
                     scheduler.processTick();
@@ -93,14 +93,14 @@ class ProcessSchedulerTest {
             assertEquals(List.of(expected, expected, expected), secondErrors.stream().map(Throwable::getCause).toList());
 
             var shutdownFailure = new IllegalArgumentException("shutdown failure");
-            pair.first().scheduler().buildShutdownTask(() -> { throw shutdownFailure; });
-            pair.first().scheduler().buildShutdownTask(completed::incrementAndGet);
+            pair.first().schedulerManager().buildShutdownTask(() -> { throw shutdownFailure; });
+            pair.first().schedulerManager().buildShutdownTask(completed::incrementAndGet);
             pair.first().close();
             pair.first().close();
             assertEquals(7, completed.get());
             assertSame(shutdownFailure, firstErrors.getLast().getCause());
             assertEquals(3, secondErrors.size());
-            assertFalse(pair.second().scheduler().isClosed());
+            assertFalse(pair.second().schedulerManager().isClosed());
         }
     }
 
@@ -114,7 +114,7 @@ class ProcessSchedulerTest {
             var entityTask = entity.scheduler().scheduleNextTick(calls::incrementAndGet);
             var instanceTask = instance.scheduler().submitTask(TaskSchedule::park);
             var otherTask = otherEntity.scheduler().scheduleNextTick(calls::incrementAndGet);
-            assertTrue(pair.first().instance().getInstances().isEmpty());
+            assertTrue(pair.first().instanceManager().getInstances().isEmpty());
             pair.first().close();
             assertTrue(entity.scheduler().isClosed());
             assertTrue(instance.scheduler().isClosed());
@@ -134,8 +134,8 @@ class ProcessSchedulerTest {
     void movementAndTemporaryRemovalPreserveWorkWhilePermanentRemovalDisposesIt() {
         try (var pair = new ServerProcessPair()) {
             var process = pair.first();
-            var source = process.instance().createInstanceContainer(ChunkLoader.noop());
-            var destination = process.instance().createInstanceContainer(ChunkLoader.noop());
+            var source = process.instanceManager().createInstanceContainer(ChunkLoader.noop());
+            var destination = process.instanceManager().createInstanceContainer(ChunkLoader.noop());
             var entity = new ReusableEntity(process);
             entity.setAutoViewable(false);
             entity.setInstance(source).join();
@@ -162,26 +162,26 @@ class ProcessSchedulerTest {
     void instanceUnregistrationClosesItsSchedulerAndRemovedEntityWork() {
         try (var pair = new ServerProcessPair()) {
             var process = pair.first();
-            var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
+            var instance = process.instanceManager().createInstanceContainer(ChunkLoader.noop());
             var entity = Entity.builder(EntityType.ZOMBIE).autoViewable(false).spawn(instance).join();
             var instanceTask = instance.scheduler().submitTask(TaskSchedule::park);
             var entityTask = entity.scheduler().submitTask(TaskSchedule::park);
-            process.instance().unregisterInstance(instance);
+            process.instanceManager().unregisterInstance(instance);
             assertTrue(instance.scheduler().isClosed());
             assertTrue(entity.scheduler().isClosed());
             assertFalse(instanceTask.isAlive());
             assertFalse(entityTask.isAlive());
-            assertThrows(IllegalStateException.class, () -> process.instance().registerInstance(instance));
+            assertThrows(IllegalStateException.class, () -> process.instanceManager().registerInstance(instance));
             assertFalse(instance.isRegistered());
-            assertTrue(process.instance().getInstances().isEmpty());
-            assertFalse(process.scheduler().isClosed());
+            assertTrue(process.instanceManager().getInstances().isEmpty());
+            assertFalse(process.schedulerManager().isClosed());
         }
     }
 
     @Test
     void shutdownCallbacksSeeClosedSchedulersAndCannotRegisterMoreWork() throws Exception {
         try (var pair = new ServerProcessPair(); var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            var scheduler = pair.first().scheduler();
+            var scheduler = pair.first().schedulerManager();
             var child = Scheduler.newScheduler(pair.first());
             var entered = new CountDownLatch(1);
             var release = new CountDownLatch(1);
@@ -200,8 +200,8 @@ class ProcessSchedulerTest {
                 assertThrows(RejectedExecutionException.class, scheduler::createScheduler);
                 assertThrows(RejectedExecutionException.class, () -> scheduler.execute(() -> {}));
                 var calls = new AtomicInteger();
-                pair.second().scheduler().scheduleNextTick(calls::incrementAndGet);
-                pair.second().scheduler().processTick();
+                pair.second().schedulerManager().scheduleNextTick(calls::incrementAndGet);
+                pair.second().schedulerManager().processTick();
                 assertEquals(1, calls.get());
             } finally {
                 release.countDown();
@@ -215,7 +215,7 @@ class ProcessSchedulerTest {
         try (var pair = new ServerProcessPair()) {
             var first = pair.first();
             var closed = new CountDownLatch(1);
-            var task = first.scheduler().scheduleNextTick(() -> {
+            var task = first.schedulerManager().scheduleNextTick(() -> {
                 first.close();
                 closed.countDown();
             });
@@ -232,7 +232,7 @@ class ProcessSchedulerTest {
     void entityScheduledCallbackCanCloseProcessDuringDispatch() throws InterruptedException {
         try (var pair = new ServerProcessPair()) {
             var first = pair.first();
-            var instance = first.instance().createInstanceContainer(ChunkLoader.noop());
+            var instance = first.instanceManager().createInstanceContainer(ChunkLoader.noop());
             var entity = Entity.builder(EntityType.ZOMBIE).autoViewable(false).spawn(instance).join();
             var task = entity.scheduler().scheduleNextTick(first::close);
             first.ticker().tick(System.nanoTime());

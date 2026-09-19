@@ -18,7 +18,7 @@ public class ChatMessageListener {
         final String command = packet.message();
         EventsJFR.newPlayerCommand(player.getUuid(), command).commit();
         if (Messenger.canReceiveCommand(player)) {
-            player.process().command().execute(player, command);
+            player.process().commandManager().execute(player, command);
         } else {
             Messenger.sendRejectionMessage(player);
         }
@@ -30,7 +30,7 @@ public class ChatMessageListener {
         final String command = packet.message();
         EventsJFR.newPlayerCommand(player.getUuid(), command).commit();
         if (Messenger.canReceiveCommand(player)) {
-            player.process().command().execute(player, command);
+            player.process().commandManager().execute(player, command);
         } else {
             Messenger.sendRejectionMessage(player);
         }
@@ -44,7 +44,7 @@ public class ChatMessageListener {
             return;
         }
 
-        final Set<Player> players = player.process().connection().getOnlinePlayers();
+        final Set<Player> players = player.process().connectionManager().getOnlinePlayers();
         PlayerChatEvent playerChatEvent = new PlayerChatEvent(player, players, message);
 
         // Call the event

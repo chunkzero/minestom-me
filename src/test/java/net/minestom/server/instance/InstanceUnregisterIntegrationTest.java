@@ -22,7 +22,7 @@ public class InstanceUnregisterIntegrationTest {
     @Test
     public void sharedInstance(Env env) {
         // Ensure that unregistering a shared instance does not unload the container chunks
-        var instanceManager = env.process().instance();
+        var instanceManager = env.process().instanceManager();
         var instance = instanceManager.createInstanceContainer();
         var shared1 = instanceManager.createSharedInstance(instance);
         var connection = env.createConnection();
@@ -47,7 +47,7 @@ public class InstanceUnregisterIntegrationTest {
 
     @Test
     public void sharedInstanceGC(Env env) {
-        var instanceManager = env.process().instance();
+        var instanceManager = env.process().instanceManager();
         var instance = instanceManager.createInstanceContainer();
         var shared = instanceManager.createSharedInstance(instance);
         var ref = new WeakReference<>(shared);
@@ -61,7 +61,7 @@ public class InstanceUnregisterIntegrationTest {
     public void instanceGC(Env env) {
         var instance = env.createFlatInstance();
         var ref = new WeakReference<>(instance);
-        env.process().instance().unregisterInstance(instance);
+        env.process().instanceManager().unregisterInstance(instance);
 
         //noinspection UnusedAssignment
         instance = null;
@@ -74,13 +74,13 @@ public class InstanceUnregisterIntegrationTest {
             final Instance instance;
 
             Game(Env env) {
-                instance = env.process().instance().createInstanceContainer();
+                instance = env.process().instanceManager().createInstanceContainer();
                 instance.eventNode().addListener(PlayerMoveEvent.class, _ -> System.out.println(instance));
             }
         }
         var game = new Game(env);
         var ref = new WeakReference<>(game);
-        env.process().instance().unregisterInstance(game.instance);
+        env.process().instanceManager().unregisterInstance(game.instance);
 
         //noinspection UnusedAssignment
         game = null;
@@ -94,7 +94,7 @@ public class InstanceUnregisterIntegrationTest {
         var chunk = instance.loadChunk(0, 0).join();
         var ref = new WeakReference<>(chunk);
         instance.unloadChunk(chunk);
-        env.process().instance().unregisterInstance(instance);
+        env.process().instanceManager().unregisterInstance(instance);
         env.tick(); // Required to remove the chunk from the thread dispatcher
 
         //noinspection UnusedAssignment
@@ -105,12 +105,12 @@ public class InstanceUnregisterIntegrationTest {
     @Test
     public void testGCWithEventsLambda(Env env) {
         var ref = new WeakReference<>(new InstanceContainer(env.process(), UUID.randomUUID(), DimensionType.OVERWORLD));
-        env.process().instance().registerInstance(ref.get());
+        env.process().instanceManager().registerInstance(ref.get());
 
         tmp(ref.get());
 
         ref.get().tick(0);
-        env.process().instance().unregisterInstance(ref.get());
+        env.process().instanceManager().unregisterInstance(ref.get());
 
         waitUntilCleared(ref);
     }

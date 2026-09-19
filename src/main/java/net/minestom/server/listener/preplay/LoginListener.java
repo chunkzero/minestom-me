@@ -74,7 +74,7 @@ public final class LoginListener {
                         .thenAccept(response -> handleVelocityProxyResponse(socketConnection, response))
                         .exceptionally(error -> {
                             connection.kick(INVALID_PROXY_RESPONSE);
-                            connection.process().exception().handleException(
+                            connection.process().exceptionManager().handleException(
                                     error instanceof CompletionException exception && exception.getCause() != null
                                             ? exception.getCause() : error);
                             return null;
@@ -85,7 +85,7 @@ public final class LoginListener {
 
         if (auth instanceof Auth.Online(KeyPair keyPair) && isSocketConnection) {
             // Mojang auth
-            if (connection.process().connection().getOnlinePlayerByUsername(packet.username()) != null) {
+            if (connection.process().connectionManager().getOnlinePlayerByUsername(packet.username()) != null) {
                 connection.kick(ALREADY_CONNECTED);
                 return;
             }
@@ -145,7 +145,7 @@ public final class LoginListener {
             digestedData = MojangCrypt.digestData("", keyPair.getPublic(), secretKey);
         } catch (Exception e) {
             connection.kick(ENCRYPTION_FAILED);
-            connection.process().exception().handleException(e);
+            connection.process().exceptionManager().handleException(e);
             return;
         }
 
@@ -170,10 +170,10 @@ public final class LoginListener {
             enterConfig(connection, new GameProfile(profileUUID, profileName, propertyList));
         } catch (IOException e) {
             socketConnection.kick(ERROR_MOJANG_RESPONSE);
-            connection.process().exception().handleException(e);
+            connection.process().exceptionManager().handleException(e);
         } catch (Exception e) {
             socketConnection.kick(ERROR_DURING_LOGIN);
-            connection.process().exception().handleException(e);
+            connection.process().exceptionManager().handleException(e);
         }
     }
 
@@ -197,7 +197,7 @@ public final class LoginListener {
                     address = InetAddress.getByName(buffer.read(STRING));
                 } catch (UnknownHostException e) {
                     socketConnection.kick(INVALID_PROXY_RESPONSE);
-                    socketConnection.process().exception().handleException(e);
+                    socketConnection.process().exceptionManager().handleException(e);
                     return;
                 }
                 final int port = ((InetSocketAddress) socketConnection.getRemoteAddress()).getPort();
@@ -220,7 +220,7 @@ public final class LoginListener {
         } catch (Throwable t) {
             connection.kick(ERROR_DURING_LOGIN);
             LOGGER.error("Error handling Login Plugin Response", t);
-            connection.process().exception().handleException(t);
+            connection.process().exceptionManager().handleException(t);
         }
     }
 
@@ -230,10 +230,10 @@ public final class LoginListener {
         final GameProfile gameProfile = socketConnection.gameProfile();
         assert gameProfile != null;
         try {
-            final Player player = connection.process().connection().createPlayer(connection, gameProfile);
+            final Player player = connection.process().connectionManager().createPlayer(connection, gameProfile);
             executeConfig(player, true);
         } catch (Throwable t) {
-            connection.process().exception().handleException(t);
+            connection.process().exceptionManager().handleException(t);
             connection.kick(ERROR_DURING_LOGIN);
         }
     }
@@ -247,15 +247,15 @@ public final class LoginListener {
     }
 
     public static void finishConfigListener(ClientFinishConfigurationPacket packet, Player player) {
-        player.process().connection().transitionConfigToPlay(player);
+        player.process().connectionManager().transitionConfigToPlay(player);
     }
 
     private static void enterConfig(PlayerConnection connection, GameProfile gameProfile) {
         Thread.startVirtualThread(() -> {
             try {
-                connection.process().connection().transitionLoginToConfig(connection, gameProfile);
+                connection.process().connectionManager().transitionLoginToConfig(connection, gameProfile);
             } catch (Throwable t) {
-                connection.process().exception().handleException(t);
+                connection.process().exceptionManager().handleException(t);
                 if (connection.isOnline()) connection.kick(ERROR_DURING_LOGIN);
             }
         });
@@ -267,9 +267,9 @@ public final class LoginListener {
         // Which mean that we have to free up the current thread to continue reading the socket.
         Thread.startVirtualThread(() -> {
             try {
-                player.process().connection().doConfiguration(player, isFirstConfig);
+                player.process().connectionManager().doConfiguration(player, isFirstConfig);
             } catch (Throwable t) {
-                player.process().exception().handleException(t);
+                player.process().exceptionManager().handleException(t);
                 player.kick(ERROR_DURING_LOGIN);
             }
         });

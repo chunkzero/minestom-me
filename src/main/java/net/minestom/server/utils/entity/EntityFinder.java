@@ -141,7 +141,7 @@ public class EntityFinder {
         Check.argCondition(self != null && self.process() != process, "Entity belongs to another process");
         if (targetSelector == TargetSelector.MINESTOM_USERNAME) {
             Objects.requireNonNull(constantName, "The player name should not be null when searching for it");
-            final Player player = process.connection().getOnlinePlayerByUsername(constantName);
+            final Player player = process.connectionManager().getOnlinePlayerByUsername(constantName);
             return player != null ? List.of(player) : List.of();
         } else if (targetSelector == TargetSelector.MINESTOM_UUID) {
             Objects.requireNonNull(constantUuid, "The UUID should not be null when searching for it");
@@ -343,7 +343,7 @@ public class EntityFinder {
     private List<Entity> findTarget(@Nullable Instance instance,
                                     TargetSelector targetSelector,
                                     @Nullable Entity self) {
-        final var players = instance != null ? instance.getPlayers() : process.connection().getOnlinePlayers();
+        final var players = instance != null ? instance.getPlayers() : process.connectionManager().getOnlinePlayers();
         if (targetSelector == TargetSelector.NEAREST_PLAYER || targetSelector == TargetSelector.RANDOM_PLAYER || targetSelector == TargetSelector.ALL_PLAYERS) {
             return List.copyOf(players);
         } else if (targetSelector == TargetSelector.NEAREST_ENTITY || targetSelector == TargetSelector.ALL_ENTITIES) {
@@ -351,7 +351,7 @@ public class EntityFinder {
                 return List.copyOf(instance.getEntities());
             }
             // Get entities from every instance
-            var instances = process.instance().getInstances();
+            var instances = process.instanceManager().getInstances();
             List<Entity> entities = new ArrayList<>();
             for (Instance inst : instances) {
                 entities.addAll(inst.getEntities());

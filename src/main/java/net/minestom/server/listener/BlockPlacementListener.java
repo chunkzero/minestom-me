@@ -111,7 +111,7 @@ public class BlockPlacementListener {
         // Get the newly placed block position
         //todo it feels like it should be possible to have better replacement rules than this, feels pretty scuffed.
         Point placementPosition = blockPosition;
-        var interactedPlacementRule = player.process().block().getBlockPlacementRule(interactedBlock);
+        var interactedPlacementRule = player.process().blockManager().getBlockPlacementRule(interactedBlock);
         final boolean placeAdjacent = !interactedBlock.air() && (interactedPlacementRule == null || !interactedPlacementRule.isSelfReplaceable(
                 new BlockPlacementRule.Replacement(interactedBlock, blockFace, cursorPosition, false, useMaterial)));
         // If the block is not replaceable, try to place next to it.
@@ -127,7 +127,7 @@ public class BlockPlacementListener {
 
         if (placeAdjacent) {
             var placementBlock = instance.getBlock(placementPosition);
-            var placementRule = player.process().block().getBlockPlacementRule(placementBlock);
+            var placementRule = player.process().blockManager().getBlockPlacementRule(placementBlock);
             if (!placementBlock.replaceable() && !(placementRule != null && placementRule.isSelfReplaceable(
                     new BlockPlacementRule.Replacement(placementBlock, blockFace, cursorPosition, true, useMaterial)))) {
                 // If the block is still not replaceable, cancel the placement

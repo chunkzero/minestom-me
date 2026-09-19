@@ -485,7 +485,7 @@ final class CommandParserImpl implements CommandParser {
                 executor().apply(sender, context);
                 return new ExecutionResultImpl(ExecutableCommand.Result.Type.SUCCESS, context.getReturnData());
             } catch (Exception e) {
-                manager.process().exception().handleException(e);
+                manager.process().exceptionManager().handleException(e);
                 return ExecutionResultImpl.EXECUTOR_EXCEPTION;
             }
         }

@@ -427,7 +427,7 @@ public class LightingChunk extends DynamicChunk {
                     light.flip();
                     newQueue.addAll(toAdd);
                 } catch (Exception e) {
-                    instance.process().exception().handleException(e);
+                    instance.process().exceptionManager().handleException(e);
                 }
             }, pool);
 

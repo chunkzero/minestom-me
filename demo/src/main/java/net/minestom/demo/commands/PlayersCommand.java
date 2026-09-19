@@ -15,7 +15,7 @@ public class PlayersCommand extends Command {
     }
 
     private static void usage(CommandSender sender, CommandContext context) {
-        final var players = List.copyOf(context.process().connection().getOnlinePlayers());
+        final var players = List.copyOf(context.process().connectionManager().getOnlinePlayers());
         final int playerCount = players.size();
         sender.sendMessage(Component.text("Total players: " + playerCount));
 

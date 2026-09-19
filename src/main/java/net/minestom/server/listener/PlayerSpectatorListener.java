@@ -43,7 +43,7 @@ public class PlayerSpectatorListener {
 
         // If the target is not found, try to find it in other instances
         if (target == null) {
-            for (Instance instance : player.process().instance().getInstances()) {
+            for (Instance instance : player.process().instanceManager().getInstances()) {
                 if (instance == playerInstance) continue;
                 target = instance.getEntityByUuid(targetUuid);
                 if (target != null) break;

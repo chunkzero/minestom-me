@@ -38,11 +38,11 @@ class ProcessEntityFinderTest {
                 assertSame(context.process(), finder.process());
                 result.set(finder);
             }, argument);
-            pair.first().command().register(command);
-            pair.second().command().register(command);
+            pair.first().commandManager().register(command);
+            pair.second().commandManager().register(command);
 
             for (var player : List.of(first, second)) {
-                var manager = player.process().command();
+                var manager = player.process().commandManager();
                 for (CommandSender sender : List.of(manager.getConsoleSender(), new ServerSender())) {
                     for (var input : List.of("@a", "@e[type=player]", "SameName")) {
                         assertEquals(CommandResult.Type.SUCCESS, manager.execute(sender, "select " + input).getType());
@@ -57,13 +57,13 @@ class ProcessEntityFinderTest {
             assertThrows(IllegalStateException.class, () -> argument.parse(new ServerSender(), "@a"));
 
             var sender = new ServerSender();
-            var cached = pair.first().command().parseCommand(sender, "select @a").executable();
+            var cached = pair.first().commandManager().parseCommand(sender, "select @a").executable();
             assertEquals(ExecutableCommand.Result.Type.SUCCESS, cached.execute(sender).type());
             var firstFinder = result.get();
-            assertEquals(CommandResult.Type.SUCCESS, pair.second().command().execute(sender, "select @a").getType());
+            assertEquals(CommandResult.Type.SUCCESS, pair.second().commandManager().execute(sender, "select @a").getType());
             var secondFinder = result.get();
             assertNotSame(firstFinder, secondFinder);
-            assertEquals(CommandResult.Type.SUCCESS, pair.first().command().execute(sender, "select @a").getType());
+            assertEquals(CommandResult.Type.SUCCESS, pair.first().commandManager().execute(sender, "select @a").getType());
             assertNotSame(firstFinder, result.get());
 
             var later = a.createConnection().connect(first.getInstance(), Pos.ZERO);
@@ -106,11 +106,11 @@ class ProcessEntityFinderTest {
             var nested = ArgumentType.Command("nested").setOnlyCorrect(true);
             var outer = new Command("outer");
             outer.addSyntax((sender, context) -> context.get(nested).getParsedCommand().execute(sender), nested);
-            pair.first().command().register(inner, outer);
-            pair.second().command().register(inner, outer);
+            pair.first().commandManager().register(inner, outer);
+            pair.second().commandManager().register(inner, outer);
             for (var process : List.of(pair.first(), pair.second())) {
                 assertEquals(CommandResult.Type.SUCCESS,
-                        process.command().executeServerCommand("outer inner for @a for SameName").getType());
+                        process.commandManager().executeServerCommand("outer inner for @a for SameName").getType());
                 assertEquals(2, results.get().size());
                 assertNotSame(results.get().getFirst(), results.get().getLast());
             }

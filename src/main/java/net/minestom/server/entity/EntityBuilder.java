@@ -157,7 +157,7 @@ public abstract class EntityBuilder<T extends Entity, B extends EntityBuilder<T,
             Check.argCondition(entity.process() != process, "Entity factory returned an entity from another process");
             Check.argCondition(entity.getInstance() != null || entity.isRemoved(), "Entity factory must return a fresh, unplaced entity");
         } catch (Throwable failure) {
-            process.exception().handleException(failure);
+            process.exceptionManager().handleException(failure);
             return CompletableFuture.failedFuture(failure);
         }
 
@@ -175,7 +175,7 @@ public abstract class EntityBuilder<T extends Entity, B extends EntityBuilder<T,
             placement = entity.setInstance(instance, position);
         } catch (Throwable failure) {
             discard(entity, failure);
-            process.exception().handleException(failure);
+            process.exceptionManager().handleException(failure);
             return CompletableFuture.failedFuture(failure);
         }
         return placement.whenComplete((_, failure) -> {

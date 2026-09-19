@@ -41,7 +41,7 @@ final class TestConnectionImpl implements TestConnection {
             throw new IllegalStateException("Already connected");
         }
 
-        var player = process.connection().createPlayer(playerConnection, gameProfile);
+        var player = process.connectionManager().createPlayer(playerConnection, gameProfile);
         player.eventNode().addListener(AsyncPlayerConfigurationEvent.class, event -> {
             event.setSpawningInstance(instance);
             event.getPlayer().setRespawnPoint(pos);
@@ -54,8 +54,8 @@ final class TestConnectionImpl implements TestConnection {
             // waiting for known packs.
             // The consequence is that registry packets cannot be listened to.
             try {
-                process.connection().doConfiguration(player, false);
-                process.connection().transitionConfigToPlay(player);
+                process.connectionManager().doConfiguration(player, false);
+                process.connectionManager().transitionConfigToPlay(player);
                 future.complete(player);
             } catch (Throwable throwable) {
                 future.completeExceptionally(throwable);
@@ -64,7 +64,7 @@ final class TestConnectionImpl implements TestConnection {
         future.join();
         playerConnection.setClientState(ConnectionState.PLAY);
         playerConnection.setServerState(ConnectionState.PLAY);
-        process.connection().updateWaitingPlayers();
+        process.connectionManager().updateWaitingPlayers();
         return player;
     }
 

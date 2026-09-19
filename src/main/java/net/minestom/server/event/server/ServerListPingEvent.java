@@ -38,7 +38,7 @@ public class ServerListPingEvent implements CancellableEvent, AsyncEvent {
     public ServerListPingEvent(@Nullable PlayerConnection connection, ServerListPingType type) {
         var status = Status.builder();
         if (connection != null) {
-            status.playerInfo(Status.PlayerInfo.onlineCount(connection.process().connection().getOnlinePlayerCount()));
+            status.playerInfo(Status.PlayerInfo.onlineCount(connection.process().connectionManager().getOnlinePlayerCount()));
         }
         this.status = status.build();
         this.connection = connection;

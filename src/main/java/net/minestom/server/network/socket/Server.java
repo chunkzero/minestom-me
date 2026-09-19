@@ -108,7 +108,7 @@ public final class Server {
                     break; // We are exiting, bye bye!
                 } catch (IOException e) {
                     if (!ServerProperties.SUPPRESS_CONNECTION_ACCEPT_ERRORS.get())
-                        process().exception().handleException(e);
+                        process().exceptionManager().handleException(e);
                     continue;
                 }
 
@@ -140,7 +140,7 @@ public final class Server {
                         e.addSuppressed(cleanupFailure);
                     }
                     if (!stop && !ServerProperties.SUPPRESS_CONNECTION_ACCEPT_ERRORS.get())
-                        process().exception().handleException(e);
+                        process().exceptionManager().handleException(e);
                 }
             }
         });
@@ -165,9 +165,9 @@ public final class Server {
             // The peer or shutdown closed the connection.
         } catch (IOException e) {
             if (!stop && !ServerProperties.SUPPRESS_CONNECTION_IO_ERRORS.get())
-                process.exception().handleException(e);
+                process.exceptionManager().handleException(e);
         } catch (Throwable e) {
-            if (!stop) process.exception().handleException(e);
+            if (!stop) process.exceptionManager().handleException(e);
         } finally {
             connection.disconnect();
         }
@@ -181,9 +181,9 @@ public final class Server {
             // The peer or shutdown closed the connection.
         } catch (IOException e) {
             if (!stop && !ServerProperties.SUPPRESS_CONNECTION_IO_ERRORS.get())
-                process.exception().handleException(e);
+                process.exceptionManager().handleException(e);
         } catch (Throwable e) {
-            if (!stop) process.exception().handleException(e);
+            if (!stop) process.exceptionManager().handleException(e);
         } finally {
             try {
                 connection.disconnect();
@@ -191,7 +191,7 @@ public final class Server {
                 try {
                     connection.getChannel().close();
                 } catch (IOException e) {
-                    if (!stop) process.exception().handleException(e);
+                    if (!stop) process.exceptionManager().handleException(e);
                 } finally {
                     connection.cleanup();
                     synchronized (this) {

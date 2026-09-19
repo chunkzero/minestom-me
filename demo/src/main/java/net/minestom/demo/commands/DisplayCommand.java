@@ -85,7 +85,7 @@ public class DisplayCommand extends Command {
     private static void startSmoothFollow(Entity entity, Player player) {
 //        entity.setCustomName(Component.text("MY CUSTOM NAME"));
 //        entity.setCustomNameVisible(true);
-        entity.process().scheduler().buildTask(() -> {
+        entity.process().schedulerManager().buildTask(() -> {
             var meta = (AbstractDisplayMeta) entity.getEntityMeta();
             meta.setNotifyAboutChanges(false);
             meta.setTransformationInterpolationStartDelta(1);

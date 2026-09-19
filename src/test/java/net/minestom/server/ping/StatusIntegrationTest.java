@@ -78,7 +78,7 @@ public class StatusIntegrationTest {
                 ClientSettings.ParticleSetting.ALL
         ));
 
-        var unlimitedInfo = Status.PlayerInfo.online(env.process().connection().getOnlinePlayers(), 20);
+        var unlimitedInfo = Status.PlayerInfo.online(env.process().connectionManager().getOnlinePlayers(), 20);
         assertEquals(4, unlimitedInfo.maxPlayers());
         assertEquals(3, unlimitedInfo.onlinePlayers());
         assertEquals(2, unlimitedInfo.sample().size());
@@ -87,7 +87,7 @@ public class StatusIntegrationTest {
                 .anyMatch(entry -> entry.getUuid().equals(player3.getUuid()));
         assertFalse(containsHiddenPlayer);
 
-        var limitedInfo = Status.PlayerInfo.online(env.process().connection().getOnlinePlayers(), 1);
+        var limitedInfo = Status.PlayerInfo.online(env.process().connectionManager().getOnlinePlayers(), 1);
         assertEquals(1, limitedInfo.sample().size());
 
         var selectedInfo = Status.PlayerInfo.online(List.of(player1), 20);

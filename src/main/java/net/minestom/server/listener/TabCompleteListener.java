@@ -12,7 +12,7 @@ public class TabCompleteListener {
 
     public static void listener(ClientTabCompletePacket packet, Player player) {
         final String text = packet.text();
-        final Suggestion suggestion = getSuggestion(player.process().command(), player, text);
+        final Suggestion suggestion = getSuggestion(player.process().commandManager(), player, text);
         if (suggestion != null) {
             player.sendPacket(new TabCompletePacket(
                     packet.transactionId(),

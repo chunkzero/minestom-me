@@ -37,8 +37,8 @@ class RecipeTagsIntegrationTest {
         try (var second = ServerProcess.create()) {
             env.process().registries().material().getOrCreateTag(key);
             second.registries().material().getOrCreateTag(key);
-            env.process().recipe().addRecipe(recipe);
-            second.recipe().addRecipe(recipe);
+            env.process().recipeManager().addRecipe(recipe);
+            second.recipeManager().addRecipe(recipe);
             var firstPacket = packet(env.process());
             assertEquals(1, firstPacket.stonecutterRecipes().size());
             assertEquals(1, packet(second).stonecutterRecipes().size());
@@ -51,6 +51,6 @@ class RecipeTagsIntegrationTest {
 
     private static DeclareRecipesPacket packet(ServerProcess process) {
         return (DeclareRecipesPacket) SendablePacket.extractServerPacket(process.packetBuffers().context(ConnectionState.PLAY, 0),
-                process.recipe().getDeclareRecipesPacket());
+                process.recipeManager().getDeclareRecipesPacket());
     }
 }

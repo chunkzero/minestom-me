@@ -159,7 +159,7 @@ public class CommandParseTest {
     }
 
     private static CommandParser.Result parseCommand(Graph graph, String input) {
-        return CommandParser.parser().parse(process.command(), new ServerSender(), graph, input);
+        return CommandParser.parser().parse(process.commandManager(), new ServerSender(), graph, input);
     }
 
     private static Graph.Execution createExecutor(AtomicBoolean atomicBoolean) {

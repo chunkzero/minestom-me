@@ -47,8 +47,8 @@ class ProcessTickTest {
         try (var pair = new ServerProcessPair()) {
             var first = entity(pair.first());
             var second = entity(pair.second());
-            first.setInstance(pair.first().instance().createInstanceContainer(ChunkLoader.noop())).join();
-            second.setInstance(pair.second().instance().createInstanceContainer(ChunkLoader.noop())).join();
+            first.setInstance(pair.first().instanceManager().createInstanceContainer(ChunkLoader.noop())).join();
+            second.setInstance(pair.second().instanceManager().createInstanceContainer(ChunkLoader.noop())).join();
             pair.first().ticker().tick(System.nanoTime());
             pair.second().ticker().tick(System.nanoTime());
             first.acquirable().sync(_ -> {});
@@ -74,9 +74,9 @@ class ProcessTickTest {
             assertNotEquals(packetOnlyId, otherEntity.getEntityId());
             assertNotEquals(firstEntity.getEntityId(), otherEntity.getEntityId());
 
-            var firstInstance = first.instance().createInstanceContainer(ChunkLoader.noop());
-            var otherInstance = first.instance().createInstanceContainer(ChunkLoader.noop());
-            var secondInstance = second.instance().createInstanceContainer(ChunkLoader.noop());
+            var firstInstance = first.instanceManager().createInstanceContainer(ChunkLoader.noop());
+            var otherInstance = first.instanceManager().createInstanceContainer(ChunkLoader.noop());
+            var secondInstance = second.instanceManager().createInstanceContainer(ChunkLoader.noop());
             firstEntity.setInstance(firstInstance).join();
             otherEntity.setInstance(otherInstance).join();
             secondEntity.setInstance(secondInstance).join();
@@ -93,7 +93,7 @@ class ProcessTickTest {
     void closingWhileSchedulerWaitsToEnterTickDoesNotReportAnError() throws InterruptedException {
         try (var process = ServerProcess.create()) {
             var errors = new CopyOnWriteArrayList<Throwable>();
-            process.exception().setExceptionHandler(errors::add);
+            process.exceptionManager().setExceptionHandler(errors::add);
             Thread closer;
             synchronized (process.ticker()) {
                 process.start(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
@@ -125,12 +125,12 @@ class ProcessTickTest {
             var first = pair.first();
             var second = pair.second();
             var errors = new CopyOnWriteArrayList<Throwable>();
-            first.exception().setExceptionHandler(errors::add);
-            second.exception().setExceptionHandler(errors::add);
-            var firstInstance = first.instance().createInstanceContainer(ChunkLoader.noop());
+            first.exceptionManager().setExceptionHandler(errors::add);
+            second.exceptionManager().setExceptionHandler(errors::add);
+            var firstInstance = first.instanceManager().createInstanceContainer(ChunkLoader.noop());
             var dimension = second.registries().dimensionType().register("test:second", DimensionType.builder().ambientLight(0.7f).build());
-            var secondInstance = second.instance().createInstanceContainer(dimension, ChunkLoader.noop());
-            var shared = second.instance().createSharedInstance(secondInstance);
+            var secondInstance = second.instanceManager().createInstanceContainer(dimension, ChunkLoader.noop());
+            var shared = second.instanceManager().createSharedInstance(secondInstance);
             var copy = secondInstance.copy();
             assertSame(second, shared.process());
             assertSame(second, copy.process());
@@ -180,8 +180,8 @@ class ProcessTickTest {
         try (var pair = new ServerProcessPair()) {
             var first = pair.first();
             var second = pair.second();
-            var source = first.instance().createInstanceContainer(ChunkLoader.noop());
-            var destination = second.instance().createInstanceContainer(ChunkLoader.noop());
+            var source = first.instanceManager().createInstanceContainer(ChunkLoader.noop());
+            var destination = second.instanceManager().createInstanceContainer(ChunkLoader.noop());
             var calls = new AtomicInteger();
             first.eventHandler().addListener(AddEntityToInstanceEvent.class, _ -> calls.incrementAndGet());
             second.eventHandler().addListener(AddEntityToInstanceEvent.class, _ -> calls.incrementAndGet());
@@ -209,11 +209,11 @@ class ProcessTickTest {
                     .move(entity, Pos.ZERO, EntityTracker.Target.ENTITIES, null));
             assertThrows(IllegalArgumentException.class, () -> destination.getEntityTracker()
                     .unregister(entity, EntityTracker.Target.ENTITIES, null));
-            assertThrows(IllegalArgumentException.class, () -> second.instance().registerInstance(source));
-            assertThrows(IllegalArgumentException.class, () -> second.instance().unregisterInstance(source));
-            assertThrows(IllegalArgumentException.class, () -> second.instance().createSharedInstance(source));
+            assertThrows(IllegalArgumentException.class, () -> second.instanceManager().registerInstance(source));
+            assertThrows(IllegalArgumentException.class, () -> second.instanceManager().unregisterInstance(source));
+            assertThrows(IllegalArgumentException.class, () -> second.instanceManager().createSharedInstance(source));
             var shared = new SharedInstance(UUID.randomUUID(), source);
-            assertThrows(IllegalArgumentException.class, () -> second.instance().registerSharedInstance(shared));
+            assertThrows(IllegalArgumentException.class, () -> second.instanceManager().registerSharedInstance(shared));
             assertTrue(source.getSharedInstances().isEmpty());
             assertTrue(source.isRegistered());
             var foreign = entity(second);
@@ -236,8 +236,8 @@ class ProcessTickTest {
         try (var pair = new ServerProcessPair()) {
             var firstErrors = new CopyOnWriteArrayList<Throwable>();
             var secondErrors = new CopyOnWriteArrayList<Throwable>();
-            pair.first().exception().setExceptionHandler(firstErrors::add);
-            pair.second().exception().setExceptionHandler(secondErrors::add);
+            pair.first().exceptionManager().setExceptionHandler(firstErrors::add);
+            pair.second().exceptionManager().setExceptionHandler(secondErrors::add);
             var expected = new IllegalStateException("tick failure");
             var entity = new Entity(pair.second(), EntityType.ZOMBIE) {
                 @Override
@@ -245,7 +245,7 @@ class ProcessTickTest {
                     throw expected;
                 }
             };
-            entity.setInstance(pair.second().instance().createInstanceContainer(ChunkLoader.noop())).join();
+            entity.setInstance(pair.second().instanceManager().createInstanceContainer(ChunkLoader.noop())).join();
             pair.second().ticker().tick(System.nanoTime());
             assertTrue(firstErrors.isEmpty());
             assertEquals(List.of(expected), secondErrors);
@@ -263,7 +263,7 @@ class ProcessTickTest {
                     process().close();
                 }
             };
-            entity.setInstance(first.instance().createInstanceContainer(ChunkLoader.noop())).join();
+            entity.setInstance(first.instanceManager().createInstanceContainer(ChunkLoader.noop())).join();
             first.ticker().tick(System.nanoTime());
             for (var thread : first.dispatcher().threads()) {
                 thread.join(3000);

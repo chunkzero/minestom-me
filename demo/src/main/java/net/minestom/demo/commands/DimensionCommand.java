@@ -16,7 +16,7 @@ public class DimensionCommand extends Command {
         addSyntax((sender, context) -> {
             final Player player = (Player) sender;
             final Instance instance = player.getInstance();
-            final var instances = context.process().instance().getInstances().stream().filter(instance1 -> !instance1.equals(instance)).toList();
+            final var instances = context.process().instanceManager().getInstances().stream().filter(instance1 -> !instance1.equals(instance)).toList();
             if (instances.isEmpty()) {
                 player.sendMessage("No instance available");
                 return;

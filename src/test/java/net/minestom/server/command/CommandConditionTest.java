@@ -432,8 +432,8 @@ public class CommandConditionTest {
 
         assertNotNull(root.execution(), "Root node should have execution");
         assertNotNull(root.execution().condition(), "Root node should preserve command condition");
-        assertFalse(root.execution().test(normalSender, new CommandContext(process.command(), "")), "Normal sender should fail condition check");
-        assertTrue(root.execution().test(adminSender, new CommandContext(process.command(), "")), "Admin sender should pass condition check");
+        assertFalse(root.execution().test(normalSender, new CommandContext(process.commandManager(), "")), "Normal sender should fail condition check");
+        assertTrue(root.execution().test(adminSender, new CommandContext(process.commandManager(), "")), "Admin sender should pass condition check");
     }
 
     @Test

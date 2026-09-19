@@ -36,7 +36,7 @@ class ConnectionManagerTagsTest {
     }
 
     private static TagsPacket tags(ServerProcess process) {
-        return (TagsPacket) process.connection().tagsPacket().packet(process.packetBuffers().context(ConnectionState.CONFIGURATION, 0));
+        return (TagsPacket) process.connectionManager().tagsPacket().packet(process.packetBuffers().context(ConnectionState.CONFIGURATION, 0));
     }
 
     private static boolean hasTag(TagsPacket packet, String name) {

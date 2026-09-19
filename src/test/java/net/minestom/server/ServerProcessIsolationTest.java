@@ -52,12 +52,12 @@ class ServerProcessIsolationTest {
                     return RecipeBookCategory.CRAFTING_BUILDING_BLOCKS;
                 }
             };
-            pair.first().recipe().addRecipe(recipe);
-            pair.second().recipe().addRecipe(recipe);
-            assertSame(display, pair.first().recipe().getRecipeDisplay(0, null));
-            assertSame(display, pair.second().recipe().getRecipeDisplay(0, null));
+            pair.first().recipeManager().addRecipe(recipe);
+            pair.second().recipeManager().addRecipe(recipe);
+            assertSame(display, pair.first().recipeManager().getRecipeDisplay(0, null));
+            assertSame(display, pair.second().recipeManager().getRecipeDisplay(0, null));
             pair.first().close();
-            assertSame(display, pair.second().recipe().getRecipeDisplay(0, null));
+            assertSame(display, pair.second().recipeManager().getRecipeDisplay(0, null));
             assertEquals(second.getWindowId() + 1, new Inventory(pair.second(), InventoryType.CHEST_1_ROW, "Next").getWindowId());
         }
     }
@@ -69,11 +69,11 @@ class ServerProcessIsolationTest {
             var first = processes.first();
             var second = processes.second();
             assertNotSame(first.registries(), second.registries());
-            assertNotSame(first.command(), second.command());
+            assertNotSame(first.commandManager(), second.commandManager());
             assertNotSame(first.eventHandler(), second.eventHandler());
-            assertNotSame(first.scheduler(), second.scheduler());
-            assertSame(first, first.connection().process());
-            assertSame(second, second.instance().process());
+            assertNotSame(first.schedulerManager(), second.schedulerManager());
+            assertSame(first, first.connectionManager().process());
+            assertSame(second, second.instanceManager().process());
             assertSame(second, second.server().process());
 
             var connection = new PlayerSocketConnection(second, channel,
