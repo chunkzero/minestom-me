@@ -6,6 +6,7 @@ import net.minestom.server.advancements.FrameType;
 import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
+import net.minestom.server.instance.DynamicChunk;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.inventory.Inventory;
 import net.minestom.server.inventory.InventoryType;
@@ -57,6 +58,7 @@ class ProcessOwnedTest {
         return List.of(
                 instance,
                 instance.getEntityTracker(),
+                new DynamicChunk(instance, 0, 0),
                 new Entity(process, EntityType.ZOMBIE),
                 new Inventory(process, InventoryType.CHEST_1_ROW, "Chest"),
                 new SilentConnection(process),

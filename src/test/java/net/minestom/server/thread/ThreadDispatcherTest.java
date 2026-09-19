@@ -1,11 +1,13 @@
 package net.minestom.server.thread;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Tickable;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.ChunkLoader;
+import net.minestom.testing.ServerProcessPair;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -31,6 +33,35 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 public class ThreadDispatcherTest {
+    @Test
+    @Timeout(10)
+    void processDispatcherRejectsForeignOwnedPartitionsAndElements() throws InterruptedException {
+        record OwnedTickable(ServerProcess process, AtomicInteger ticks) implements Tickable, ProcessOwned {
+            @Override public void tick(long time) { ticks.incrementAndGet(); }
+        }
+        try (var pair = new ServerProcessPair()) {
+            var local = new OwnedTickable(pair.first(), new AtomicInteger());
+            var foreign = new OwnedTickable(pair.second(), new AtomicInteger());
+            ThreadDispatcher<Object, Tickable> dispatcher = ThreadDispatcher.dispatcher(pair.first(), ThreadProvider.counter(), 1);
+            try {
+                assertThrows(IllegalArgumentException.class, () -> dispatcher.createPartition(foreign));
+                dispatcher.createPartition(local);
+                assertThrows(IllegalArgumentException.class, () -> dispatcher.updateElement(foreign, local));
+                assertThrows(IllegalArgumentException.class, () -> dispatcher.updateElement(local, foreign));
+                var unowned = new AtomicInteger();
+                dispatcher.updateElement(_ -> unowned.incrementAndGet(), local);
+                dispatcher.start();
+                dispatcher.updateAndAwait(0);
+                assertEquals(1, local.ticks().get());
+                assertEquals(1, unowned.get());
+                assertEquals(0, foreign.ticks().get());
+            } finally {
+                dispatcher.shutdown();
+                for (var thread : dispatcher.threads()) thread.join();
+            }
+        }
+    }
+
     @Test
     @Timeout(10)
     void customDispatcherAcceptsOwnedChunksAndEntities() throws InterruptedException {

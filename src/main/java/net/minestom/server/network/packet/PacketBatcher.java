@@ -1,11 +1,10 @@
 package net.minestom.server.network.packet;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Viewable;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
-import net.minestom.server.instance.Chunk;
-import net.minestom.server.instance.Instance;
 import net.minestom.server.network.ConnectionState;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.server.BufferedPacket;
@@ -39,13 +38,8 @@ public final class PacketBatcher implements AutoCloseable {
 
     public void prepareViewablePacket(Viewable viewable, ServerPacket packet, @Nullable Entity entity) {
         if (closed) throw new RejectedExecutionException("Packet batcher is closed");
-        if (entity != null) requireOwner(entity.process());
-        switch (viewable) {
-            case Entity target -> requireOwner(target.process());
-            case Instance instance -> requireOwner(instance.process());
-            case Chunk chunk -> requireOwner(chunk.getInstance().process());
-            default -> { }
-        }
+        if (entity != null) requireOwner(entity);
+        if (viewable instanceof ProcessOwned target) requireOwner(target);
         pending.compute(viewable, (_, entries) -> {
             if (closed) throw new RejectedExecutionException("Packet batcher is closed");
             if (entries == null) entries = new ArrayList<>();
@@ -107,8 +101,8 @@ public final class PacketBatcher implements AutoCloseable {
         if (start != end) player.sendPacket(new BufferedPacket(context, buffer, start, end - start));
     }
 
-    private void requireOwner(ServerProcess owner) {
-        if (owner != process) throw new IllegalArgumentException("Foreign process in packet batch");
+    private void requireOwner(ProcessOwned owner) {
+        if (owner.process() != process) throw new IllegalArgumentException("Foreign process in packet batch");
     }
 
     @Override

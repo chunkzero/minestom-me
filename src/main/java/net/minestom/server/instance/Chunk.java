@@ -1,6 +1,8 @@
 package net.minestom.server.instance;
 
 import net.kyori.adventure.nbt.CompoundBinaryTag;
+import net.minestom.server.ProcessOwned;
+import net.minestom.server.ServerProcess;
 import net.minestom.server.Tickable;
 import net.minestom.server.Viewable;
 import net.minestom.server.coordinate.CoordConversion;
@@ -39,7 +41,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * You generally want to avoid storing references of this object as this could lead to a huge memory leak,
  * you should store the chunk coordinates instead.
  */
-public abstract class Chunk implements Block.Getter, Block.Setter, Biome.Getter, Biome.Setter, Viewable, Tickable, Taggable, Snapshotable {
+public abstract class Chunk implements Block.Getter, Block.Setter, Biome.Getter, Biome.Setter, Viewable, Tickable, Taggable, Snapshotable,
+        ProcessOwned {
     public static final int CHUNK_SIZE_X = 16;
     public static final int CHUNK_SIZE_Z = 16;
     public static final int CHUNK_SECTION_SIZE = 16;
@@ -177,6 +180,11 @@ public abstract class Chunk implements Block.Getter, Block.Setter, Biome.Getter,
      */
     public Instance getInstance() {
         return instance;
+    }
+
+    @Override
+    public final ServerProcess process() {
+        return instance.process();
     }
 
     /**

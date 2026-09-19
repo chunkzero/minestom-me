@@ -52,7 +52,7 @@ public final class CommandManager implements ProcessOwned {
     }
 
     void checkSender(CommandSender sender) {
-        Check.argCondition(sender instanceof Player player && player.process() != process,
+        Check.argCondition(sender instanceof ProcessOwned owner && owner.process() != process,
                 "Command sender belongs to another process");
     }
 

@@ -1,7 +1,7 @@
 package net.minestom.server.event;
 
+import net.minestom.server.ProcessOwned;
 import net.minestom.server.ServerProcess;
-import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.damage.Damage;
 import net.minestom.server.event.entity.EntityAttackEvent;
 import net.minestom.server.event.entity.EntityDamageEvent;
@@ -26,14 +26,7 @@ import net.minestom.server.event.trait.EntityEvent;
 import net.minestom.server.event.trait.EntityInstanceEvent;
 import net.minestom.server.event.trait.InstanceEvent;
 import net.minestom.server.event.trait.InventoryEvent;
-import net.minestom.server.instance.Chunk;
-import net.minestom.server.instance.EntityTracker;
 import net.minestom.server.instance.Instance;
-import net.minestom.server.instance.InstanceManager;
-import net.minestom.server.inventory.AbstractInventory;
-import net.minestom.server.network.ConnectionManager;
-import net.minestom.server.network.player.PlayerConnection;
-import net.minestom.server.network.socket.Server;
 import net.minestom.server.utils.validate.Check;
 import org.jetbrains.annotations.Nullable;
 
@@ -54,17 +47,9 @@ final class EventOwnership {
 
     static void checkTarget(ServerProcess process, @Nullable Object value) {
         final ServerProcess owner = switch (value) {
+            case ProcessOwned target -> target.process();
             case ServerProcess target -> target;
-            case Entity entity -> entity.process();
-            case AbstractInventory inventory -> inventory.process();
             case Damage damage -> damage.process();
-            case Instance instance -> instance.process();
-            case Chunk chunk -> chunk.getInstance().process();
-            case PlayerConnection connection -> connection.process();
-            case ConnectionManager manager -> manager.process();
-            case InstanceManager manager -> manager.process();
-            case EntityTracker tracker -> tracker.process();
-            case Server server -> server.process();
             case EventNode<?> node -> node.process();
             case null, default -> null;
         };
