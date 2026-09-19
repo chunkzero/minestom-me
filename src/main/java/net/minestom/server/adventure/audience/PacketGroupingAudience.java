@@ -89,13 +89,13 @@ public interface PacketGroupingAudience extends ForwardingAudience {
     @Override
     default void showBossBar(BossBar bar) {
         getPlayers().stream().collect(Collectors.groupingBy(Player::process))
-                .forEach((process, players) -> process.bossBar().addBossBar(players, bar));
+                .forEach((process, players) -> process.bossBarManager().addBossBar(players, bar));
     }
 
     @Override
     default void hideBossBar(BossBar bar) {
         getPlayers().stream().collect(Collectors.groupingBy(Player::process))
-                .forEach((process, players) -> process.bossBar().removeBossBar(players, bar));
+                .forEach((process, players) -> process.bossBarManager().removeBossBar(players, bar));
     }
 
     /**

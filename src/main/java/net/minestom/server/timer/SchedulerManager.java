@@ -21,7 +21,7 @@ public final class SchedulerManager implements Scheduler {
 
     public SchedulerManager(ServerProcess process) {
         Objects.requireNonNull(process);
-        this.scope = new SchedulerScope(process.exception()::handleException, "Ms-Scheduler-" + process.id());
+        this.scope = new SchedulerScope(process.exceptionManager()::handleException, "Ms-Scheduler-" + process.id());
         this.scheduler = scope.newScheduler();
     }
 

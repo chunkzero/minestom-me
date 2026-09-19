@@ -21,8 +21,8 @@ class SingleAudienceProvider implements AudienceProvider<Audience> {
     protected SingleAudienceProvider(ServerProcess process) {
         this.process = process;
         this.collection = new IterableAudienceProvider(process);
-        this.players = PacketGroupingAudience.of(process.connection().getOnlinePlayers());
-        this.server = Audience.audience(players, process.command().getConsoleSender());
+        this.players = PacketGroupingAudience.of(process.connectionManager().getOnlinePlayers());
+        this.server = Audience.audience(players, process.commandManager().getConsoleSender());
     }
 
     /**
@@ -46,12 +46,12 @@ class SingleAudienceProvider implements AudienceProvider<Audience> {
 
     @Override
     public Audience players(Predicate<? super Player> filter) {
-        return PacketGroupingAudience.of(process.connection().getOnlinePlayers().stream().filter(filter).toList());
+        return PacketGroupingAudience.of(process.connectionManager().getOnlinePlayers().stream().filter(filter).toList());
     }
 
     @Override
     public Audience console() {
-        return process.command().getConsoleSender();
+        return process.commandManager().getConsoleSender();
     }
 
     @Override

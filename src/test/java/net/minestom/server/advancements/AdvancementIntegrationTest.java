@@ -33,7 +33,7 @@ public class AdvancementIntegrationTest {
                 "minecraft:textures/block/stone.png"
         );
 
-        AdvancementTab tab = env.process().advancement().createTab("minestom:minestom_tab", root);
+        AdvancementTab tab = env.process().advancementManager().createTab("minestom:minestom_tab", root);
 
         // Add viewer
         tab.addViewer(player);
@@ -76,8 +76,8 @@ public class AdvancementIntegrationTest {
                 "minecraft:textures/block/stone.png"
         );
 
-        AdvancementTab tab1 = env.process().advancement().createTab("minestom:minestom_tab1", root1);
-        AdvancementTab tab2 = env.process().advancement().createTab("minestom:minestom_tab2", root2);
+        AdvancementTab tab1 = env.process().advancementManager().createTab("minestom:minestom_tab1", root1);
+        AdvancementTab tab2 = env.process().advancementManager().createTab("minestom:minestom_tab2", root2);
         tab1.addViewer(player);
         tab2.addViewer(player);
 
@@ -123,9 +123,9 @@ public class AdvancementIntegrationTest {
                 "minecraft:textures/block/stone.png"
         );
 
-        final AdvancementTab tab1 = env.process().advancement().createTab("minestom:minestom_tab1", root1);
-        final AdvancementTab tab2 = env.process().advancement().createTab("minestom:minestom_tab2", root2);
-        final AdvancementTab tab3 = env.process().advancement().createTab("minestom:minestom_tab3", root3);
+        final AdvancementTab tab1 = env.process().advancementManager().createTab("minestom:minestom_tab1", root1);
+        final AdvancementTab tab2 = env.process().advancementManager().createTab("minestom:minestom_tab2", root2);
+        final AdvancementTab tab3 = env.process().advancementManager().createTab("minestom:minestom_tab3", root3);
 
         tab1.addViewer(player1);
         tab1.addViewer(player2);
@@ -136,21 +136,21 @@ public class AdvancementIntegrationTest {
         tab3.addViewer(player2);
 
         assertEquals(2, tab1.getViewers().size());
-        final AdvancementTab tab1Removed = env.process().advancement().removeTab(tab1.getRoot().getIdentifier());
+        final AdvancementTab tab1Removed = env.process().advancementManager().removeTab(tab1.getRoot().getIdentifier());
         assertNotNull(tab1Removed);
         assertFalse(tab1Removed.isViewer(player1));
         assertFalse(tab1Removed.isViewer(player2));
         assertEquals(0, tab1Removed.getViewers().size());
-        assertNull(env.process().advancement().removeTab(tab1.getRoot().getIdentifier()));
+        assertNull(env.process().advancementManager().removeTab(tab1.getRoot().getIdentifier()));
 
-        final AdvancementTab tab2Removed = env.process().advancement().removeTab(tab2.getRoot().getIdentifier());
+        final AdvancementTab tab2Removed = env.process().advancementManager().removeTab(tab2.getRoot().getIdentifier());
         assertNotNull(tab2Removed);
         assertEquals(0, tab2Removed.getViewers().size());
         assertFalse(tab2Removed.isViewer(player1));
         assertFalse(tab2Removed.isViewer(player2));
-        assertNull(env.process().advancement().removeTab(tab2.getRoot().getIdentifier()));
+        assertNull(env.process().advancementManager().removeTab(tab2.getRoot().getIdentifier()));
 
-        final AdvancementTab tab3Removed = env.process().advancement().removeTab(tab3.getRoot().getIdentifier());
+        final AdvancementTab tab3Removed = env.process().advancementManager().removeTab(tab3.getRoot().getIdentifier());
         assertNotNull(tab3Removed);
         assertEquals(0, tab3Removed.getViewers().size());
         assertFalse(tab3Removed.isViewer(player2));

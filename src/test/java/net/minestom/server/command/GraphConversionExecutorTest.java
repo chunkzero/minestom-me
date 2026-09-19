@@ -27,7 +27,7 @@ public class GraphConversionExecutorTest {
             var graph = Graph.fromCommand(foo);
             var execution = graph.root().execution();
             assertNotNull(execution);
-            assertTrue(execution.test(new ServerSender(), new CommandContext(process.command(), "")));
+            assertTrue(execution.test(new ServerSender(), new CommandContext(process.commandManager(), "")));
         }
         // Constant false
         {
@@ -35,7 +35,7 @@ public class GraphConversionExecutorTest {
             var graph = Graph.fromCommand(foo);
             var execution = graph.root().execution();
             assertNotNull(execution);
-            assertFalse(execution.test(new ServerSender(), new CommandContext(process.command(), "")));
+            assertFalse(execution.test(new ServerSender(), new CommandContext(process.commandManager(), "")));
         }
     }
 
@@ -62,7 +62,7 @@ public class GraphConversionExecutorTest {
         assertEquals(1, graph.root().next().size());
         var execution = graph.root().next().getFirst().execution();
         assertNotNull(execution);
-        assertTrue(execution.test(new ServerSender(), new CommandContext(process.command(), "")));
+        assertTrue(execution.test(new ServerSender(), new CommandContext(process.commandManager(), "")));
     }
 
     @Test
@@ -75,7 +75,7 @@ public class GraphConversionExecutorTest {
         assertEquals(1, graph.root().next().size());
         var execution = graph.root().next().getFirst().execution();
         assertNotNull(execution);
-        assertFalse(execution.test(new ServerSender(), new CommandContext(process.command(), "")));
+        assertFalse(execution.test(new ServerSender(), new CommandContext(process.commandManager(), "")));
     }
 
     @Test

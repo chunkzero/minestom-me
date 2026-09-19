@@ -972,7 +972,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
                 spawn();
                 process().eventHandler().call(new EntitySpawnEvent(this, instance));
             } catch (Exception e) {
-                process().exception().handleException(e);
+                process().exceptionManager().handleException(e);
                 throw e;
             }
         });
@@ -1660,7 +1660,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         try {
             despawn();
         } catch (Throwable t) {
-            process().exception().handleException(t);
+            process().exceptionManager().handleException(t);
         }
 
         // Remove passengers if any (also done with LivingEntity#kill)

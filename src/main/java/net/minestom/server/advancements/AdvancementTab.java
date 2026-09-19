@@ -57,7 +57,7 @@ public class AdvancementTab implements Viewable {
      */
     @Nullable
     public static Set<AdvancementTab> getTabs(Player player) {
-        return player.process().advancement().getTabs(player);
+        return player.process().advancementManager().getTabs(player);
     }
 
     /**
@@ -153,10 +153,10 @@ public class AdvancementTab implements Viewable {
     }
 
     private void addPlayer(Player player) {
-        process.advancement().addViewer(player, this);
+        process.advancementManager().addViewer(player, this);
     }
 
     private void removePlayer(Player player) {
-        process.advancement().removeViewer(player, this);
+        process.advancementManager().removeViewer(player, this);
     }
 }

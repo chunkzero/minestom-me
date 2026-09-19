@@ -187,7 +187,7 @@ public class PlayerIntegrationTest {
         final var testDimension = env.process().registries().dimensionType().register(Key.key("minestom:test_dimension"), DimensionType.builder().build());
 
         var instance = env.createFlatInstance();
-        var instance2 = env.process().instance().createInstanceContainer(testDimension);
+        var instance2 = env.process().instanceManager().createInstanceContainer(testDimension);
 
         var connection = env.createConnection();
         var player = connection.connect(instance, new Pos(0, 42, 0));
@@ -221,7 +221,7 @@ public class PlayerIntegrationTest {
         String dimensionNamespace = "minestom:test_dimension";
         final var testDimension = env.process().registries().dimensionType().register(Key.key(dimensionNamespace), DimensionType.builder().build());
 
-        var instance = env.process().instance().createInstanceContainer(testDimension);
+        var instance = env.process().instanceManager().createInstanceContainer(testDimension);
         var connection = env.createConnection();
         var player = connection.connect(instance, new Pos(5, 42, 2));
 

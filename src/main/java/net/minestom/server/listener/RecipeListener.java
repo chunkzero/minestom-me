@@ -9,7 +9,7 @@ import net.minestom.server.recipe.display.RecipeDisplay;
 public class RecipeListener {
 
     public static void listener(ClientPlaceRecipePacket packet, Player player) {
-        final RecipeManager recipeManager = player.process().recipe();
+        final RecipeManager recipeManager = player.process().recipeManager();
         final RecipeDisplay recipeDisplay = recipeManager.getRecipeDisplay(packet.recipeDisplayId(), player);
         if (recipeDisplay == null) return;
 

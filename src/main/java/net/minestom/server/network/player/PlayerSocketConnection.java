@@ -159,7 +159,7 @@ public class PlayerSocketConnection extends PlayerConnection {
             // from scanners. A packet that errors after a state change within the
             // same batch is still checked against the starting state.
             if (startingState.ordinal() > ServerProperties.SUPPRESS_MALFORMED_PACKET_ERROR_LEVEL.get())
-                process().exception().handleException(e);
+                process().exceptionManager().handleException(e);
             // The remaining packets of the batch are lost, disconnect to avoid
             // reading from an invalid state.
             if (ServerProperties.REJECT_MALFORMED_PACKET.get()) disconnect();
@@ -174,7 +174,7 @@ public class PlayerSocketConnection extends PlayerConnection {
                         final boolean processImmediately = IMMEDIATE_PROCESS_PACKETS.contains(packet.getClass());
                         if (processImmediately) {
                             // Interpret the packet using the connection state we received it.
-                            process().packetListener().processClientPacket(packet, this);
+                            process().packetListenerManager().processClientPacket(packet, this);
                         } else {
                             // To be processed during the next player tick
                             final Player player = getPlayer();
@@ -183,7 +183,7 @@ public class PlayerSocketConnection extends PlayerConnection {
                         }
                     } catch (Throwable e) {
                         if (startingState.ordinal() > ServerProperties.SUPPRESS_MISUSED_PACKET_ERROR_LEVEL.get())
-                            process().exception().handleException(e);
+                            process().exceptionManager().handleException(e);
                         // Packets already in the queue are unaffected.
                         if (ServerProperties.REJECT_MISUSED_PACKET.get()) disconnect();
                     }

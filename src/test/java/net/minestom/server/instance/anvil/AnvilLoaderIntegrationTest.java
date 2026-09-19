@@ -79,7 +79,7 @@ public class AnvilLoaderIntegrationTest {
         }
 
         AtomicReference<Throwable> exception = new AtomicReference<>();
-        env.process().exception().setExceptionHandler((throwable) -> {
+        env.process().exceptionManager().setExceptionHandler((throwable) -> {
             exception.set(throwable);
             throwable.printStackTrace();
         });
@@ -267,7 +267,7 @@ public class AnvilLoaderIntegrationTest {
                 return Key.key("test");
             }
         };
-        env.process().block().registerHandler(Block.STONE.key(), () -> handler);
+        env.process().blockManager().registerHandler(Block.STONE.key(), () -> handler);
 
         var nbt = CompoundBinaryTag.builder()
                 .putString("hello", "world")
@@ -303,7 +303,7 @@ public class AnvilLoaderIntegrationTest {
                 assertEquals(point.z(), placement.getBlockPosition().z());
             }
         };
-        env.process().block().registerHandler(Block.DIAMOND_BLOCK.key(), () -> handler);
+        env.process().blockManager().registerHandler(Block.DIAMOND_BLOCK.key(), () -> handler);
 
         final Block block = Block.DIAMOND_BLOCK.withHandler(handler);
         instance.setBlock(point, block);

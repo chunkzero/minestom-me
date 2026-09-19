@@ -378,9 +378,9 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         process().eventHandler().call(skinInitEvent);
         this.skin = skinInitEvent.getSkin();
         // FIXME: when using Geyser, this line remove the skin of the client
-        PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), getAddPlayerToList());
+        PacketSendingUtils.sendGroupedPacket(process().connectionManager().getOnlinePlayers(), getAddPlayerToList());
 
-        var connectionManager = process().connection();
+        var connectionManager = process().connectionManager();
         for (var player : connectionManager.getOnlinePlayers()) {
             if (player != this) {
                 sendPacket(player.getAddPlayerToList());
@@ -388,7 +388,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         }
 
         //Teams
-        for (Team team : process().team().getTeams()) {
+        for (Team team : process().teamManager().getTeams()) {
             sendPacket(team.createTeamsCreationPacket());
         }
 
@@ -419,7 +419,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         Check.stateCondition(playerConnection.getServerState() != ConnectionState.PLAY,
                 "Player must be in the play state for reconfiguration.");
 
-        process().connection().transitionPlayToConfig(this);
+        process().connectionManager().transitionPlayToConfig(this);
     }
 
     /**
@@ -593,14 +593,14 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      * again, and any changes will be visible to the player.
      */
     public void refreshCommands() {
-        sendPacket(process().command().createDeclareCommandsPacket(this));
+        sendPacket(process().commandManager().createDeclareCommandsPacket(this));
     }
 
     /**
      * Refreshes the recipes and recipe book for this player, testing recipe predicates again.
      */
     public void refreshRecipes() {
-        RecipeManager recipeManager = process().recipe();
+        RecipeManager recipeManager = process().recipeManager();
         sendPackets(
                 recipeManager.getDeclareRecipesPacket(),
                 recipeManager.createRecipeBookResetPacket(this)
@@ -633,7 +633,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         final AbstractInventory currentInventory = getOpenInventory();
         if (currentInventory != null) currentInventory.removeViewer(this);
 
-        process().bossBar().removeAllBossBars(this);
+        process().bossBarManager().removeAllBossBars(this);
         // Advancement tabs cache
         {
             Set<AdvancementTab> advancementTabs = AdvancementTab.getTabs(this);
@@ -651,7 +651,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         resetChunkQueue();
 
         // Remove from the tab-list
-        PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), getRemovePlayerToList());
+        PacketSendingUtils.sendGroupedPacket(process().connectionManager().getOnlinePlayers(), getRemovePlayerToList());
 
         removeInternal(permanent);
         // Prevent the player from being stuck in loading screen, or just unable to interact with the server
@@ -709,7 +709,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         // One or more chunks need to be loaded
         final Thread runThread = Thread.currentThread();
         CountDownLatch latch = new CountDownLatch(1);
-        Scheduler scheduler = process().scheduler();
+        Scheduler scheduler = process().schedulerManager();
         CompletableFuture<Void> future = new CompletableFuture<>() {
             @Override
             public Void join() {
@@ -1083,12 +1083,12 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
 
     @Override
     public void showBossBar(BossBar bar) {
-        process().bossBar().addBossBar(this, bar);
+        process().bossBarManager().addBossBar(this, bar);
     }
 
     @Override
     public void hideBossBar(BossBar bar) {
-        process().bossBar().removeBossBar(this, bar);
+        process().bossBarManager().removeBossBar(this, bar);
     }
 
     @Override
@@ -1271,7 +1271,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     public void setDisplayName(@Nullable Component displayName) {
         this.displayName = displayName;
         if (isActive()) {
-            PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME, infoEntry()));
+            PacketSendingUtils.sendGroupedPacket(process().connectionManager().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME, infoEntry()));
         }
     }
 
@@ -1292,7 +1292,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     public void setListed(boolean listed) {
         this.listed = listed;
         if (isActive()) {
-            PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_LISTED, infoEntry()));
+            PacketSendingUtils.sendGroupedPacket(process().connectionManager().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_LISTED, infoEntry()));
         }
     }
 
@@ -1319,7 +1319,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     public void setListOrder(int listOrder) {
         this.listOrder = listOrder;
         if (isActive()) {
-            PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_LIST_ORDER, infoEntry()));
+            PacketSendingUtils.sendGroupedPacket(process().connectionManager().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_LIST_ORDER, infoEntry()));
         }
     }
 
@@ -1364,11 +1364,11 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
 
         {
             // Remove player
-            PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), removePlayerPacket);
+            PacketSendingUtils.sendGroupedPacket(process().connectionManager().getOnlinePlayers(), removePlayerPacket);
             sendPacketToViewers(destroyEntitiesPacket);
 
             // Show player again
-            PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), addPlayerPacket);
+            PacketSendingUtils.sendGroupedPacket(process().connectionManager().getOnlinePlayers(), addPlayerPacket);
             getViewers().forEach(player -> showPlayer(player.getPlayerConnection()));
         }
 
@@ -1797,7 +1797,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         // Condition to prevent sending the packets before spawning the player
         if (isActive()) {
             sendPacket(new ChangeGameStatePacket(ChangeGameStatePacket.Reason.CHANGE_GAMEMODE, gameMode.ordinal()));
-            PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_GAME_MODE, infoEntry()));
+            PacketSendingUtils.sendGroupedPacket(process().connectionManager().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_GAME_MODE, infoEntry()));
         }
 
         // The client updates their abilities based on the GameMode as follows
@@ -2286,14 +2286,14 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
 
     @ApiStatus.Internal
     public void interpretPacketQueue() {
-        final PacketListenerManager manager = process().packetListener();
+        final PacketListenerManager manager = process().packetListenerManager();
         // This method is NOT thread-safe
         this.packets.drain(packet -> { // drain cannot throw
             try {
                 manager.processClientPacket(packet, playerConnection);
             } catch (Throwable e) {
                 if (playerConnection.getClientState().ordinal() > ServerProperties.SUPPRESS_MISUSED_PACKET_ERROR_LEVEL.get())
-                    process().exception().handleException(e);
+                    process().exceptionManager().handleException(e);
                 if (ServerProperties.REJECT_MISUSED_PACKET.get())
                     kick(Component.translatable("multiplayer.disconnect.invalid_packet", "Invalid Packet", NamedTextColor.RED));
             }
@@ -2308,7 +2308,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     public void refreshLatency(int latency) {
         this.latency = latency;
         if (getPlayerConnection().getServerState() == ConnectionState.PLAY) {
-            PacketSendingUtils.sendGroupedPacket(process().connection().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_LATENCY, infoEntry()));
+            PacketSendingUtils.sendGroupedPacket(process().connectionManager().getOnlinePlayers(), new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_LATENCY, infoEntry()));
         }
     }
 

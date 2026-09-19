@@ -17,7 +17,7 @@ public class GeneratorForkIntegrationTest {
 
     @Test
     public void local(Env env) {
-        var manager = env.process().instance();
+        var manager = env.process().instanceManager();
         var instance = manager.createInstanceContainer();
         var block = Block.STONE;
         instance.setGenerator(unit -> {
@@ -32,7 +32,7 @@ public class GeneratorForkIntegrationTest {
 
     @Test
     public void size(Env env) {
-        var manager = env.process().instance();
+        var manager = env.process().instanceManager();
         var instance = manager.createInstanceContainer();
         // Set the Generator
         instance.setGenerator(unit -> {
@@ -49,7 +49,7 @@ public class GeneratorForkIntegrationTest {
 
     @Test
     public void signal(Env env) {
-        var manager = env.process().instance();
+        var manager = env.process().instanceManager();
         var instance = manager.createInstanceContainer();
         var block = Block.STONE;
         instance.setGenerator(unit -> {
@@ -68,7 +68,7 @@ public class GeneratorForkIntegrationTest {
 
     @Test
     public void air(Env env) {
-        var manager = env.process().instance();
+        var manager = env.process().instanceManager();
         var instance = manager.createInstanceContainer();
         instance.setGenerator(unit -> {
             var u = unit.fork(unit.absoluteStart(), unit.absoluteEnd().add(16, 0, 16));
@@ -82,7 +82,7 @@ public class GeneratorForkIntegrationTest {
 
     @Test
     public void fillHeight(Env env) {
-        var manager = env.process().instance();
+        var manager = env.process().instanceManager();
         var instance = manager.createInstanceContainer();
         instance.setGenerator(unit -> {
             var u = unit.fork(unit.absoluteStart(), unit.absoluteEnd().add(16, 0, 16));
@@ -98,7 +98,7 @@ public class GeneratorForkIntegrationTest {
 
     @Test
     public void biome(Env env) {
-        var manager = env.process().instance();
+        var manager = env.process().instanceManager();
 
         var instance = manager.createInstanceContainer();
         instance.setGenerator(unit -> {

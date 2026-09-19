@@ -208,7 +208,7 @@ public class CommandPacketFilteringTest {
                 @Override public SocketAddress getRemoteAddress() { return new InetSocketAddress(0); }
             };
             var player = new Player(connection, new GameProfile(UUID.randomUUID(), "Test"));
-            final DeclareCommandsPacket packet = GraphConverter.createPacket(process.command(), Graph.merge(Set.of(command)), player);
+            final DeclareCommandsPacket packet = GraphConverter.createPacket(process.commandManager(), Graph.merge(Set.of(command)), player);
             CommandTestUtils.assertPacket(packet, expectedStructure);
         }
     }

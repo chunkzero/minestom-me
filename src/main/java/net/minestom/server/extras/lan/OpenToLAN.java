@@ -35,7 +35,7 @@ public final class OpenToLAN {
     @SuppressWarnings("this-escape") // Fields are initialized before registering shutdown cleanup.
     public OpenToLAN(ServerProcess process) {
         this.process = Objects.requireNonNull(process);
-        process.scheduler().buildShutdownTask(this::close);
+        process.schedulerManager().buildShutdownTask(this::close);
     }
 
     /**
@@ -66,7 +66,7 @@ public final class OpenToLAN {
         }
         final Task task;
         try {
-            task = process.scheduler().buildTask(this::ping)
+            task = process.schedulerManager().buildTask(this::ping)
                     .repeat(config.delayBetweenPings)
                     .schedule();
         } catch (RuntimeException exception) {
@@ -112,7 +112,7 @@ public final class OpenToLAN {
             } catch (IOException e) {
                 if (state == current) LOGGER.warn("Could not send Open to LAN packet!", e);
             } catch (Exception e) {
-                process.exception().handleException(e);
+                process.exceptionManager().handleException(e);
             }
         });
     }

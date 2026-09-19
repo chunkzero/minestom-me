@@ -27,7 +27,7 @@ public sealed interface ThreadDispatcher<P, E extends Tickable> permits ThreadDi
     /** Creates a dispatcher whose game objects and exceptions belong to the supplied process. */
     static <P, E extends Tickable> ThreadDispatcher<P, E> dispatcher(ServerProcess process, ThreadProvider<P> provider, int threadCount) {
         return new ThreadDispatcherImpl<>(process, provider, threadCount,
-                index -> new TickThread("Ms-Tick-" + process.id() + "-" + index, process.exception()::handleException));
+                index -> new TickThread("Ms-Tick-" + process.id() + "-" + index, process.exceptionManager()::handleException));
     }
 
     /**

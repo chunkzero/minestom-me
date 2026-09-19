@@ -36,9 +36,9 @@ public class PlayerPacketQueueIntegrationTest {
         var player = connection.connect(instance, new Pos(0, 40, 0));
 
         List<Throwable> reported = new ArrayList<>();
-        env.process().exception().setExceptionHandler(reported::add);
+        env.process().exceptionManager().setExceptionHandler(reported::add);
         AtomicInteger handled = new AtomicInteger();
-        env.process().packetListener().setPlayListener(ClientPluginMessagePacket.class,
+        env.process().packetListenerManager().setPlayListener(ClientPluginMessagePacket.class,
                 (_, _) -> {
                     if (handled.getAndIncrement() == 0) throw new IllegalStateException("handler failure");
                 });
@@ -73,8 +73,8 @@ public class PlayerPacketQueueIntegrationTest {
             connection.setClientState(ConnectionState.PLAY);
             List<Throwable> defaultErrors = new ArrayList<>();
             List<Throwable> ownerErrors = new ArrayList<>();
-            defaultEnv.process().exception().setExceptionHandler(defaultErrors::add);
-            owner.exception().setExceptionHandler(ownerErrors::add);
+            defaultEnv.process().exceptionManager().setExceptionHandler(defaultErrors::add);
+            owner.exceptionManager().setExceptionHandler(ownerErrors::add);
             AtomicInteger defaultHandled = new AtomicInteger();
             AtomicInteger ownerHandled = new AtomicInteger();
             AtomicInteger defaultEvents = new AtomicInteger();
@@ -85,10 +85,10 @@ public class PlayerPacketQueueIntegrationTest {
                 assertSame(player, event.getPlayer());
                 ownerEvents.incrementAndGet();
             });
-            defaultEnv.process().packetListener().setPlayListener(ClientPluginMessagePacket.class,
+            defaultEnv.process().packetListenerManager().setPlayListener(ClientPluginMessagePacket.class,
                     (_, _) -> defaultHandled.incrementAndGet());
             var failure = new IllegalStateException("owner handler failure");
-            owner.packetListener().setPlayListener(ClientPluginMessagePacket.class, (_, _) -> {
+            owner.packetListenerManager().setPlayListener(ClientPluginMessagePacket.class, (_, _) -> {
                 if (ownerHandled.getAndIncrement() == 0) throw failure;
             });
 

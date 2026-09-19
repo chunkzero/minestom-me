@@ -166,7 +166,7 @@ public class InstanceContainer extends Instance {
             this.currentlyChangingBlocks.put(blockPosition, block);
 
             // Change id based on neighbors
-            final BlockPlacementRule blockPlacementRule = process().block().getBlockPlacementRule(block);
+            final BlockPlacementRule blockPlacementRule = process().blockManager().getBlockPlacementRule(block);
             if (placement != null && blockPlacementRule != null && doBlockUpdates) {
                 BlockPlacementRule.PlacementState rulePlacement;
                 if (placement instanceof BlockHandler.PlayerPlacement pp) {
@@ -322,7 +322,7 @@ public class InstanceContainer extends Instance {
             return AsyncUtils.empty();
         }
         return CompletableFuture.runAsync(runnable, Thread::startVirtualThread).whenComplete((_, e) -> {
-            if (e != null) process().exception().handleException(e);
+            if (e != null) process().exceptionManager().handleException(e);
         });
     }
 
@@ -370,7 +370,7 @@ public class InstanceContainer extends Instance {
             // The chain never completes inside the mapping, this callback is always async
             var _ = chain.whenComplete((chunk, e) -> {
                 if (e != null) {
-                    process().exception().handleException(e instanceof CompletionException ce ? ce.getCause() : e);
+                    process().exceptionManager().handleException(e instanceof CompletionException ce ? ce.getCause() : e);
                 } else {
                     process().eventHandler().call(new InstanceChunkLoadEvent(this, chunk));
                 }
@@ -444,7 +444,7 @@ public class InstanceContainer extends Instance {
             // Apply awaiting forks
             processFork(chunk);
         } catch (Throwable e) {
-            process().exception().handleException(e);
+            process().exceptionManager().handleException(e);
         } finally {
             // End generation
             refreshLastBlockChangeTime();
@@ -672,7 +672,7 @@ public class InstanceContainer extends Instance {
             }
             chunk.sendChunk();
         }, Thread::startVirtualThread).whenComplete((_, e) -> {
-            if (e != null) process().exception().handleException(e);
+            if (e != null) process().exceptionManager().handleException(e);
         });
     }
 
@@ -748,7 +748,7 @@ public class InstanceContainer extends Instance {
             final Block neighborBlock = cache.getBlock(neighborX, neighborY, neighborZ, Condition.NONE);
             if (neighborBlock == null || neighborBlock.air())
                 continue;
-            final BlockPlacementRule neighborBlockPlacementRule = process().block().getBlockPlacementRule(neighborBlock);
+            final BlockPlacementRule neighborBlockPlacementRule = process().blockManager().getBlockPlacementRule(neighborBlock);
             if (neighborBlockPlacementRule == null || updateDistance >= neighborBlockPlacementRule.maxUpdateDistance())
                 continue;
 

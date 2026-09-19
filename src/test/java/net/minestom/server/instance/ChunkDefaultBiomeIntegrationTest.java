@@ -22,8 +22,8 @@ public class ChunkDefaultBiomeIntegrationTest {
             biomes.register(Biome.PLAINS.key(), plains);
             assertNotEquals(pair.first().registries().biome().getId(Biome.PLAINS), biomes.getId(Biome.PLAINS));
 
-            var first = pair.first().instance().createInstanceContainer(ChunkLoader.noop());
-            var second = pair.second().instance().createInstanceContainer(ChunkLoader.noop());
+            var first = pair.first().instanceManager().createInstanceContainer(ChunkLoader.noop());
+            var second = pair.second().instanceManager().createInstanceContainer(ChunkLoader.noop());
             first.loadChunk(0, 0).join();
             var chunk = second.loadChunk(0, 0).join();
             assertEquals(Biome.PLAINS, second.getBiome(0, 0, 0));

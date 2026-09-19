@@ -42,10 +42,10 @@ class SocketErrorIntegrationTest {
                 connection.setClientState(state);
                 List<Throwable> defaultErrors = new ArrayList<>();
                 List<Throwable> ownerErrors = new ArrayList<>();
-                env.process().exception().setExceptionHandler(defaultErrors::add);
-                owner.exception().setExceptionHandler(ownerErrors::add);
+                env.process().exceptionManager().setExceptionHandler(defaultErrors::add);
+                owner.exceptionManager().setExceptionHandler(ownerErrors::add);
                 var failure = new IllegalStateException("status handler failure");
-                owner.packetListener().setListener(ConnectionState.STATUS, StatusRequestPacket.class, (_, _) -> {
+                owner.packetListenerManager().setListener(ConnectionState.STATUS, StatusRequestPacket.class, (_, _) -> {
                     throw failure;
                 });
 

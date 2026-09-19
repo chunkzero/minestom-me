@@ -43,7 +43,7 @@ public class ArgumentTest {
         assertFalse(arg.isOptional());
         arg.setDefaultValue("default value");
         assertTrue(arg.isOptional());
-        assertEquals("default value", arg.getDefaultValue().apply(new ServerSender(), new CommandContext(process.command(), "")));
+        assertEquals("default value", arg.getDefaultValue().apply(new ServerSender(), new CommandContext(process.commandManager(), "")));
     }
 
     @Test
@@ -56,7 +56,7 @@ public class ArgumentTest {
         assertTrue(arg.hasSuggestion());
 
         Suggestion suggestion = new Suggestion("input", 2, 4);
-        arg.getSuggestionCallback().apply(new ServerSender(), new CommandContext(process.command(), "input"), suggestion);
+        arg.getSuggestionCallback().apply(new ServerSender(), new CommandContext(process.commandManager(), "input"), suggestion);
 
         assertEquals(suggestion.getEntries(), List.of(new SuggestionEntry("entry")));
     }

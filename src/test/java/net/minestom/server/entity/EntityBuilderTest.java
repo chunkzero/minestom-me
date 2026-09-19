@@ -73,8 +73,8 @@ class EntityBuilderTest {
 
         try (var process = ServerProcess.create()) {
             var errors = new ArrayList<Throwable>();
-            process.exception().setExceptionHandler(errors::add);
-            var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
+            process.exceptionManager().setExceptionHandler(errors::add);
+            var instance = process.instanceManager().createInstanceContainer(ChunkLoader.noop());
             var position = new Pos(1, 2, 3, 45, 10);
             CompletableFuture<? extends Entity> spawned = builder.spawn(instance, position);
             var entity = spawned.join();
@@ -115,11 +115,11 @@ class EntityBuilderTest {
 
         try (var pair = new ServerProcessPair()) {
             var errors = new ArrayList<Throwable>();
-            pair.first().exception().setExceptionHandler(errors::add);
-            pair.second().exception().setExceptionHandler(errors::add);
-            var firstInstance = pair.first().instance().createInstanceContainer(ChunkLoader.noop());
-            var secondInstance = pair.second().instance().createInstanceContainer(ChunkLoader.noop());
-            var otherFirstInstance = pair.first().instance().createInstanceContainer(ChunkLoader.noop());
+            pair.first().exceptionManager().setExceptionHandler(errors::add);
+            pair.second().exceptionManager().setExceptionHandler(errors::add);
+            var firstInstance = pair.first().instanceManager().createInstanceContainer(ChunkLoader.noop());
+            var secondInstance = pair.second().instanceManager().createInstanceContainer(ChunkLoader.noop());
+            var otherFirstInstance = pair.first().instanceManager().createInstanceContainer(ChunkLoader.noop());
             CompletableFuture<TestCreature> firstSpawn = builder.spawn(firstInstance);
             var first = firstSpawn.join();
             assertEquals(List.of(pair.first()), firstSpawns);
@@ -151,7 +151,7 @@ class EntityBuilderTest {
     void futureWaitsForChunkLoadingAndSpawnListeners() {
         try (var process = ServerProcess.create()) {
             var instance = new LoadingInstance(process);
-            process.instance().registerInstance(instance);
+            process.instanceManager().registerInstance(instance);
             var created = new AtomicReference<Entity>();
             var spawnCalls = new AtomicInteger();
             var spawned = Entity.builder(EntityType.ZOMBIE)
@@ -175,7 +175,7 @@ class EntityBuilderTest {
     @Test
     void cancelledPlacementRemovesEntityWithoutSpawning() {
         try (var process = ServerProcess.create()) {
-            var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
+            var instance = process.instanceManager().createInstanceContainer(ChunkLoader.noop());
             var created = new AtomicReference<Entity>();
             var spawnCalls = new AtomicInteger();
             var spawned = Entity.builder(EntityType.ZOMBIE)
@@ -198,9 +198,9 @@ class EntityBuilderTest {
         try (var pair = new ServerProcessPair()) {
             var firstErrors = new ArrayList<Throwable>();
             var secondErrors = new ArrayList<Throwable>();
-            pair.first().exception().setExceptionHandler(firstErrors::add);
-            pair.second().exception().setExceptionHandler(secondErrors::add);
-            var instance = pair.second().instance().createInstanceContainer(ChunkLoader.noop());
+            pair.first().exceptionManager().setExceptionHandler(firstErrors::add);
+            pair.second().exceptionManager().setExceptionHandler(secondErrors::add);
+            var instance = pair.second().instanceManager().createInstanceContainer(ChunkLoader.noop());
             var failure = new IllegalStateException("initialization failed");
             var created = new AtomicReference<Entity>();
             var initialization = Entity.builder(EntityType.ZOMBIE)
@@ -233,7 +233,7 @@ class EntityBuilderTest {
             assertEquals(List.of(failure, spawnFailure), secondErrors);
 
             var loadingInstance = new LoadingInstance(pair.second());
-            pair.second().instance().registerInstance(loadingInstance);
+            pair.second().instanceManager().registerInstance(loadingInstance);
             var loading = Entity.builder(EntityType.ZOMBIE).initialize(created::set).spawn(loadingInstance);
             loadingInstance.loading.completeExceptionally(failure);
             assertSame(failure, assertThrows(CompletionException.class, loading::join).getCause());
@@ -260,7 +260,7 @@ class EntityBuilderTest {
         assertSame(customBuilder, customBuilder.noGravity(true));
 
         try (var process = ServerProcess.create()) {
-            var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
+            var instance = process.instanceManager().createInstanceContainer(ChunkLoader.noop());
             CompletableFuture<ItemEntity> itemSpawn = itemBuilder.spawn(instance);
             var item = itemSpawn.join();
             assertEquals(itemStack, item.getItemStack());

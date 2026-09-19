@@ -194,7 +194,7 @@ final class ServerProcessImpl implements ServerProcess {
     }
 
     @Override
-    public ExceptionManager exception() {
+    public ExceptionManager exceptionManager() {
         return exception;
     }
 
@@ -205,12 +205,12 @@ final class ServerProcessImpl implements ServerProcess {
 
 
     @Override
-    public ConnectionManager connection() {
+    public ConnectionManager connectionManager() {
         return connection;
     }
 
     @Override
-    public InstanceManager instance() {
+    public InstanceManager instanceManager() {
         return instance;
     }
 
@@ -220,22 +220,22 @@ final class ServerProcessImpl implements ServerProcess {
     }
 
     @Override
-    public BlockManager block() {
+    public BlockManager blockManager() {
         return block;
     }
 
     @Override
-    public CommandManager command() {
+    public CommandManager commandManager() {
         return command;
     }
 
     @Override
-    public RecipeManager recipe() {
+    public RecipeManager recipeManager() {
         return recipe;
     }
 
     @Override
-    public TeamManager team() {
+    public TeamManager teamManager() {
         return team;
     }
 
@@ -245,12 +245,12 @@ final class ServerProcessImpl implements ServerProcess {
     }
 
     @Override
-    public SchedulerManager scheduler() {
+    public SchedulerManager schedulerManager() {
         return scheduler;
     }
 
     @Override
-    public AdvancementManager advancement() {
+    public AdvancementManager advancementManager() {
         return advancement;
     }
 
@@ -260,12 +260,12 @@ final class ServerProcessImpl implements ServerProcess {
     }
 
     @Override
-    public BossBarManager bossBar() {
+    public BossBarManager bossBarManager() {
         return bossBar;
     }
 
     @Override
-    public PacketListenerManager packetListener() {
+    public PacketListenerManager packetListenerManager() {
         return packetListener;
     }
 
@@ -441,10 +441,10 @@ final class ServerProcessImpl implements ServerProcess {
             }
             var serverTickEvent = EventsJFR.newServerTick();
             serverTickEvent.begin();
-            scheduler().processTick();
+            schedulerManager().processTick();
 
             // Connection tick (let waiting clients in, send keep alives, handle configuration players packets)
-            connection().tick(nanoTime);
+            connectionManager().tick(nanoTime);
 
             // Server tick (chunks/entities)
             serverTick(nanoTime);
@@ -452,7 +452,7 @@ final class ServerProcessImpl implements ServerProcess {
             // The click callback provider needs ticking to clean up the cache.
             clickCallbackManager().tick(nanoTime);
 
-            scheduler().processTickEnd();
+            schedulerManager().processTickEnd();
 
             // Flush all waiting packets
             packetBatcher.flush();
@@ -470,11 +470,11 @@ final class ServerProcessImpl implements ServerProcess {
         private void serverTick(long nanoStart) {
             long milliStart = TimeUnit.NANOSECONDS.toMillis(nanoStart);
             // Tick all instances
-            for (Instance instance : instance().getInstances()) {
+            for (Instance instance : instanceManager().getInstances()) {
                 try {
                     instance.tick(milliStart);
                 } catch (Exception e) {
-                    exception().handleException(e);
+                    exceptionManager().handleException(e);
                 }
             }
             // Tick all chunks (and entities inside)

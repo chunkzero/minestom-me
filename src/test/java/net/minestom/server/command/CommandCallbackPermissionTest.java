@@ -40,7 +40,7 @@ class CommandCallbackPermissionTest {
                 return true;
             });
             command.addSyntax((_, context) -> assertEquals(CommandContext.Purpose.EXECUTION, context.purpose()), number);
-            var manager = pair.first().command();
+            var manager = pair.first().commandManager();
             manager.register(command);
             assertNotNull(TabCompleteListener.getSuggestion(manager, manager.getConsoleSender(), "purpose invalid"));
             assertEquals(CommandResult.Type.INVALID_SYNTAX, manager.executeServerCommand("purpose invalid").getType());
@@ -88,8 +88,8 @@ class CommandCallbackPermissionTest {
                 assertFalse(context.has("leaked"));
                 executed.incrementAndGet();
             }, sibling);
-            pair.first().command().register(command);
-            assertEquals(CommandResult.Type.SUCCESS, pair.first().command().executeServerCommand("isolated value").getType());
+            pair.first().commandManager().register(command);
+            assertEquals(CommandResult.Type.SUCCESS, pair.first().commandManager().executeServerCommand("isolated value").getType());
             assertEquals(1, executed.get());
         }
     }
@@ -106,13 +106,13 @@ class CommandCallbackPermissionTest {
             var command = new Command("restricted");
             command.addConditionalSyntax((_, context) -> context.process() == pair.second(), (_, _) -> {},
                     first, ArgumentType.Word("last"));
-            pair.first().command().register(command);
-            pair.second().command().register(command);
+            pair.first().commandManager().register(command);
+            pair.second().commandManager().register(command);
 
-            assertEquals(CommandResult.Type.CANCELLED, pair.first().command()
+            assertEquals(CommandResult.Type.CANCELLED, pair.first().commandManager()
                     .executeServerCommand("restricted invalid last").getType());
             assertTrue(calls.isEmpty());
-            assertEquals(CommandResult.Type.INVALID_SYNTAX, pair.second().command()
+            assertEquals(CommandResult.Type.INVALID_SYNTAX, pair.second().commandManager()
                     .executeServerCommand("restricted invalid last").getType());
             assertEquals(1, calls.size());
             assertSame(pair.second(), calls.getFirst().process());
@@ -133,13 +133,13 @@ class CommandCallbackPermissionTest {
                 command.addConditionalSyntax((_, context) -> context.process() == pair.second(), (_, _) -> {},
                         multipleArguments ? new Argument<?>[]{first, ArgumentType.Word("last")}
                                 : new Argument<?>[]{first});
-                pair.first().command().register(command);
-                pair.second().command().register(command);
+                pair.first().commandManager().register(command);
+                pair.second().commandManager().register(command);
 
-                assertNull(TabCompleteListener.getSuggestion(pair.first().command(), pair.first().command().getConsoleSender(),
+                assertNull(TabCompleteListener.getSuggestion(pair.first().commandManager(), pair.first().commandManager().getConsoleSender(),
                         command.getName() + " invalid"));
                 assertEquals(0, calls.get());
-                var suggestion = TabCompleteListener.getSuggestion(pair.second().command(), pair.second().command().getConsoleSender(),
+                var suggestion = TabCompleteListener.getSuggestion(pair.second().commandManager(), pair.second().commandManager().getConsoleSender(),
                         command.getName() + " invalid");
                 assertNotNull(suggestion);
                 assertEquals(List.of("42"), suggestion.getEntries().stream().map(SuggestionEntry::getEntry).toList());
@@ -159,13 +159,13 @@ class CommandCallbackPermissionTest {
             command.addConditionalSyntax((_, _) -> false, (_, _) -> {}, first, ArgumentType.Literal("denied"));
             command.addConditionalSyntax((_, context) -> context.process() == pair.second(), (_, _) -> {},
                     first, ArgumentType.Literal("allowed"));
-            pair.first().command().register(command);
-            pair.second().command().register(command);
-            assertEquals(CommandResult.Type.CANCELLED, pair.first().command().executeServerCommand("shared invalid").getType());
-            assertNull(TabCompleteListener.getSuggestion(pair.first().command(), pair.first().command().getConsoleSender(), "shared invalid"));
+            pair.first().commandManager().register(command);
+            pair.second().commandManager().register(command);
+            assertEquals(CommandResult.Type.CANCELLED, pair.first().commandManager().executeServerCommand("shared invalid").getType());
+            assertNull(TabCompleteListener.getSuggestion(pair.first().commandManager(), pair.first().commandManager().getConsoleSender(), "shared invalid"));
             assertEquals(0, calls.get());
-            assertEquals(CommandResult.Type.INVALID_SYNTAX, pair.second().command().executeServerCommand("shared invalid").getType());
-            assertNotNull(TabCompleteListener.getSuggestion(pair.second().command(), pair.second().command().getConsoleSender(), "shared invalid"));
+            assertEquals(CommandResult.Type.INVALID_SYNTAX, pair.second().commandManager().executeServerCommand("shared invalid").getType());
+            assertNotNull(TabCompleteListener.getSuggestion(pair.second().commandManager(), pair.second().commandManager().getConsoleSender(), "shared invalid"));
             assertEquals(1, calls.get());
         }
     }
@@ -181,12 +181,12 @@ class CommandCallbackPermissionTest {
             var command = new Command("shared");
             command.addConditionalSyntax((_, _) -> false, (_, _) -> {}, first);
             command.addConditionalSyntax((_, context) -> context.process() == pair.second(), (_, _) -> {}, first, last);
-            pair.first().command().register(command);
-            pair.second().command().register(command);
-            assertEquals(CommandResult.Type.CANCELLED, pair.first().command().executeServerCommand("shared 1 invalid").getType());
+            pair.first().commandManager().register(command);
+            pair.second().commandManager().register(command);
+            assertEquals(CommandResult.Type.CANCELLED, pair.first().commandManager().executeServerCommand("shared 1 invalid").getType());
             assertEquals(0, calls.get());
-            assertEquals(CommandResult.Type.INVALID_SYNTAX, pair.second().command().executeServerCommand("shared 1 invalid").getType());
-            assertNotNull(TabCompleteListener.getSuggestion(pair.second().command(), pair.second().command().getConsoleSender(), "shared 1 invalid"));
+            assertEquals(CommandResult.Type.INVALID_SYNTAX, pair.second().commandManager().executeServerCommand("shared 1 invalid").getType());
+            assertNotNull(TabCompleteListener.getSuggestion(pair.second().commandManager(), pair.second().commandManager().getConsoleSender(), "shared 1 invalid"));
             assertEquals(1, calls.get());
         }
     }
@@ -202,7 +202,7 @@ class CommandCallbackPermissionTest {
             command.setDefaultExecutor((_, _) -> defaults.incrementAndGet());
             command.addSyntax((_, _) -> {}, number);
             var trailing = new Command("trailing");
-            var manager = pair.first().command();
+            var manager = pair.first().commandManager();
             manager.register(command, trailing);
             assertEquals(CommandResult.Type.INVALID_SYNTAX, manager.executeServerCommand("number invalid").getType());
             assertEquals(1, errors.get());

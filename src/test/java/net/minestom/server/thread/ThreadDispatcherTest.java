@@ -35,7 +35,7 @@ public class ThreadDispatcherTest {
     @Timeout(10)
     void customDispatcherAcceptsOwnedChunksAndEntities() throws InterruptedException {
         try (var process = ServerProcess.create()) {
-            var instance = process.instance().createInstanceContainer(ChunkLoader.noop());
+            var instance = process.instanceManager().createInstanceContainer(ChunkLoader.noop());
             var chunk = instance.loadChunk(0, 0).join();
             var ticks = new AtomicInteger();
             var entity = new Entity(process, EntityType.ZOMBIE) {

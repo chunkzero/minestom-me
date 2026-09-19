@@ -35,7 +35,7 @@ public final class StatusListener {
                 connection.sendPacket(new PingResponsePacket(clientPingEvent.getPayload()));
                 connection.disconnect();
             } else {
-                connection.process().scheduler().buildTask(() -> {
+                connection.process().schedulerManager().buildTask(() -> {
                     connection.sendPacket(new PingResponsePacket(clientPingEvent.getPayload()));
                     connection.disconnect();
                 }).delay(clientPingEvent.getDelay()).schedule();

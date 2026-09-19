@@ -115,7 +115,7 @@ public class AnvilLoader implements ChunkLoader {
             Files.copy(levelPath, path.resolve("level.dat_old"), StandardCopyOption.REPLACE_EXISTING);
             instance.tagHandler().updateContent(tag);
         } catch (IOException e) {
-            instance.process().exception().handleException(e);
+            instance.process().exceptionManager().handleException(e);
         }
     }
 
@@ -128,7 +128,7 @@ public class AnvilLoader implements ChunkLoader {
         try {
             return loadMCA(instance, chunkX, chunkZ);
         } catch (Exception e) {
-            instance.process().exception().handleException(e);
+            instance.process().exceptionManager().handleException(e);
             return null;
         }
     }
@@ -201,7 +201,7 @@ public class AnvilLoader implements ChunkLoader {
                     assert previousVersion == null : "The AnvilLoader cache should not already have data for this region.";
                     return new RegionFile(regionPath);
                 } catch (IOException e) {
-                    process.exception().handleException(e);
+                    process.exceptionManager().handleException(e);
                     return null;
                 }
             });
@@ -325,7 +325,7 @@ public class AnvilLoader implements ChunkLoader {
             assert block != null;
             // Load the block handler if the id is present
             if (blockEntity.get("id") instanceof StringBinaryTag blockEntityId) {
-                final BlockHandler handler = loadedChunk.getInstance().process().block().getHandlerOrDummy(blockEntityId.value());
+                final BlockHandler handler = loadedChunk.getInstance().process().blockManager().getHandlerOrDummy(blockEntityId.value());
                 block = block.withHandler(handler);
             }
             // Remove anvil tags
@@ -351,7 +351,7 @@ public class AnvilLoader implements ChunkLoader {
         try (OutputStream os = Files.newOutputStream(levelPath, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
             BinaryTagIO.writer().writeNamed(Map.entry("", nbt), os, BinaryTagIO.Compression.GZIP);
         } catch (IOException e) {
-            instance.process().exception().handleException(e);
+            instance.process().exceptionManager().handleException(e);
         }
     }
 
@@ -381,7 +381,7 @@ public class AnvilLoader implements ChunkLoader {
                     alreadyLoaded.put(regionFileName, mcaFile);
                 } catch (IOException e) {
                     LOGGER.error("Failed to create region file for {}, {}", chunkX, chunkZ, e);
-                    chunk.getInstance().process().exception().handleException(e);
+                    chunk.getInstance().process().exceptionManager().handleException(e);
                     return;
                 }
             }
@@ -414,7 +414,7 @@ public class AnvilLoader implements ChunkLoader {
             mcaFile.writeChunkData(chunkX, chunkZ, chunkData.build());
         } catch (IOException e) {
             LOGGER.error("Failed to save chunk {}, {}", chunkX, chunkZ, e);
-            chunk.getInstance().process().exception().handleException(e);
+            chunk.getInstance().process().exceptionManager().handleException(e);
         }
     }
 
@@ -588,7 +588,7 @@ public class AnvilLoader implements ChunkLoader {
                         try {
                             regionFile.close();
                         } catch (IOException e) {
-                            chunk.getInstance().process().exception().handleException(e);
+                            chunk.getInstance().process().exceptionManager().handleException(e);
                         }
                     }
                 }

@@ -35,7 +35,7 @@ public class CommandSuggestionIntegrationTest {
             suggestion.addEntry(new SuggestionEntry("test1"));
         }));
 
-        env.process().command().register(command);
+        env.process().commandManager().register(command);
 
         var listener = connection.trackIncoming(TabCompletePacket.class);
         player.addPacketToQueue(new ClientTabCompletePacket(3, "test arg te"));
@@ -63,7 +63,7 @@ public class CommandSuggestionIntegrationTest {
         var command = new Command("foo");
 
         command.addSyntax((_,_)->{}, suggestArg, defaultArg);
-        env.process().command().register(command);
+        env.process().commandManager().register(command);
 
         var listener = connection.trackIncoming(TabCompletePacket.class);
         player.addPacketToQueue(new ClientTabCompletePacket(1, "foo 1"));
@@ -91,7 +91,7 @@ public class CommandSuggestionIntegrationTest {
 
         command.addSubcommand(subCommand);
 
-        env.process().command().register(command);
+        env.process().commandManager().register(command);
 
         var listener = connection.trackIncoming(TabCompletePacket.class);
         player.addPacketToQueue(new ClientTabCompletePacket(1, "foo bar "));
@@ -115,7 +115,7 @@ public class CommandSuggestionIntegrationTest {
 
         command.addSyntax((_,_)->{}, Literal("literal2"), wordArg2);
 
-        env.process().command().register(command);
+        env.process().commandManager().register(command);
 
         var listener = connection.trackIncoming(TabCompletePacket.class);
         player.addPacketToQueue(new ClientTabCompletePacket(1, "foo literal2 "));
@@ -136,7 +136,7 @@ public class CommandSuggestionIntegrationTest {
 
         var command = new Command("foo");
         command.addSyntax((_, _) -> {}, intArg);
-        env.process().command().register(command);
+        env.process().commandManager().register(command);
 
         var listener = connection.trackIncoming(TabCompletePacket.class);
         player.addPacketToQueue(new ClientTabCompletePacket(1, "foo "));
@@ -160,7 +160,7 @@ public class CommandSuggestionIntegrationTest {
         var command = new Command("foo");
         command.addSyntax((_, _) -> {}, intArg);
         command.addSyntax((_, _) -> {}, wordArg, secondIntArg);
-        env.process().command().register(command);
+        env.process().commandManager().register(command);
 
         var listener = connection.trackIncoming(TabCompletePacket.class);
         player.addPacketToQueue(new ClientTabCompletePacket(1, "foo text nope"));

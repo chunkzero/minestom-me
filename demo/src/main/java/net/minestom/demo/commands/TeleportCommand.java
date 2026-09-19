@@ -25,7 +25,7 @@ public class TeleportCommand extends Command {
 
     private static void onPlayerTeleport(CommandSender sender, CommandContext context) {
         final String playerName = context.get("player");
-        Player pl = context.process().connection().getOnlinePlayerByUsername(playerName);
+        Player pl = context.process().connectionManager().getOnlinePlayerByUsername(playerName);
         if (sender instanceof Player player) {
             player.teleport(pl.getPosition()).join();
         }

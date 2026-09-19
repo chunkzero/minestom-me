@@ -55,8 +55,8 @@ class ProcessAuthenticationTest {
         try (var pair = new ServerProcessPair(firstAuth, secondAuth)) {
             var firstErrors = new LinkedBlockingQueue<Throwable>();
             var secondErrors = new LinkedBlockingQueue<Throwable>();
-            pair.first().exception().setExceptionHandler(firstErrors::add);
-            pair.second().exception().setExceptionHandler(secondErrors::add);
+            pair.first().exceptionManager().setExceptionHandler(firstErrors::add);
+            pair.second().exceptionManager().setExceptionHandler(secondErrors::add);
             start(pair.first());
             start(pair.second());
             try (var first = new ProtocolClient(pair.first()); var second = new ProtocolClient(pair.second())) {
@@ -105,8 +105,8 @@ class ProcessAuthenticationTest {
             var secondErrors = new LinkedBlockingQueue<Throwable>();
             var firstLogins = new LinkedBlockingQueue<GameProfile>();
             var secondLogins = new LinkedBlockingQueue<GameProfile>();
-            pair.first().exception().setExceptionHandler(firstErrors::add);
-            pair.second().exception().setExceptionHandler(secondErrors::add);
+            pair.first().exceptionManager().setExceptionHandler(firstErrors::add);
+            pair.second().exceptionManager().setExceptionHandler(secondErrors::add);
             pair.first().eventHandler().addListener(AsyncPlayerPreLoginEvent.class, event -> firstLogins.add(event.getGameProfile()));
             pair.second().eventHandler().addListener(AsyncPlayerPreLoginEvent.class, event -> secondLogins.add(event.getGameProfile()));
             start(pair.first());

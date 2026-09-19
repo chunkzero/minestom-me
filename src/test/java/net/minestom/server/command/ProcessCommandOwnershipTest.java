@@ -51,7 +51,7 @@ class ProcessCommandOwnershipTest {
                 @Override
                 public String parse(CommandSender sender, CommandContext context, String input) {
                     assertSame(expected.get(), context.process());
-                    assertSame(expected.get().command(), context.commandManager());
+                    assertSame(expected.get().commandManager(), context.commandManager());
                     assertEquals(7, context.get(count));
                     phases.add("parse");
                     if (input.equals("bad")) throw new ArgumentSyntaxException("bad value", input, 42);
@@ -100,22 +100,22 @@ class ProcessCommandOwnershipTest {
                 assertEquals(context.process().brandName(), context.get(value));
                 phases.add("execute");
             }, count, value);
-            pair.first().command().register(command);
-            pair.second().command().register(command);
+            pair.first().commandManager().register(command);
+            pair.second().commandManager().register(command);
             for (var process : List.of(pair.first(), pair.second())) {
                 expected.set(process);
-                for (var sender : List.of(process.command().getConsoleSender(), new CustomSender())) {
+                for (var sender : List.of(process.commandManager().getConsoleSender(), new CustomSender())) {
                     phases.clear();
-                    assertEquals(CommandResult.Type.SUCCESS, process.command().execute(sender, "same 7 valid").getType());
+                    assertEquals(CommandResult.Type.SUCCESS, process.commandManager().execute(sender, "same 7 valid").getType());
                     assertEquals(List.of("parse", "global", "condition", "execute"), phases);
                     phases.clear();
-                    assertEquals(CommandResult.Type.SUCCESS, process.command().execute(sender, "same").getType());
+                    assertEquals(CommandResult.Type.SUCCESS, process.commandManager().execute(sender, "same").getType());
                     assertEquals(List.of("default-count", "default-value", "global", "condition", "execute"), phases);
-                    var suggestion = TabCompleteListener.getSuggestion(process.command(), sender, "same 7 v");
+                    var suggestion = TabCompleteListener.getSuggestion(process.commandManager(), sender, "same 7 v");
                     assertNotNull(suggestion);
                     assertEquals(List.of("test:" + process.brandName()), suggestion.getEntries().stream().map(SuggestionEntry::getEntry).toList());
                     phases.clear();
-                    assertEquals(CommandResult.Type.INVALID_SYNTAX, process.command().execute(sender, "same 7 bad").getType());
+                    assertEquals(CommandResult.Type.INVALID_SYNTAX, process.commandManager().execute(sender, "same 7 bad").getType());
                     assertEquals(List.of("parse", "global", "condition", "error"), phases);
                 }
             }
@@ -156,16 +156,16 @@ class ProcessCommandOwnershipTest {
             var nested = ArgumentType.Command("nested").setOnlyCorrect(true);
             var outer = new Command("outer");
             outer.addSyntax((sender, context) -> context.get(nested).getParsedCommand().execute(sender), nested);
-            for (var process : List.of(pair.first(), pair.second())) process.command().register(inner, outer);
+            for (var process : List.of(pair.first(), pair.second())) process.commandManager().register(inner, outer);
             for (var process : List.of(pair.first(), pair.second())) {
                 var key = process == pair.first() ? firstKey : secondKey;
                 String input = "outer inner item minecraft:goat_horn[minecraft:instrument=\"" + key.name() + "\"]";
-                assertEquals(CommandResult.Type.SUCCESS, process.command().executeServerCommand(input).getType());
+                assertEquals(CommandResult.Type.SUCCESS, process.commandManager().executeServerCommand(input).getType());
                 assertSame(process, owner.get());
                 assertEquals(key, result.get().get(DataComponents.INSTRUMENT));
             }
             result.set(null);
-            assertEquals(CommandResult.Type.INVALID_SYNTAX, pair.second().command().executeServerCommand(
+            assertEquals(CommandResult.Type.INVALID_SYNTAX, pair.second().commandManager().executeServerCommand(
                     "outer inner item minecraft:goat_horn[minecraft:instrument=\"test:first\"]").getType());
             assertNull(result.get());
             assertThrows(IllegalStateException.class, () -> ArgumentType.ItemStack("item").parse(new CustomSender(), "stone"));
@@ -180,11 +180,11 @@ class ProcessCommandOwnershipTest {
             argument.setCallback((_, context, _) -> callbacks.add(context.process()));
             var command = new Command("restricted");
             command.addConditionalSyntax((_, context) -> context.process() == pair.second(), (_, _) -> {}, argument);
-            pair.first().command().register(command);
-            pair.second().command().register(command);
-            assertEquals(CommandResult.Type.CANCELLED, pair.first().command().executeServerCommand("restricted no").getType());
+            pair.first().commandManager().register(command);
+            pair.second().commandManager().register(command);
+            assertEquals(CommandResult.Type.CANCELLED, pair.first().commandManager().executeServerCommand("restricted no").getType());
             assertTrue(callbacks.isEmpty());
-            assertEquals(CommandResult.Type.INVALID_SYNTAX, pair.second().command().executeServerCommand("restricted no").getType());
+            assertEquals(CommandResult.Type.INVALID_SYNTAX, pair.second().commandManager().executeServerCommand("restricted no").getType());
             assertEquals(List.of(pair.second()), callbacks);
         }
     }
@@ -194,8 +194,8 @@ class ProcessCommandOwnershipTest {
         try (var pair = new ServerProcessPair()) {
             var firstErrors = new ArrayList<Throwable>();
             var secondErrors = new ArrayList<Throwable>();
-            pair.first().exception().setExceptionHandler(firstErrors::add);
-            pair.second().exception().setExceptionHandler(secondErrors::add);
+            pair.first().exceptionManager().setExceptionHandler(firstErrors::add);
+            pair.second().exceptionManager().setExceptionHandler(secondErrors::add);
             var expected = new IllegalStateException("second command");
             var command = new Command("fail");
             command.setDefaultExecutor((_, context) -> {

@@ -15,7 +15,7 @@ import java.util.function.Supplier;
 public sealed interface Scheduler extends Executor, AutoCloseable permits SchedulerImpl, SchedulerManager {
     /** Creates a scheduler whose exceptions and lifetime belong to the given process. */
     static Scheduler newScheduler(ServerProcess process) {
-        return process.scheduler().createScheduler();
+        return process.schedulerManager().createScheduler();
     }
 
     /**

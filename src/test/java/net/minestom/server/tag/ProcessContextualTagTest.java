@@ -149,8 +149,8 @@ class ProcessContextualTagTest {
     @Test
     void instancesAndChunksSupplyTheirOwnersRegistries() {
         try (var pair = configuredPair()) {
-            var first = pair.first().instance().createInstanceContainer(ChunkLoader.noop());
-            var second = pair.second().instance().createInstanceContainer(ChunkLoader.noop());
+            var first = pair.first().instanceManager().createInstanceContainer(ChunkLoader.noop());
+            var second = pair.second().instanceManager().createInstanceContainer(ChunkLoader.noop());
             var firstChunk = new DynamicChunk(first, 0, 0);
             var secondChunk = new DynamicChunk(second, 0, 0);
             for (Taggable owned : List.of(first, firstChunk)) {

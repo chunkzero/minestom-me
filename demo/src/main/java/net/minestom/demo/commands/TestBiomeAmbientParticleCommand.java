@@ -30,7 +30,7 @@ public class TestBiomeAmbientParticleCommand extends Command {
             sender.sendMessage(Component.text("This command is only available for players"));
             return;
         }
-        Instance instance = context.process().instance().createInstanceContainer();
+        Instance instance = context.process().instanceManager().createInstanceContainer();
         Particle particle = Particle.BLOCK_MARKER.withBlock(
                 Block.COPPER_BULB
                         .withProperty("lit", "true")

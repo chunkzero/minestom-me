@@ -27,7 +27,7 @@ public final class TickSchedulerThread extends MinestomThread {
             try {
                 serverProcess.ticker().tick(tickStart);
             } catch (Throwable e) {
-                serverProcess.exception().handleException(e);
+                serverProcess.exceptionManager().handleException(e);
             }
 
             // Advance the previous deadline so a tick rate change only affects future ticks.
@@ -59,7 +59,7 @@ public final class TickSchedulerThread extends MinestomThread {
         try {
             Thread.sleep(time);
         } catch (InterruptedException e) {
-            serverProcess.exception().handleException(e);
+            serverProcess.exceptionManager().handleException(e);
         }
     }
 }

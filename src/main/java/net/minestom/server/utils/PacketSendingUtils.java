@@ -86,7 +86,7 @@ public final class PacketSendingUtils {
      * Sends a packet to the online players of the supplied process.
      */
     public static void broadcastPlayPacket(ServerProcess process, ServerPacket packet) {
-        sendGroupedPacket(process.connection().getOnlinePlayers(), packet);
+        sendGroupedPacket(process.connectionManager().getOnlinePlayers(), packet);
     }
 
     private static SendablePacket groupedPacket(ServerPacket packet) {

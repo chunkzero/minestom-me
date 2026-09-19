@@ -19,7 +19,7 @@ public class GeneratorForkConsumerIntegrationTest {
 
     @Test
     public void empty(Env env) {
-        var manager = env.process().instance();
+        var manager = env.process().instanceManager();
         var instance = manager.createInstanceContainer();
         AtomicReference<Exception> failed = new AtomicReference<>();
         instance.setGenerator(unit -> {
@@ -36,7 +36,7 @@ public class GeneratorForkConsumerIntegrationTest {
 
     @Test
     public void local(Env env) {
-        var manager = env.process().instance();
+        var manager = env.process().instanceManager();
         var instance = manager.createInstanceContainer();
         instance.setGenerator(unit -> unit.fork(setter -> {
             var dynamic = (GeneratorImpl.DynamicFork) setter;
@@ -55,7 +55,7 @@ public class GeneratorForkConsumerIntegrationTest {
 
     @Test
     public void doubleLocal(Env env) {
-        var manager = env.process().instance();
+        var manager = env.process().instanceManager();
         var instance = manager.createInstanceContainer();
         instance.setGenerator(unit -> unit.fork(setter -> {
             setter.setBlock(unit.absoluteStart(), Block.STONE);
@@ -68,7 +68,7 @@ public class GeneratorForkConsumerIntegrationTest {
 
     @Test
     public void neighborZ(Env env) {
-        var manager = env.process().instance();
+        var manager = env.process().instanceManager();
         var instance = manager.createInstanceContainer();
         instance.setGenerator(unit -> unit.fork(setter -> {
             var dynamic = (GeneratorImpl.DynamicFork) setter;
@@ -91,7 +91,7 @@ public class GeneratorForkConsumerIntegrationTest {
 
     @Test
     public void neighborX(Env env) {
-        var manager = env.process().instance();
+        var manager = env.process().instanceManager();
         var instance = manager.createInstanceContainer();
         instance.setGenerator(unit -> unit.fork(setter -> {
             var dynamic = (GeneratorImpl.DynamicFork) setter;
@@ -114,7 +114,7 @@ public class GeneratorForkConsumerIntegrationTest {
 
     @Test
     public void neighborY(Env env) {
-        var manager = env.process().instance();
+        var manager = env.process().instanceManager();
         var instance = manager.createInstanceContainer();
         instance.setGenerator(unit -> unit.fork(setter -> {
             var dynamic = (GeneratorImpl.DynamicFork) setter;
@@ -135,7 +135,7 @@ public class GeneratorForkConsumerIntegrationTest {
 
     @Test
     public void verticalAndHorizontalSectionBorders(Env env) {
-        var manager = env.process().instance();
+        var manager = env.process().instanceManager();
         var instance = manager.createInstanceContainer();
         Set<Point> points = ConcurrentHashMap.newKeySet();
         instance.setGenerator(unit -> {

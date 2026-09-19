@@ -21,7 +21,7 @@ public class InstanceBossBarAttachIntegrationTest {
 
     @Test
     public void attachReturn(Env env) {
-        Instance instance = env.process().instance().createInstanceContainer();
+        Instance instance = env.process().instanceManager().createInstanceContainer();
         BossBar bossBar = sampleBossBar();
 
         assertEquals(0, instance.bossBars().size());
@@ -35,7 +35,7 @@ public class InstanceBossBarAttachIntegrationTest {
 
     @Test
     public void showOnAttach(Env env) {
-        Instance instance = env.process().instance().createInstanceContainer();
+        Instance instance = env.process().instanceManager().createInstanceContainer();
         BossBar bossBar = sampleBossBar();
 
         var connection = env.createConnection();
@@ -48,7 +48,7 @@ public class InstanceBossBarAttachIntegrationTest {
 
     @Test
     public void hideOnDetach(Env env) {
-        Instance instance = env.process().instance().createInstanceContainer();
+        Instance instance = env.process().instanceManager().createInstanceContainer();
         BossBar bossBar = sampleBossBar();
 
         var connection = env.createConnection();
@@ -61,7 +61,7 @@ public class InstanceBossBarAttachIntegrationTest {
 
     @Test
     public void showOnAdd(Env env) {
-        Instance instance = env.process().instance().createInstanceContainer();
+        Instance instance = env.process().instanceManager().createInstanceContainer();
         BossBar bossBar = sampleBossBar();
         instance.showBossBar(bossBar);
 
@@ -73,8 +73,8 @@ public class InstanceBossBarAttachIntegrationTest {
 
     @Test
     public void hideOnRemove(Env env) {
-        Instance instance = env.process().instance().createInstanceContainer();
-        Instance instance2 = env.process().instance().createInstanceContainer();
+        Instance instance = env.process().instanceManager().createInstanceContainer();
+        Instance instance2 = env.process().instanceManager().createInstanceContainer();
         BossBar bossBar = sampleBossBar();
 
         var connection = env.createConnection();
@@ -87,7 +87,7 @@ public class InstanceBossBarAttachIntegrationTest {
 
     @Test
     public void update(Env env) {
-        Instance instance = env.process().instance().createInstanceContainer();
+        Instance instance = env.process().instanceManager().createInstanceContainer();
         BossBar bossBar = sampleBossBar();
         instance.showBossBar(bossBar);
 

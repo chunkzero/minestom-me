@@ -54,7 +54,7 @@ public class TargetedBlockUpdateIntegrationTest {
     // to that chunk's viewers instead of resending the whole chunk.
     @Test
     public void forkSendsMultiBlockChange(Env env) {
-        var instance = env.process().instance().createInstanceContainer();
+        var instance = env.process().instanceManager().createInstanceContainer();
 
         var connection = env.createConnection();
         var player = connection.connect(instance, new Pos(8, 42, 8)); // spawn in chunk (0, 0)
@@ -119,7 +119,7 @@ public class TargetedBlockUpdateIntegrationTest {
     // must push a BlockEntityDataPacket to viewers with the correct block entity type and NBT data.
     @Test
     public void forkSendsBlockEntityData(Env env) {
-        var instance = env.process().instance().createInstanceContainer();
+        var instance = env.process().instanceManager().createInstanceContainer();
 
         var connection = env.createConnection();
         var player = connection.connect(instance, new Pos(8, 42, 8)); // spawn in chunk (0, 0)

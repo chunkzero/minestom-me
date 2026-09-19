@@ -88,16 +88,16 @@ class ProcessGameplayOwnershipTest {
                 assertSame(secondPackets.get(i), secondOtherPackets.get(i));
                 assertNotEquals(firstPackets.get(i).uuid(), secondPackets.get(i).uuid());
             }
-            assertTrue(a.process().bossBar().getBossBarViewers(bar).isEmpty());
-            assertTrue(b.process().bossBar().getBossBarViewers(bar).isEmpty());
+            assertTrue(a.process().bossBarManager().getBossBarViewers(bar).isEmpty());
+            assertTrue(b.process().bossBarManager().getBossBarViewers(bar).isEmpty());
         }
     }
 
     @Test
     void teamExistenceUsesNamesWithinTheOwningProcess() {
         try (var pair = new ServerProcessPair()) {
-            var first = pair.first().team();
-            var second = pair.second().team();
+            var first = pair.first().teamManager();
+            var second = pair.second().teamManager();
             var original = first.createTeam("same");
             var foreign = second.createTeam("same");
             assertTrue(first.exists(original));
@@ -120,7 +120,7 @@ class ProcessGameplayOwnershipTest {
             var connection = env.createConnection();
             connection.connect(env.createEmptyInstance(), Pos.ZERO);
             var packets = connection.trackIncoming(TeamsPacket.class);
-            var manager = env.process().team();
+            var manager = env.process().teamManager();
             var first = manager.createBuilder("same");
             var second = manager.createBuilder("same");
             var team = first.build();
@@ -130,7 +130,7 @@ class ProcessGameplayOwnershipTest {
             assertSame(team, manager.createTeam("same"));
             assertEquals(Set.of(team), manager.getTeams());
             packets.assertSingle();
-            assertTrue(pair.second().team().getTeams().isEmpty());
+            assertTrue(pair.second().teamManager().getTeams().isEmpty());
         }
     }
 
@@ -159,19 +159,19 @@ class ProcessGameplayOwnershipTest {
                 assertEquals(List.of(context.process() == a.process() ? first : second), context.get(target).find(sender));
                 context.process().audiences().players().sendActionBar(Component.text(context.process() == a.process() ? "first" : "second"));
             }, target);
-            a.process().command().register(command);
-            b.process().command().register(command);
+            a.process().commandManager().register(command);
+            b.process().commandManager().register(command);
             var firstPackets = firstConnection.trackIncoming(ActionBarPacket.class);
             var secondPackets = secondConnection.trackIncoming(ActionBarPacket.class);
-            a.process().command().execute(first, "rewrite");
-            b.process().command().execute(second, "rewrite");
+            a.process().commandManager().execute(first, "rewrite");
+            b.process().commandManager().execute(second, "rewrite");
             firstPackets.assertSingle(packet -> assertEquals(Component.text("first"), packet.text()));
             secondPackets.assertSingle(packet -> assertEquals(Component.text("second"), packet.text()));
             assertEquals(1, firstEvents.get());
             assertEquals(1, secondEvents.get());
-            assertThrows(IllegalArgumentException.class, () -> a.process().command().execute(second, "same"));
-            assertThrows(IllegalArgumentException.class, () -> a.process().command().parseCommand(second, "same"));
-            var parsed = a.process().command().parseCommand(first, "same");
+            assertThrows(IllegalArgumentException.class, () -> a.process().commandManager().execute(second, "same"));
+            assertThrows(IllegalArgumentException.class, () -> a.process().commandManager().parseCommand(second, "same"));
+            var parsed = a.process().commandManager().parseCommand(first, "same");
             assertThrows(IllegalArgumentException.class, () -> parsed.executable().execute(second));
             assertEquals(1, firstEvents.get());
             assertEquals(1, secondEvents.get());
@@ -186,17 +186,17 @@ class ProcessGameplayOwnershipTest {
             });
             var otherVisible = new Command("visible-other");
             otherVisible.setCondition(visible.getCondition());
-            a.process().command().register(visible, otherVisible);
-            b.process().command().register(visible, otherVisible);
-            assertFalse(a.process().command().createDeclareCommandsPacket(first).nodes().stream().anyMatch(node -> "visible".equals(node.name)));
-            assertTrue(b.process().command().createDeclareCommandsPacket(second).nodes().stream().anyMatch(node -> "visible".equals(node.name)));
+            a.process().commandManager().register(visible, otherVisible);
+            b.process().commandManager().register(visible, otherVisible);
+            assertFalse(a.process().commandManager().createDeclareCommandsPacket(first).nodes().stream().anyMatch(node -> "visible".equals(node.name)));
+            assertTrue(b.process().commandManager().createDeclareCommandsPacket(second).nodes().stream().anyMatch(node -> "visible".equals(node.name)));
             var finder = new EntityFinder(a.process()).setTargetSelector(EntityFinder.TargetSelector.ALL_PLAYERS);
-            assertEquals(List.of(first), finder.find(a.process().command().getConsoleSender()));
+            assertEquals(List.of(first), finder.find(a.process().commandManager().getConsoleSender()));
             assertEquals(List.of(first), finder.find(first));
             assertSame(first, finder.findFirstPlayer(first));
             assertSame(first, finder.findFirstEntity(first));
             var namedFinder = new EntityFinder(b.process()).setTargetSelector(EntityFinder.TargetSelector.MINESTOM_USERNAME).setConstantName("SameName");
-            assertEquals(List.of(second), namedFinder.find(b.process().command().getConsoleSender()));
+            assertEquals(List.of(second), namedFinder.find(b.process().commandManager().getConsoleSender()));
             assertThrows(IllegalArgumentException.class, () -> finder.find(second));
 
             var aOnly = firstConnection.trackIncoming(ActionBarPacket.class);
@@ -222,8 +222,8 @@ class ProcessGameplayOwnershipTest {
             assertThrows(IllegalArgumentException.class, () -> PacketGroupingAudience.of(List.of(first, second)).playSound(sound, first));
             aSounds.assertEmpty();
             bSounds.assertEmpty();
-            var tabA = a.process().advancement().createTab("test:shared", new AdvancementRoot(Component.text("A"), Component.empty(), Material.DIAMOND, FrameType.TASK, 0, 0, null));
-            var tabB = b.process().advancement().createTab("test:shared", new AdvancementRoot(Component.text("B"), Component.empty(), Material.DIAMOND, FrameType.TASK, 0, 0, null));
+            var tabA = a.process().advancementManager().createTab("test:shared", new AdvancementRoot(Component.text("A"), Component.empty(), Material.DIAMOND, FrameType.TASK, 0, 0, null));
+            var tabB = b.process().advancementManager().createTab("test:shared", new AdvancementRoot(Component.text("B"), Component.empty(), Material.DIAMOND, FrameType.TASK, 0, 0, null));
             tabA.addViewer(first);
             tabB.addViewer(second);
             assertEquals(Set.of(tabA), AdvancementTab.getTabs(first));
@@ -231,23 +231,23 @@ class ProcessGameplayOwnershipTest {
             assertThrows(IllegalArgumentException.class, () -> tabA.addViewer(second));
             var aTeams = ac.trackIncoming(TeamsPacket.class);
             var bTeams = bc.trackIncoming(TeamsPacket.class);
-            var teamA = a.process().team().createTeam("same");
+            var teamA = a.process().teamManager().createTeam("same");
             first.setTeam(teamA);
             aTeams.assertCount(2);
             bTeams.assertEmpty();
-            var teamB = b.process().team().createTeam("same");
+            var teamB = b.process().teamManager().createTeam("same");
             second.setTeam(teamB);
             assertEquals(List.of(first), List.copyOf(teamA.getPlayers()));
             assertEquals(List.of(second), List.copyOf(teamB.getPlayers()));
             assertThrows(IllegalArgumentException.class, () -> first.setTeam(teamB));
             assertSame(teamA, first.getTeam());
-            assertThrows(IllegalArgumentException.class, () -> b.process().team().deleteTeam(teamA));
+            assertThrows(IllegalArgumentException.class, () -> b.process().teamManager().deleteTeam(teamA));
 
             var bar = BossBar.bossBar(Component.text("shared"), 0.5f, BossBar.Color.BLUE, BossBar.Overlay.PROGRESS);
             PacketGroupingAudience.of(List.of(first, second)).showBossBar(bar);
-            assertEquals(List.of(first), List.copyOf(a.process().bossBar().getBossBarViewers(bar)));
-            assertEquals(List.of(second), List.copyOf(b.process().bossBar().getBossBarViewers(bar)));
-            assertThrows(IllegalArgumentException.class, () -> a.process().bossBar().addBossBar(second, bar));
+            assertEquals(List.of(first), List.copyOf(a.process().bossBarManager().getBossBarViewers(bar)));
+            assertEquals(List.of(second), List.copyOf(b.process().bossBarManager().getBossBarViewers(bar)));
+            assertThrows(IllegalArgumentException.class, () -> a.process().bossBarManager().addBossBar(second, bar));
             a.process().audiences().registry().register(Key.key("test:custom"), first);
             assertTrue(b.process().audiences().registry().isEmpty());
             var clicksA = new AtomicInteger();
@@ -272,7 +272,7 @@ class ProcessGameplayOwnershipTest {
             b.process().clickCallbackManager().consumeCustomClick(second, packetB);
             assertEquals(1, clicksB.get());
             assertTrue(a.process().audiences().registry().isEmpty());
-            assertTrue(a.process().bossBar().getBossBarViewers(bar).isEmpty());
+            assertTrue(a.process().bossBarManager().getBossBarViewers(bar).isEmpty());
             var closedPackets = ac.trackIncoming(BossBarPacket.class);
             var livePackets = bc.trackIncoming(BossBarPacket.class);
             bar.name(Component.text("still live"));
@@ -281,8 +281,8 @@ class ProcessGameplayOwnershipTest {
             var liveMessages = bc.trackIncoming(ActionBarPacket.class);
             var command = new Command("after-close");
             command.setDefaultExecutor((_, context) -> context.process().audiences().players().sendActionBar(Component.text("still live")));
-            b.process().command().register(command);
-            b.process().command().executeServerCommand("after-close");
+            b.process().commandManager().register(command);
+            b.process().commandManager().executeServerCommand("after-close");
             liveMessages.assertSingle();
         }
     }

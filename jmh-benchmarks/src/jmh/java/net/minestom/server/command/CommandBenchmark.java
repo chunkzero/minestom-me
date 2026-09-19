@@ -73,7 +73,7 @@ public class CommandBenchmark {
                 }}
         ));
         final CommandParser commandParser = CommandParser.parser();
-        this.parser = input -> commandParser.parse(process.command(), process.command().getConsoleSender(), graph, input);
+        this.parser = input -> commandParser.parse(process.commandManager(), process.commandManager().getConsoleSender(), graph, input);
     }
 
     @TearDown
