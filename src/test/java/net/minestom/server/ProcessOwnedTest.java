@@ -3,6 +3,7 @@ package net.minestom.server;
 import net.kyori.adventure.text.Component;
 import net.minestom.server.advancements.AdvancementRoot;
 import net.minestom.server.advancements.FrameType;
+import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.instance.InstanceContainer;
@@ -62,6 +63,7 @@ class ProcessOwnedTest {
                 process.teamManager().createTeam("team"),
                 process.advancementManager().createTab("root", root),
                 new EntityFinder(process),
+                new CommandContext(process.commandManager(), "help"),
                 process.server(),
                 process.eventHandler(),
                 process.connectionManager(),
