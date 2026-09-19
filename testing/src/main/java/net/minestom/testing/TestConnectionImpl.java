@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
-import net.minestom.server.property.ServerProperties;
 
 final class TestConnectionImpl implements TestConnection {
     private final ServerProcess process;
@@ -98,7 +97,7 @@ final class TestConnectionImpl implements TestConnection {
             final Player player = getPlayer();
             if (player == null) return serverPacket;
 
-            if (ServerProperties.AUTOMATIC_COMPONENT_TRANSLATION.get() && serverPacket instanceof ServerPacket.ComponentHolding) {
+            if (process().properties().automaticComponentTranslation().get() && serverPacket instanceof ServerPacket.ComponentHolding) {
                 serverPacket = ((ServerPacket.ComponentHolding) serverPacket).copyWithOperator(component ->
                         process().translation().translate(component, player.getLocale()));
             }

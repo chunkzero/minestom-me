@@ -46,8 +46,8 @@ import net.minestom.demo.commands.SleepCommand;
 import net.minestom.demo.commands.SummonCommand;
 import net.minestom.demo.commands.TeleportCommand;
 import net.minestom.demo.commands.TestBiomeAmbientParticleCommand;
-import net.minestom.demo.commands.TestCommand;
 import net.minestom.demo.commands.TestCommand2;
+import net.minestom.demo.commands.TestCommand;
 import net.minestom.demo.commands.TestInstabreakCommand;
 import net.minestom.demo.commands.TitleCommand;
 import net.minestom.demo.commands.TransferCommand;
@@ -65,6 +65,7 @@ import net.minestom.server.instance.block.BlockManager;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.ping.Status;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.recipe.RecipeBookCategory;
 import net.minestom.server.registry.RegistryKey;
 import net.minestom.server.registry.RegistryTag;
@@ -81,9 +82,11 @@ import java.util.Objects;
 public class Main {
 
     static void main(String[] args) {
-        System.setProperty("minestom.new-socket-write-lock", "true");
-        System.setProperty("minestom.registry.unsafe-ops", "true");
-        ServerProcess process = ServerProcess.create(new Auth.Offline());
+        var properties = ServerProperties.builder()
+                .fasterSocketWrites(true)
+                .freezeRegistriesOnStart(false)
+                .build();
+        ServerProcess process = ServerProcess.create(new Auth.Offline(), properties);
         process.setCompressionThreshold(0);
 
         BlockManager blockManager = process.blockManager();

@@ -37,7 +37,7 @@ public final class HandshakeListener {
     private static final Component INVALID_BUNGEE_FORWARDING = Component.text("Invalid connection, please connect through the BungeeCord proxy. If you believe this is an error, contact a server administrator.", NamedTextColor.RED);
 
     /**
-     * Text sent if a player was transferred to this server but the {@link ServerProperties#ACCEPT_TRANSFERS} server flag is not enabled.
+     * Text sent if a player was transferred to this server but the {@link ServerProperties#acceptTransfers()} server flag is not enabled.
      */
     private static final Component TRANSFERS_DISABLED_TEXT = Component.translatable("multiplayer.disconnect.transfers_disabled");
 
@@ -57,7 +57,7 @@ public final class HandshakeListener {
             case TRANSFER:
                 connection.markTransferred(true);
 
-                if (!ServerProperties.ACCEPT_TRANSFERS.get()) {
+                if (!connection.process().properties().acceptTransfers().get()) {
                     connection.kick(TRANSFERS_DISABLED_TEXT);
                     return;
                 }

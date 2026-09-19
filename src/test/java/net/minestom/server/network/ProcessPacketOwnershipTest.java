@@ -1,6 +1,7 @@
 package net.minestom.server.network;
 
 import net.kyori.adventure.text.Component;
+import net.minestom.server.Auth;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.Viewable;
 import net.minestom.server.component.DataComponents;
@@ -24,8 +25,11 @@ import net.minestom.server.network.packet.server.login.LoginPluginRequestPacket;
 import net.minestom.server.network.packet.server.login.SetCompressionPacket;
 import net.minestom.server.network.packet.server.play.SetSlotPacket;
 import net.minestom.server.network.packet.server.play.StartConfigurationPacket;
+import net.minestom.server.network.packet.server.play.SystemChatPacket;
 import net.minestom.server.network.player.GameProfile;
 import net.minestom.server.network.player.PlayerSocketConnection;
+import net.minestom.server.property.ServerProperties;
+import net.minestom.server.utils.PacketSendingUtils;
 import net.minestom.testing.ServerProcessPair;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -95,6 +99,25 @@ class ProcessPacketOwnershipTest {
                 assertEquals(0, buffer.readableBytes());
                 assertEquals(threshold, session.connection.packetContext().compressionThreshold());
             }
+        }
+    }
+
+    @Test
+    void groupedPacketsUseEachRecipientsTranslationPolicy() throws Exception {
+        try (var enabled = ServerProcess.create(new Auth.Offline(),
+                    ServerProperties.builder().automaticComponentTranslation(true).build());
+             var disabled = ServerProcess.create(new Auth.Offline(),
+                    ServerProperties.builder().automaticComponentTranslation(false).build());
+             var first = new Session(enabled); var second = new Session(disabled)) {
+            enabled.translation().setTranslator((_, _) -> Component.text("translated"));
+            disabled.translation().setTranslator((_, _) -> Component.text("unexpected"));
+            first.play(0);
+            second.play(0);
+            var recipients = List.of(first.player(), second.player());
+            var packet = new SystemChatPacket(Component.translatable("test:key"), false);
+            PacketSendingUtils.sendGroupedPacket(recipients, packet);
+            assertEquals(List.of(new SystemChatPacket(Component.text("translated"), false)), first.flushPackets());
+            assertEquals(List.of(packet), second.flushPackets());
         }
     }
 

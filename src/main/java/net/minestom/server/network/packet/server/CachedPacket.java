@@ -2,7 +2,6 @@ package net.minestom.server.network.packet.server;
 
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.PacketEncodingContext;
-import net.minestom.server.property.ServerProperties;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
@@ -136,7 +135,7 @@ public final class CachedPacket implements SendablePacket {
      * @return the cached framed packet, or {@code null} when caching is disabled
      */
     public @Nullable FramedPacket framed(PacketEncodingContext context) {
-        if (!ServerProperties.CACHED_PACKET.get()) return null;
+        if (!context.properties().cachedPacket().get()) return null;
 
         final FramedPacket cache = cachedPacket();
         return cache != null && cache.context().equals(context) ? cache : computeCache(context);
@@ -195,7 +194,8 @@ public final class CachedPacket implements SendablePacket {
      * available
      */
     public boolean isValid() {
-        return ServerProperties.CACHED_PACKET.get() && cachedPacket() != null;
+        final FramedPacket cache = cachedPacket();
+        return cache != null && cache.context().properties().cachedPacket().get();
     }
 
     /**

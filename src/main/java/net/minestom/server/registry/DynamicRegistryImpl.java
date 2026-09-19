@@ -13,7 +13,6 @@ import net.minestom.server.network.packet.server.CachedPacket;
 import net.minestom.server.network.packet.server.SendablePacket;
 import net.minestom.server.network.packet.server.common.TagsPacket;
 import net.minestom.server.network.packet.server.configuration.RegistryDataPacket;
-import net.minestom.server.property.ServerProperties;
 import net.minestom.server.utils.json.JsonUtil;
 import net.minestom.server.utils.validate.Check;
 import org.jetbrains.annotations.ApiStatus;
@@ -35,7 +34,7 @@ import java.util.Objects;
 
 @ApiStatus.Internal
 final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
-    private static final String UNSAFE_REMOVE_MESSAGE = "Registry is frozen. Enable unsafe changes by setting the system property 'minestom.registry.unsafe-ops' to 'true'";
+    private static final String UNSAFE_REMOVE_MESSAGE = "Registry is frozen. Change entries before freezing; automatic startup freezing is controlled by ServerProperties.freezeRegistriesOnStart()";
     private final Object registryLock = new Object();
 
     private volatile @Nullable Registries registries = null;
@@ -344,11 +343,7 @@ final class DynamicRegistryImpl<T> implements DynamicRegistry<T> {
 
     @Override
     public boolean isFrozen() {
-        return canFreeze() && frozen;
-    }
-
-    static boolean canFreeze() {
-        return !ServerProperties.REGISTRY_UNSAFE_OPS.get() && !ServerProperties.INSIDE_TEST.get();
+        return frozen;
     }
 
     @SuppressWarnings("removal")

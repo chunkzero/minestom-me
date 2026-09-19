@@ -11,6 +11,7 @@ import net.minestom.server.codec.Transcoder;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.registry.Registries;
 import net.minestom.server.registry.RegistryTranscoder;
 import net.minestom.server.utils.Either;
@@ -45,7 +46,6 @@ import static net.minestom.server.network.NetworkBuffer.FixedRawLongs;
 import static net.minestom.server.network.NetworkBuffer.INT;
 import static net.minestom.server.network.NetworkBuffer.LONG;
 import static net.minestom.server.network.NetworkBuffer.NBT;
-import static net.minestom.server.network.NetworkBuffer.UNTRUSTED_NBT;
 import static net.minestom.server.network.NetworkBuffer.RAW_BYTES;
 import static net.minestom.server.network.NetworkBuffer.RAW_LONGS;
 import static net.minestom.server.network.NetworkBuffer.SHORT;
@@ -53,6 +53,7 @@ import static net.minestom.server.network.NetworkBuffer.STRING;
 import static net.minestom.server.network.NetworkBuffer.UNSIGNED_BYTE;
 import static net.minestom.server.network.NetworkBuffer.UNSIGNED_INT;
 import static net.minestom.server.network.NetworkBuffer.UNSIGNED_SHORT;
+import static net.minestom.server.network.NetworkBuffer.UNTRUSTED_NBT;
 import static net.minestom.server.network.NetworkBuffer.VAR_INT;
 import static net.minestom.server.network.NetworkBuffer.VAR_LONG;
 import static net.minestom.server.network.NetworkBufferImpl.impl;
@@ -904,7 +905,7 @@ interface NetworkBufferTypeImpl<T> extends NetworkBuffer.Type<T> {
         @Override
         public void write(NetworkBuffer buffer, T value) {
             // Write to another buffer and copy (kinda inefficient, but currently unused serverside so its ok for now)
-            final byte[] componentData = NetworkBuffer.makeArray(b -> parent.write(b, value), buffer.registries());
+            final byte[] componentData = NetworkBuffer.makeArray(b -> parent.write(b, value), buffer.registries(), buffer.properties());
             buffer.write(NetworkBuffer.BYTE_ARRAY, componentData);
         }
 
@@ -925,7 +926,7 @@ interface NetworkBufferTypeImpl<T> extends NetworkBuffer.Type<T> {
     record MaxLength<T>(NetworkBuffer.Type<T> parent, long maxLength) implements NetworkBufferTypeImpl<T> {
         @Override
         public void write(NetworkBuffer buffer, T value) {
-            final long length = parent.sizeOf(value, buffer.registries());
+            final long length = parent.sizeOf(value, buffer.registries(), buffer.properties());
             Check.argCondition(length > maxLength, "Value is too long (length: {0}, max: {1})", length, maxLength);
             buffer.write(parent, value);
         }
@@ -1307,8 +1308,8 @@ interface NetworkBufferTypeImpl<T> extends NetworkBuffer.Type<T> {
         }
     }
 
-    static <T> long sizeOf(NetworkBuffer.Type<T> type, T value, @Nullable Registries registries) {
-        NetworkBuffer buffer = NetworkBufferImpl.dummy(registries);
+    static <T> long sizeOf(NetworkBuffer.Type<T> type, T value, @Nullable Registries registries, ServerProperties properties) {
+        NetworkBuffer buffer = NetworkBufferImpl.dummy(registries, properties);
         type.write(buffer, value);
         return buffer.writeIndex();
     }

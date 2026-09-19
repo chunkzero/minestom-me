@@ -20,6 +20,7 @@ import net.minestom.server.network.packet.PacketBatcher;
 import net.minestom.server.network.packet.PacketBufferPool;
 import net.minestom.server.network.packet.PacketParser;
 import net.minestom.server.network.socket.Server;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.recipe.RecipeManager;
 import net.minestom.server.registry.Registries;
 import net.minestom.server.scoreboard.TeamManager;
@@ -46,8 +47,16 @@ public interface ServerProcess extends Snapshotable, AutoCloseable {
      * }
      */
     static ServerProcess create(Auth auth) {
-        return new ServerProcessImpl(auth);
+        return create(auth, ServerProperties.fromSystemProperties());
     }
+
+    /** Creates a process with an independent copy of the supplied resolved properties. */
+    static ServerProcess create(Auth auth, ServerProperties properties) {
+        return new ServerProcessImpl(auth, properties);
+    }
+
+    /** Effective properties owned by this process, including any permitted runtime changes. */
+    ServerProperties properties();
 
     /** Creates an independent process using offline authentication. */
     static ServerProcess create() {

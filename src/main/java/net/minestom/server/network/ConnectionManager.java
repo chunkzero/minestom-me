@@ -252,7 +252,7 @@ public final class ConnectionManager implements ProcessOwned {
         gameProfile = asyncPlayerPreLoginEvent.getGameProfile();
         // Wait for pending login plugin messages
         try {
-            pluginMessageProcessor.awaitReplies(ServerProperties.LOGIN_PLUGIN_MESSAGE_TIMEOUT.get(), TimeUnit.MILLISECONDS);
+            pluginMessageProcessor.awaitReplies(process().properties().loginPluginMessageTimeout().get(), TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
             if (!connection.isOnline()) return gameProfile;
             connection.kick(LoginListener.INVALID_PROXY_RESPONSE);
@@ -309,7 +309,7 @@ public final class ConnectionManager implements ProcessOwned {
         if (event.willSendRegistryData()) {
             List<SelectKnownPacksPacket.Entry> knownPacks;
             try {
-                knownPacks = knownPacksFuture.get(ServerProperties.KNOWN_PACKS_RESPONSE_TIMEOUT.get(), TimeUnit.MILLISECONDS);
+                knownPacks = knownPacksFuture.get(process().properties().knownPacksResponseTimeout().get(), TimeUnit.MILLISECONDS);
             } catch (InterruptedException | TimeoutException _) {
                 LOGGER.warn("Player {} failed to respond to known packs query", player.getUsername());
                 player.getPlayerConnection().disconnect();
@@ -497,10 +497,10 @@ public final class ConnectionManager implements ProcessOwned {
         final KeepAlivePacket keepAlivePacket = new KeepAlivePacket(tickStart);
         for (Player player : playerGroup) {
             final long lastKeepAlive = tickStart - player.getLastKeepAlive();
-            if (lastKeepAlive > TimeUnit.MILLISECONDS.toNanos(ServerProperties.KEEP_ALIVE_DELAY.get()) && player.didAnswerKeepAlive()) {
+            if (lastKeepAlive > TimeUnit.MILLISECONDS.toNanos(player.process().properties().keepAliveDelay().get()) && player.didAnswerKeepAlive()) {
                 player.refreshKeepAlive(tickStart);
                 player.sendPacket(keepAlivePacket);
-            } else if (lastKeepAlive >= TimeUnit.MILLISECONDS.toNanos(ServerProperties.KEEP_ALIVE_KICK.get())) {
+            } else if (lastKeepAlive >= TimeUnit.MILLISECONDS.toNanos(player.process().properties().keepAliveKick().get())) {
                 player.kick(TIMEOUT_TEXT);
             }
         }

@@ -231,7 +231,7 @@ public final class PacketReading {
             buffer.readIndex(beginMark);
             return emptyResult();
         }
-        final int maxPacketSize = maxPacketSize(state);
+        final int maxPacketSize = maxPacketSize(state, buffer.properties());
         if (packetLength < 0) throw new DataFormatException("Packet length negative: " + packetLength);
         if (packetLength > maxPacketSize) throw new DataFormatException("Packet too large: " + packetLength);
         // READ PAYLOAD https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Protocol#Packet_format
@@ -274,7 +274,8 @@ public final class PacketReading {
         }
 
         // Decompress the packet into the pooled buffer and read the uncompressed packet from it
-        NetworkBuffer poolBuffer = pool != null ? pool.get() : NetworkBuffer.staticBuffer(dataLength);
+        final boolean pooled = pool != null && pool.properties() == buffer.properties();
+        NetworkBuffer poolBuffer = pooled ? pool.get() : NetworkBuffer.staticBuffer(dataLength, buffer.registries(), buffer.properties());
         try {
             if (poolBuffer.capacity() < dataLength) poolBuffer.resize(dataLength);
             final NetworkBuffer slice = poolBuffer.slice(0, dataLength, 0, 0);
@@ -285,7 +286,7 @@ public final class PacketReading {
             }
             return readPayload(slice.readOnly(), registry, packetReader);
         } finally {
-            if (pool != null) pool.add(poolBuffer);
+            if (pooled) pool.add(poolBuffer);
         }
     }
 
@@ -299,7 +300,7 @@ public final class PacketReading {
                 buffer.readIndex(buffer.writeIndex());
                 return null;
             }
-            if (ServerProperties.WARN_PACKET_UNREAD_BYTES.get() && buffer.readableBytes() != 0) {
+            if (buffer.properties().warnPacketUnreadBytes().get() && buffer.readableBytes() != 0) {
                 LOGGER.warn("WARNING: Packet ({}) 0x{} not fully read ({})",
                         packetInfo.packetClass().getSimpleName(), Integer.toHexString(packetId), buffer);
             }
@@ -314,9 +315,13 @@ public final class PacketReading {
     }
 
     public static int maxPacketSize(ConnectionState state) {
+        return maxPacketSize(state, ServerProperties.fromSystemProperties());
+    }
+
+    public static int maxPacketSize(ConnectionState state, ServerProperties properties) {
         return switch (state) {
-            case HANDSHAKE, STATUS, LOGIN -> ServerProperties.MAX_PACKET_SIZE_PRE_AUTH.get();
-            default -> ServerProperties.MAX_PACKET_SIZE.get();
+            case HANDSHAKE, STATUS, LOGIN -> properties.maxPacketSizePreAuth().get();
+            default -> properties.maxPacketSize().get();
         };
     }
 }

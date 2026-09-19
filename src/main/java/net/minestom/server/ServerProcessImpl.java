@@ -104,11 +104,14 @@ final class ServerProcessImpl implements ServerProcess {
     private final AtomicBoolean stopped = new AtomicBoolean();
     private @Nullable Thread shutdownHook;
 
-    public ServerProcessImpl(Auth auth) {
+    private final ServerProperties properties;
+
+    public ServerProcessImpl(Auth auth, ServerProperties properties) {
         this.auth = Objects.requireNonNull(auth);
+        this.properties = Objects.requireNonNull(properties).copy();
         this.exception = new ExceptionManager(this::stop);
         this.registries = Registries.vanilla();
-        this.packetBuffers = new PacketBufferPool(registries);
+        this.packetBuffers = new PacketBufferPool(registries, this.properties);
         this.packetBatcher = new PacketBatcher(this);
 
         this.connection = new ConnectionManager(this);
@@ -129,8 +132,13 @@ final class ServerProcessImpl implements ServerProcess {
         this.server = new Server(this, packetParser);
         this.lan = new OpenToLAN(this);
 
-        this.dispatcher = ThreadDispatcher.dispatcher(this, ThreadProvider.counter(), ServerProperties.DISPATCHER_THREADS.get());
+        this.dispatcher = ThreadDispatcher.dispatcher(this, ThreadProvider.counter(), this.properties.dispatcherThreads().get());
         this.ticker = new TickerImpl();
+    }
+
+    @Override
+    public ServerProperties properties() {
+        return properties;
     }
 
     @Override
@@ -327,8 +335,8 @@ final class ServerProcessImpl implements ServerProcess {
                     }
                 }
                 server.init(socketAddress);
-                Registries.freeze(registries);
-                if (ServerProperties.SHUTDOWN_ON_SIGNAL.get()) {
+                if (properties.freezeRegistriesOnStart().get()) Registries.freeze(registries);
+                if (properties.shutdownOnSignal().get()) {
                     shutdownHook = new Thread(this::stop, "Minestom shutdown-" + id);
                     Runtime.getRuntime().addShutdownHook(shutdownHook);
                 }

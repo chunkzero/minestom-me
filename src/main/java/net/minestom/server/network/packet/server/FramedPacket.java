@@ -13,7 +13,8 @@ public record FramedPacket(PacketEncodingContext context,
                            ServerPacket packet,
                            NetworkBuffer body) implements SendablePacket {
     public FramedPacket {
-        if (body.registries() != context.registries()) throw new IllegalArgumentException("Foreign buffer registries");
+        if (body.registries() != context.registries() || body.properties() != context.properties())
+            throw new IllegalArgumentException("Foreign buffer registries or properties");
         body = body.readOnly().readIndex(0);
     }
 }

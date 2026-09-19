@@ -34,7 +34,7 @@ public class TranslationIntegrationTest {
 
     @Test
     public void testTranslationEnabled(final Env env) {
-        Assumptions.assumeTrue(ServerProperties.AUTOMATIC_COMPONENT_TRANSLATION.get());
+        Assumptions.assumeTrue(ServerProperties.fromSystemProperties().automaticComponentTranslation().get());
         final var instance = env.createFlatInstance();
         final var connection = env.createConnection();
         final var player = connection.connect(instance, new Pos(0, 40, 0));
@@ -51,7 +51,7 @@ public class TranslationIntegrationTest {
 
     @Test
     public void testTranslationDisabled(final Env env) {
-        Assumptions.assumeFalse(ServerProperties.AUTOMATIC_COMPONENT_TRANSLATION.get());
+        Assumptions.assumeFalse(ServerProperties.fromSystemProperties().automaticComponentTranslation().get());
         final var instance = env.createFlatInstance();
         final var connection = env.createConnection();
         final var player = connection.connect(instance, new Pos(0, 40, 0));
@@ -66,7 +66,7 @@ public class TranslationIntegrationTest {
 
     @Test
     public void testItemStackTranslation(final Env env) {
-        Assumptions.assumeTrue(ServerProperties.AUTOMATIC_COMPONENT_TRANSLATION.get());
+        Assumptions.assumeTrue(ServerProperties.fromSystemProperties().automaticComponentTranslation().get());
         final var instance = env.createFlatInstance();
         final var connection = env.createConnection();
         final var player = connection.connect(instance, new Pos(0, 40, 0));
@@ -87,7 +87,7 @@ public class TranslationIntegrationTest {
 
     @Test
     public void testUpdateScorePacketTranslations(final Env env) {
-        Assumptions.assumeTrue(ServerProperties.AUTOMATIC_COMPONENT_TRANSLATION.get());
+        Assumptions.assumeTrue(ServerProperties.fromSystemProperties().automaticComponentTranslation().get());
         final var instance = env.createFlatInstance();
         final var connection = env.createConnection();
         final var player = connection.connect(instance, new Pos(0, 40, 0));

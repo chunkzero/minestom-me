@@ -3,6 +3,7 @@ package net.minestom.server.property;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
+import java.util.Properties;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -15,47 +16,49 @@ final class ServerPropertyImpl {
     private ServerPropertyImpl() {
     }
 
-    private static boolean mutable(String name) {
-        final String raw = System.getProperty(name + MUTABLE_SUFFIX);
+    private static boolean mutable(Properties source, String name) {
+        final String raw = source.getProperty(name + MUTABLE_SUFFIX);
         if (raw != null) return Boolean.parseBoolean(raw);
-        return Boolean.getBoolean(MUTABLE_DEFAULT);
+        return Boolean.parseBoolean(source.getProperty(MUTABLE_DEFAULT, "false"));
     }
 
-    static <T> ServerProperty<T> create(String name, T defaultValue, Function<String, ? extends T> parser) {
-        return build(name, defaultValue, parser, null);
-    }
-
-    static <T> ServerProperty<T> create(String name, T defaultValue,
-                                        Function<String, ? extends T> parser, Consumer<? super T> validator) {
-        return build(name, defaultValue, parser, Objects.requireNonNull(validator, "validator"));
-    }
-
-    private static <T> ServerProperty<T> build(String name, T defaultValue,
-                                               Function<String, ? extends T> parser, @Nullable Consumer<? super T> validator) {
+    static <T> ServerProperty<T> create(Properties source, String name, T defaultValue,
+                                       Function<String, ? extends T> parser, @Nullable Consumer<? super T> validator,
+                                       @Nullable T override, boolean allowWrites) {
         Objects.requireNonNull(name, "name");
         Objects.requireNonNull(defaultValue, "defaultValue");
         Objects.requireNonNull(parser, "parser");
-        final T value = resolve(name, defaultValue, parser, validator);
-        return mutable(name)
+        final T value = override != null ? override : resolve(source, name, defaultValue, parser);
+        validate(validator, value);
+        return allowWrites && mutable(source, name)
                 ? new Mutable<>(name, defaultValue, validator, value)
                 : new Immutable<>(name, defaultValue, value);
     }
 
-    private static <T> T resolve(String name, T defaultValue,
-                                 Function<String, ? extends T> parser, @Nullable Consumer<? super T> validator) {
-        final String raw = System.getProperty(name);
-        if (raw == null) {
-            validate(validator, defaultValue);
-            return defaultValue;
-        }
-        final T parsed;
+    static <T> ServerProperty<T> copy(ServerProperty<T> property) {
+        return switch (property) {
+            case Immutable<T> immutable -> immutable;
+            case Mutable<T> mutable -> new Mutable<>(mutable.name, mutable.defaultValue, mutable.validator, mutable.get());
+        };
+    }
+
+    static <T> ServerProperty<T> create(String name, T defaultValue, Function<String, ? extends T> parser) {
+        return create(System.getProperties(), name, defaultValue, parser, null, null, true);
+    }
+
+    static <T> ServerProperty<T> create(String name, T defaultValue,
+                                       Function<String, ? extends T> parser, Consumer<? super T> validator) {
+        return create(System.getProperties(), name, defaultValue, parser, Objects.requireNonNull(validator), null, true);
+    }
+
+    private static <T> T resolve(Properties source, String name, T defaultValue, Function<String, ? extends T> parser) {
+        final String raw = source.getProperty(name);
+        if (raw == null) return defaultValue;
         try {
-            parsed = parser.apply(raw);
+            return parser.apply(raw);
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Property '" + name + "' has an unparseable value: " + raw, e);
         }
-        validate(validator, parsed);
-        return parsed;
     }
 
     private static <T> void validate(@Nullable Consumer<? super T> validator, T value) {
@@ -81,8 +84,7 @@ final class ServerPropertyImpl {
         @Override
         public void set(T value) {
             throw new IllegalStateException("Property '" + name
-                    + "' is immutable, assign it with -D" + name
-                    + "=<value> or make it writable with -D" + name + MUTABLE_SUFFIX + "=true");
+                    + "' is immutable; configure its initial value before creating the process");
         }
 
         @Override

@@ -50,7 +50,7 @@ class SocketErrorIntegrationTest {
                 });
 
                 byte[] bytes = malformed
-                        ? NetworkBuffer.makeArray(buffer -> buffer.write(NetworkBuffer.VAR_INT, ServerProperties.MAX_PACKET_SIZE_PRE_AUTH.get() + 1))
+                        ? NetworkBuffer.makeArray(buffer -> buffer.write(NetworkBuffer.VAR_INT, ServerProperties.fromSystemProperties().maxPacketSizePreAuth().get() + 1))
                         : new byte[]{1, 0}; // Framed status request: one byte payload, packet ID zero.
                 var buffer = ByteBuffer.wrap(bytes);
                 while (buffer.hasRemaining()) client.write(buffer);

@@ -100,7 +100,6 @@ public final class PacketSendingUtils {
      * @see CachedPacket#body(PacketEncodingContext)
      */
     private static boolean shouldUseCachePacket(final ServerPacket packet) {
-        if (!ServerProperties.AUTOMATIC_COMPONENT_TRANSLATION.get()) return true;
         if (!(packet instanceof ServerPacket.ComponentHolding holder)) return true;
         return !containsTranslatableComponents(holder);
     }
