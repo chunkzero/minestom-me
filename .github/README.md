@@ -17,8 +17,10 @@ However, we have a complete API which is designed to allow you to make anything 
 This is a developer API not meant to be used by end-users. Replacing Bukkit/Forge/Sponge with this **will not work** since we do not implement any of their APIs.
 
 # Table of contents
+
 - [Install](#install)
 - [Usage](#usage)
+  - [This fork: process ownership](#this-fork-process-ownership)
 - [Why Minestom?](#why-minestom)
 - [Advantages & Disadvantages](#advantages-and-disadvantages)
 - [API](#api)
@@ -27,6 +29,9 @@ This is a developer API not meant to be used by end-users. Replacing Bukkit/Forg
 - [License](#license)
 
 # Install
+
+The Maven coordinates below distribute upstream Minestom. This fork's process API requires a build of this repository using Java 25.
+
 Minestom is not installed like Bukkit/Forge/Sponge.
 As Minestom is a Java library, it must be loaded the same way any other Java library may be loaded.
 This means you need to add Minestom as a dependency, add your code and compile by yourself.
@@ -86,8 +91,38 @@ To pin the snapshot version to a specific release you can reference the exact bu
 </details>
 
 # Usage
-An example of how to use the Minestom library is available [here](/demo).
-Alternatively you can check the official [wiki](https://wiki.minestom.net/) or the [javadocs](https://minestom.github.io/Minestom/).
+
+## This fork: process ownership
+
+Create and retain a `ServerProcess` instead of using `MinecraftServer`. Each process owns its players, instances, managers, registries, and lifecycle; several can run in the same JVM on different ports.
+
+```java
+import net.minestom.server.ServerProcess;
+import net.minestom.server.coordinate.Pos;
+import net.minestom.server.event.player.AsyncPlayerConfigurationEvent;
+import net.minestom.server.instance.block.Block;
+
+import java.net.InetSocketAddress;
+
+public class Main {
+    public static void main(String[] args) {
+        var process = ServerProcess.create(); // Offline authentication
+        var instance = process.instance().createInstanceContainer();
+        instance.setGenerator(unit -> unit.modifier().fillHeight(0, 40, Block.STONE));
+        process.eventHandler().addListener(AsyncPlayerConfigurationEvent.class, event -> {
+            event.setSpawningInstance(instance);
+            event.getPlayer().setRespawnPoint(new Pos(0, 40, 0));
+        });
+        process.start(new InetSocketAddress("0.0.0.0", 25565));
+    }
+}
+```
+
+`start` returns immediately. Call `process.close()` when its runtime is no longer needed; startup also installs a JVM shutdown hook. Use `ServerProcess.create(new Auth.Online())` for online authentication (`net.minestom.server.Auth`).
+
+Use an object's `process()` or a callback's context to reach its owner. Item stacks, blocks, and tag definitions remain reusable; standalone registry-dependent conversions take explicit `Registries`.
+
+See [API differences from upstream](../docs/api-differences.md) for the migration tables and semantic changes, or the [demo](../demo) for more examples. The upstream [wiki](https://wiki.minestom.net/) and [Javadoc](https://javadoc.minestom.net/) describe the shared API; process-related signatures differ here.
 
 # Why Minestom?
 Minecraft has evolved a lot since its release, most of the servers today do not take advantage of vanilla features and even have to struggle because of them.
