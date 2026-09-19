@@ -83,8 +83,8 @@ final class ServerPropertyImpl {
 
         @Override
         public void set(T value) {
-            throw new IllegalStateException("Property '" + name
-                    + "' is immutable; configure its initial value before creating the process");
+            throw new IllegalStateException("Property '" + name + "' is immutable; set -D" + name
+                    + "=<value> at startup, or use ServerProperties.Builder for process-owned properties");
         }
 
         @Override

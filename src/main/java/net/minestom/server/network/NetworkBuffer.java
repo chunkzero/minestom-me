@@ -21,6 +21,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
+import javax.crypto.Cipher;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -38,7 +39,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.zip.DataFormatException;
-import javax.crypto.Cipher;
 
 public sealed interface NetworkBuffer permits NetworkBufferImpl {
     Type<Unit> UNIT = new NetworkBufferTypeImpl.UnitType();
@@ -324,7 +324,7 @@ public sealed interface NetworkBuffer permits NetworkBufferImpl {
         }
 
         default long sizeOf(T value, @Nullable Registries registries) {
-            return sizeOf(value, registries, ServerProperties.fromSystemProperties());
+            return sizeOf(value, registries, ServerProperties.defaults());
         }
 
         default long sizeOf(T value) {
@@ -423,7 +423,7 @@ public sealed interface NetworkBuffer permits NetworkBufferImpl {
     }
 
     static NetworkBuffer wrap(MemorySegment segment, long readIndex, long writeIndex, @Nullable Registries registries) {
-        return wrap(segment, readIndex, writeIndex, registries, ServerProperties.fromSystemProperties());
+        return wrap(segment, readIndex, writeIndex, registries, ServerProperties.defaults());
     }
 
     static NetworkBuffer wrap(MemorySegment segment, long readIndex, long writeIndex) {
@@ -448,7 +448,7 @@ public sealed interface NetworkBuffer permits NetworkBufferImpl {
 
         Builder registry(@Nullable Registries registries);
 
-        /** Binds configuration without copying it. Defaults are resolved at build time when omitted. */
+        /** Binds configuration without copying it. {@link ServerProperties#defaults()} applies when omitted. */
         Builder properties(ServerProperties properties);
 
         NetworkBuffer build();
@@ -579,7 +579,7 @@ public sealed interface NetworkBuffer permits NetworkBufferImpl {
     }
 
     static byte[] makeArray(Consumer<NetworkBuffer> writing, @Nullable Registries registries) {
-        return makeArray(writing, registries, ServerProperties.fromSystemProperties());
+        return makeArray(writing, registries, ServerProperties.defaults());
     }
 
     static byte[] makeArray(Consumer<NetworkBuffer> writing) {

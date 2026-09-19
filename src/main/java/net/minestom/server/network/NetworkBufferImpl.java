@@ -7,6 +7,8 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
+import javax.crypto.Cipher;
+import javax.crypto.ShortBufferException;
 import java.io.EOFException;
 import java.io.IOException;
 import java.lang.foreign.Arena;
@@ -20,8 +22,6 @@ import java.util.function.Consumer;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
-import javax.crypto.Cipher;
-import javax.crypto.ShortBufferException;
 
 import static java.nio.ByteOrder.BIG_ENDIAN;
 
@@ -635,12 +635,12 @@ final class NetworkBufferImpl implements NetworkBuffer {
         public NetworkBuffer build() {
             final MemorySegment segment = Arena.ofAuto().allocate(initialSize);
             return new NetworkBufferImpl(segment, 0, 0, autoResize, registries,
-                    properties != null ? properties : ServerProperties.fromSystemProperties());
+                    properties != null ? properties : ServerProperties.defaults());
         }
     }
 
     static NetworkBufferImpl dummy(@Nullable Registries registries) {
-        return dummy(registries, ServerProperties.fromSystemProperties());
+        return dummy(registries, ServerProperties.defaults());
     }
 
     static NetworkBufferImpl dummy(@Nullable Registries registries, ServerProperties properties) {

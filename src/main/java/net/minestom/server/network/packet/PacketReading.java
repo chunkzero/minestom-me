@@ -315,7 +315,7 @@ public final class PacketReading {
     }
 
     public static int maxPacketSize(ConnectionState state) {
-        return maxPacketSize(state, ServerProperties.fromSystemProperties());
+        return maxPacketSize(state, ServerProperties.defaults());
     }
 
     public static int maxPacketSize(ConnectionState state, ServerProperties properties) {

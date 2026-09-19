@@ -15,7 +15,7 @@ import net.minestom.server.property.ServerProperty;
  */
 @Deprecated(forRemoval = true)
 public final class ServerFlag {
-    private static final ServerProperties DEFAULT_PROPERTIES = ServerProperties.fromSystemProperties();
+    private static final ServerProperties DEFAULT_PROPERTIES = ServerProperties.defaults();
 
     // Server Behavior
     public static final boolean SHUTDOWN_ON_SIGNAL = DEFAULT_PROPERTIES.shutdownOnSignal().get();

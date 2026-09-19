@@ -65,7 +65,7 @@ public final class PacketSendingUtils {
      */
     public static <T extends Player> void sendGroupedPacket(Collection<T> players, ServerPacket packet,
                                          Predicate<? super T> predicate) {
-        final SendablePacket sendablePacket = groupedPacket(packet);
+        final SendablePacket sendablePacket = groupedPacket(players, packet);
         players.forEach(player -> {
             if (predicate.test(player)) player.sendPacket(sendablePacket);
         });
@@ -78,7 +78,7 @@ public final class PacketSendingUtils {
      * @see #sendGroupedPacket(Collection, ServerPacket, Predicate)
      */
     public static void sendGroupedPacket(Collection<? extends Player> players, ServerPacket packet) {
-        final SendablePacket sendablePacket = groupedPacket(packet);
+        final SendablePacket sendablePacket = groupedPacket(players, packet);
         players.forEach(player -> player.sendPacket(sendablePacket));
     }
 
@@ -89,19 +89,24 @@ public final class PacketSendingUtils {
         sendGroupedPacket(process.connectionManager().getOnlinePlayers(), packet);
     }
 
-    private static SendablePacket groupedPacket(ServerPacket packet) {
-        return ServerProperties.GROUPED_PACKET.get() && shouldUseCachePacket(packet) ? new CachedPacket(packet) : packet;
+    private static SendablePacket groupedPacket(Collection<? extends Player> players, ServerPacket packet) {
+        return ServerProperties.GROUPED_PACKET.get() && shouldUseCachePacket(players, packet) ? new CachedPacket(packet) : packet;
     }
 
     /**
      * Checks if the {@link ServerPacket} is suitable to be wrapped into a {@link CachedPacket}.
-     * Note: {@link ServerPacket.ComponentHolding}s are not translated inside a {@link CachedPacket}.
+     * Note: {@link ServerPacket.ComponentHolding}s are not translated inside a {@link CachedPacket},
+     * so a translatable packet is only cached when no recipient's process translates automatically.
      *
      * @see CachedPacket#body(PacketEncodingContext)
      */
-    private static boolean shouldUseCachePacket(final ServerPacket packet) {
+    private static boolean shouldUseCachePacket(Collection<? extends Player> players, ServerPacket packet) {
         if (!(packet instanceof ServerPacket.ComponentHolding holder)) return true;
-        return !containsTranslatableComponents(holder);
+        if (!containsTranslatableComponents(holder)) return true;
+        for (Player player : players) {
+            if (player.process().properties().automaticComponentTranslation().get()) return false;
+        }
+        return true;
     }
 
     private static boolean containsTranslatableComponents(final ComponentHolder<?> holder) {

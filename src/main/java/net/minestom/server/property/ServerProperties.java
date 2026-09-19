@@ -207,6 +207,11 @@ public final class ServerProperties {
         return builder().build();
     }
 
+    /** JVM-wide configuration resolved once from system properties, for callers without a process. */
+    public static ServerProperties defaults() {
+        return Defaults.INSTANCE;
+    }
+
     /** Unspecified values are read from system properties when {@link Builder#build()} is called. */
     public static Builder builder() {
         return new Builder(null);
@@ -381,6 +386,10 @@ public final class ServerProperties {
     /** Approximate decoded heap budget for untrusted NBT, not encoded bytes. Always immutable. */
     public ServerProperty<Integer> nbtMaxBytes() {
         return nbtMaxBytes;
+    }
+
+    private static final class Defaults {
+        private static final ServerProperties INSTANCE = fromSystemProperties();
     }
 
     public static final class Builder {

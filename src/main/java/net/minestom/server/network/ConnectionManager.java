@@ -493,14 +493,16 @@ public final class ConnectionManager implements ProcessOwned {
      *
      * @param tickStart the time of the update in nanoseconds, forwarded to the packet
      */
-    private static void handleKeepAlive(Collection<Player> playerGroup, long tickStart) {
+    private void handleKeepAlive(Collection<Player> playerGroup, long tickStart) {
         final KeepAlivePacket keepAlivePacket = new KeepAlivePacket(tickStart);
+        final long keepAliveDelay = TimeUnit.MILLISECONDS.toNanos(process().properties().keepAliveDelay().get());
+        final long keepAliveKick = TimeUnit.MILLISECONDS.toNanos(process().properties().keepAliveKick().get());
         for (Player player : playerGroup) {
             final long lastKeepAlive = tickStart - player.getLastKeepAlive();
-            if (lastKeepAlive > TimeUnit.MILLISECONDS.toNanos(player.process().properties().keepAliveDelay().get()) && player.didAnswerKeepAlive()) {
+            if (lastKeepAlive > keepAliveDelay && player.didAnswerKeepAlive()) {
                 player.refreshKeepAlive(tickStart);
                 player.sendPacket(keepAlivePacket);
-            } else if (lastKeepAlive >= TimeUnit.MILLISECONDS.toNanos(player.process().properties().keepAliveKick().get())) {
+            } else if (lastKeepAlive >= keepAliveKick) {
                 player.kick(TIMEOUT_TEXT);
             }
         }

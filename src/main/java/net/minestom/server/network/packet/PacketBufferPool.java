@@ -18,7 +18,7 @@ public final class PacketBufferPool implements AutoCloseable {
     private volatile boolean closed;
 
     public PacketBufferPool(Registries registries) {
-        this(registries, ServerProperties.fromSystemProperties());
+        this(registries, ServerProperties.defaults());
     }
 
     public PacketBufferPool(Registries registries, ServerProperties properties) {
