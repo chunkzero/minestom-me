@@ -1,8 +1,6 @@
 # API differences from upstream Minestom
 
-This covers the process-ownership migration in `chunkzero/minestom-me`, compared with the incorporated upstream revision [`e38880fe`](https://github.com/Minestom/Minestom/commit/e38880fe675524da73efbd2c61dd103eb648cb28). It includes changes from earlier migration PRs. The [README](../.github/README.md#this-fork-process-ownership) has a complete startup example.
-
-A `ServerProcess` is one logical server inside the JVM. Mutable runtime objects belong to a process; reusable definitions and values receive context when evaluated or serialized. There is no default process or `MinecraftServer` facade.
+The main premise of this fork is to be able to run multiple Minestom servers within one JVM.
 
 - [Startup and lifecycle](#startup-and-lifecycle)
 - [Services and settings](#services-and-settings)
@@ -14,26 +12,19 @@ A `ServerProcess` is one logical server inside the JVM. Mutable runtime objects 
 - [Registries and predicates](#registries-and-predicates)
 - [Adventure and audiences](#adventure-and-audiences)
 - [Networking, ping, and LAN](#networking-ping-and-lan)
-- [Tests and remaining work](#tests-and-remaining-work)
 
 ## Startup and lifecycle
 
 | Upstream | This fork |
 | --- | --- |
 | `MinecraftServer.init(auth)` | `ServerProcess.create(auth)`; `create()` defaults to offline authentication. |
-| One default server | Independent processes, each with its own managers, registries, connections, and workers. |
 | `server.start(host, port)` | `process.start(new InetSocketAddress(host, port))`. Configure and register content before starting. |
 | `MinecraftServer.stopCleanly()` | `process.close()` or `process.stop()`. Other processes keep running. |
 | `MinecraftServer.isStarted()` | `process.isAlive()`. |
-| Manual ticking through the default process | `process.ticker().tick(nanoTime)`; starts its dispatcher on first use, including before socket startup. |
 
-`start` is nonblocking. Keep the process for the intended server lifetime; an immediately ending try-with-resources block would stop it. `Auth.Online`, `Auth.Offline`, `Auth.Velocity`, and `Auth.Bungee` are selected at creation.
-
-Closing is idempotent. Failed startup closes that process; create a new one to retry. Shutdown continues through callback failures, cancels pending replies, and releases owned resources. Schedulers close before shutdown callbacks and player disconnection, so teardown must perform cleanup directly. A JVM shutdown hook is installed at startup and removed on close.
+Closing is idempotent. Failed startup closes that process, and a new one should be created to retry. Shutdown continues through callback failures, cancels pending replies, and releases owned resources. Schedulers close before shutdown callbacks and player disconnection, so teardown must perform cleanup directly. A JVM shutdown hook is installed at startup and removed on close.
 
 ## Services and settings
-
-Replace static `MinecraftServer` getters with services on the retained process:
 
 | Old getter | Replacement | Old getter | Replacement |
 | --- | --- | --- | --- |
@@ -46,6 +37,8 @@ Replace static `MinecraftServer` getters with services on the retained process:
 | `getPacketParser()` | `process.packetParser()` | `getClickCallbackManager()` | `process.clickCallbackManager()` |
 | `getRegistries()` | `process.registries()` | `getServer()` | `process.server()` |
 
+Note that these will be changed slightly to something like `process.instanceManager()`.
+
 | Area | Current behavior |
 | --- | --- |
 | Registry access | `ServerProcess` no longer implements `Registries`. Use `process.registries().biome()`, `.dimensionType()`, etc. |
@@ -53,29 +46,29 @@ Replace static `MinecraftServer` getters with services on the retained process:
 | Compression | `process.setCompressionThreshold(...)` before startup; zero disables compression. Connections retain their negotiated setting. |
 | Version constants | `MinecraftConstants.VERSION_NAME`, `PROTOCOL_VERSION`, `DATA_VERSION`, and resource/data-pack versions. |
 | Former facade constants | Read the corresponding `ServerProperties` value directly, e.g. `ServerProperties.CHUNK_VIEW_DISTANCE.get()`. |
-| Shared configuration | `ServerProperties`, including tick rate and view distances, remain JVM-wide. Ownership isolation does not make every setting local. |
+| Shared configuration | `ServerProperties`, including tick rate and view distances, remain JVM-wide. This will likely be changed in the near future. |
 | Diagnostics | `process.id()` distinguishes processes within a JVM. |
 
 ## Instances, entities, and gameplay
 
 | Operation | Migration / semantics |
 | --- | --- |
-| Create instances | Prefer `process.instance().createInstanceContainer()`. Direct `InstanceContainer` constructors take `process` first. Shared instances derive it from their container; copies preserve it. |
+| Create instances | Prefer `process.instance().createInstanceContainer()`. Direct `InstanceContainer` constructors take `process` first. Shared instances and copies derive it from their source. |
 | Load/save worlds | `AnvilLoader` construction is unchanged. Load/save operations obtain registries and exception handling from the instance/chunk. |
 | Create entities | `new Entity(process, type)`; `LivingEntity` and `EntityCreature` also require an owner. Custom subclasses pass it to `super`. |
 | Items and orbs | `new ItemEntity(process, item)` and `new ExperienceOrb(process, count)`. |
 | Projectiles | `new EntityProjectile(shooter, type)` derives ownership; use the explicit-process constructor when the shooter is absent. |
 | Players | `Player(connection, profile)` keeps its signature and derives ownership from the connection. |
-| Builders | `Entity.builder(type).spawn(instance, position)` returns a future and takes ownership from the destination. Factories for custom entities receive the process. |
+| Builders | `Entity.builder(type).spawn(instance, position)` uses the process from the instance, and returns a future, like Entity#setInstance. |
 | Builder ordering | Listeners are installed before settings and initializers. Initializers must not place/remove the entity; failed creation or placement cleans it up. Each spawn creates a fresh entity. |
-| Entity IDs | `process.generateEntityId()` replaces `Entity.generateId()`. IDs can overlap across processes; index external state by owner and ID together. |
+| Entity IDs | `process.generateEntityId()` replaces `Entity.generateId()`. IDs can overlap across processes. External state should be indexed by the process and ID together. |
 | Moving entities | Moving between instances of one process works. Foreign-process placement, viewers, passengers, leashes, and related owned references are rejected. Client transfer creates a new connection/player at the destination. |
 | Inventories | `new Inventory(process, type, title)`; typed inventories and direct `PlayerInventory` construction also take an owner. `player.getInventory()`, item mutation, and opening APIs stay familiar. Foreign viewers are rejected. |
 | Teams | Create through `process.team()`. `exists(team)` checks its name in the owning manager; registration rejects a different object with that name. Rebuilding the same registered team does not resend creation packets. |
 | Recipes, advancements, boss bars | Use the process's managers. Advancement membership remains UUID-to-tab-set, scoped to that manager. Normal player boss-bar and sidebar APIs stay the same. |
-| Damage | Direct `Damage` / `PositionalDamage` construction and `Damage.fromPosition(...)` take a process. Entity/projectile factories infer it; `livingEntity.damage(...)` supplies its owner. Further simplification is follow-up work. |
+| Damage | Direct `Damage` / `PositionalDamage` construction and `Damage.fromPosition(...)` take a process. Entity/projectile factories infer it; `livingEntity.damage(...)` supplies its owner. Will probably be simplified in the future. |
 
-Builders use `EntityBuilder<T, B>`. `LivingEntity`, `EntityCreature`, `EntityProjectile`, `ExperienceOrb`, and `ItemEntity` have builders too; item builders expose pickup/merge settings.
+Entity builders are under `EntityBuilder<T, B>`, `LivingEntity`, `EntityCreature`, `EntityProjectile`, `ExperienceOrb`, and `ItemEntity`.
 
 ```java
 var spawned = Entity.builder(EntityType.ZOMBIE)
@@ -88,16 +81,16 @@ var spawned = Entity.builder(EntityType.ZOMBIE)
 
 | Upstream / existing use | This fork |
 | --- | --- |
-| `GlobalEventHandler` | Process-owned `ProcessEventHandler`, via `process.eventHandler()`. |
-| `EventDispatcher.call(event)` / `callCancellable(...)` | Call the owning `process.eventHandler()`; the static dispatcher is removed. |
+| `GlobalEventHandler` | `process.eventHandler()`. |
+| `EventDispatcher.call(event)` / `callCancellable(...)` | Call `process.eventHandler()`; the static dispatcher is removed. |
 | `EventNode.all("name")` | Still ownerless at construction. Attach with `process.eventHandler().addChild(node)`. |
 | Contextual node conditions | `EventNode.contextual(name, filter, (process, event, handler) -> ...)`. |
 | `addListener(Type.class, event -> ...)` | Still supported; `(process, event) -> ...` receives dispatch context. Builder handlers, filters, and expiration predicates also have contextual overloads. |
 | `node.call(event)` / listener handles | Implicit dispatch requires a bound owner. For standalone dispatch, use `node.call(process, event)` / `handle.call(process, event)`. |
-| Custom `EventListener.run(event)` | Implement `run(process, event)`. Built-in expiration counts are per registration; custom registration state can use `newRegistration()`. Captured application state remains yours. |
+| Custom `EventListener.run(event)` | Implement `run(process, event)` instead. Built-in expiration counts are per registration; custom registration state can use `newRegistration()`. |
 | Custom filters and bindings | `EventFilter.getHandler(process, event)`, `EventFilter.fromContextual(...)`, and contextual `EventBinding.consumer(...)`. Existing ordinary filter factories remain. |
 
-Event ownership is validated during dispatch. Each node has at most one parent; detach before attaching elsewhere. `EventNode.process()` can be null for standalone nodes, which require explicit dispatch context. Native Image ownership metadata remains supported.
+Event ownership is validated during dispatch. Each node has at most one parent; detach before attaching elsewhere. `EventNode.process()` can be null for standalone nodes, which require explicit dispatch context. Native Image ownership metadata is still supported.
 
 ## Commands
 
@@ -192,7 +185,7 @@ Registry tags describe game-data membership; they are separate from custom `Tag<
 
 | Upstream / operation | This fork |
 | --- | --- |
-| Static `Audiences.all()`, `.players()`, `.server()`, `.console()`, `.custom(...)`, `.single()`, `.iterable()` | Use `process.audiences()` with the same service methods. Custom registrations belong to that process. |
+| Static `Audiences.all()`, `.players()`, `.server()`, `.console()`, `.custom(...)`, `.single()`, `.iterable()` | Use `process.audiences()` with the same methods. Custom registrations belong to that process. |
 | Grouping players | `PacketGroupingAudience.of(players)` can group players from multiple processes; manager operations use each player's owner. Entity sound emitters must match the recipients' owner. |
 | Global translation settings | `process.translation().setTranslator(...)` / `.setDefaultLocale(...)`; `.translate(...)` and `.flattener()` provide explicit translation. |
 | Global plain/legacy/ANSI serializers | Use the basic flattener. Bind `process.translation().flattener()` when process-specific translation is wanted. |
@@ -222,18 +215,3 @@ Registry tags describe game-data membership; they are separate from custom `Tag<
 | Custom tick workers | `ThreadDispatcher.dispatcher(process, provider, threadCount)` supplies ownership and exception handling. `TickThread(name, exceptionHandler)` supports an explicit handler; ownerless constructors log failures locally. |
 
 Reusable packet values still need semantically valid contents for their recipients: process-local entity IDs or already-resolved numeric registry IDs are not made portable by encoding context.
-
-## Tests and remaining work
-
-Use unit tests for pure data, `@RegistriesTest` for registry conversions, and `@EnvTest` for runtime integration. `Env.create(process)` and `ServerProcessPair` support explicit ownership; close them after use. Each test class should run independently. JVM work uses Java 25; native tests use GraalVM 25.
-
-These follow-ups are not part of the current API:
-
-| Follow-up | Scope |
-| --- | --- |
-| [#4](https://github.com/chunkzero/minestom-me/issues/4) | Entity/player event lifecycle requirements. |
-| [#6](https://github.com/chunkzero/minestom-me/issues/6) | Process-scoped registry-freezing settings. |
-| [#9](https://github.com/chunkzero/minestom-me/issues/9) | Full client/server load benchmarks. |
-| [#12](https://github.com/chunkzero/minestom-me/issues/12) | Manager accessor naming. |
-| [#13](https://github.com/chunkzero/minestom-me/issues/13) | Further damage/runtime-context simplification. |
-| [#18](https://github.com/chunkzero/minestom-me/issues/18) | A common `ProcessOwned` interface for existing owners. |
