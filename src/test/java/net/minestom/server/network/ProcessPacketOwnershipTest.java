@@ -49,6 +49,7 @@ import java.nio.channels.spi.SelectorProvider;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -116,6 +117,28 @@ class ProcessPacketOwnershipTest {
             var recipients = List.of(first.player(), second.player());
             var packet = new SystemChatPacket(Component.translatable("test:key"), false);
             PacketSendingUtils.sendGroupedPacket(recipients, packet);
+            assertEquals(List.of(new SystemChatPacket(Component.text("translated"), false)), first.flushPackets());
+            assertEquals(List.of(packet), second.flushPackets());
+        }
+    }
+
+    @Test
+    void groupedPacketsRespectTranslationChangesBeforeFlush() throws Exception {
+        var source = new Properties();
+        source.setProperty("minestom.automatic-component-translation.mutable", "true");
+        try (var mutable = ServerProcess.create(new Auth.Offline(),
+                    ServerProperties.builder(source).automaticComponentTranslation(false).build());
+             var disabled = ServerProcess.create(new Auth.Offline(),
+                    ServerProperties.builder().automaticComponentTranslation(false).build());
+             var first = new Session(mutable); var second = new Session(disabled)) {
+            mutable.translation().setTranslator((_, _) -> Component.text("translated"));
+            disabled.translation().setTranslator((_, _) -> Component.text("unexpected"));
+            first.play(0);
+            second.play(0);
+            var recipients = List.of(first.player(), second.player());
+            var packet = new SystemChatPacket(Component.translatable("test:key"), false);
+            PacketSendingUtils.sendGroupedPacket(recipients, packet);
+            mutable.properties().automaticComponentTranslation().set(true);
             assertEquals(List.of(new SystemChatPacket(Component.text("translated"), false)), first.flushPackets());
             assertEquals(List.of(packet), second.flushPackets());
         }

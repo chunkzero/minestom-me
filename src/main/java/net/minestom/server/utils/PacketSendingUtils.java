@@ -96,7 +96,8 @@ public final class PacketSendingUtils {
     /**
      * Checks if the {@link ServerPacket} is suitable to be wrapped into a {@link CachedPacket}.
      * Note: {@link ServerPacket.ComponentHolding}s are not translated inside a {@link CachedPacket},
-     * so a translatable packet is only cached when no recipient's process translates automatically.
+     * so a translatable packet is only cached when every recipient has automatic translation
+     * disabled and immutable.
      *
      * @see CachedPacket#body(PacketEncodingContext)
      */
@@ -104,7 +105,8 @@ public final class PacketSendingUtils {
         if (!(packet instanceof ServerPacket.ComponentHolding holder)) return true;
         if (!containsTranslatableComponents(holder)) return true;
         for (Player player : players) {
-            if (player.process().properties().automaticComponentTranslation().get()) return false;
+            final var translation = player.process().properties().automaticComponentTranslation();
+            if (translation.writable() || translation.get()) return false;
         }
         return true;
     }
