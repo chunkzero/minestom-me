@@ -57,14 +57,27 @@ publishing.publications.create<MavenPublication>("maven") {
     }
 }
 
-signing {
-    isRequired = System.getenv("CI") != null
+val proxyUrl = providers.environmentVariable("MAVEN_R2_URL")
+if (proxyUrl.isPresent) {
+    publishing.repositories.maven {
+        name = "mavenR2"
+        url = uri(proxyUrl.get())
+        isAllowInsecureProtocol = true // The publishing proxy listens on loopback only.
+        credentials {
+            username = providers.environmentVariable("MAVEN_R2_USERNAME").get()
+            password = providers.environmentVariable("MAVEN_R2_PASSWORD").get()
+        }
+    }
+} else {
+    signing {
+        isRequired = System.getenv("CI") != null
 
-    val privateKey = System.getenv("GPG_PRIVATE_KEY")
-    val keyPassphrase = System.getenv()["GPG_PASSPHRASE"]
-    useInMemoryPgpKeys(privateKey, keyPassphrase)
+        val privateKey = System.getenv("GPG_PRIVATE_KEY")
+        val keyPassphrase = System.getenv()["GPG_PASSPHRASE"]
+        useInMemoryPgpKeys(privateKey, keyPassphrase)
 
-    sign(publishing.publications)
+        sign(publishing.publications)
+    }
 }
 
 tasks.register<CheckAbiTask>("checkBinaryCompatibility") {

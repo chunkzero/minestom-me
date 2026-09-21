@@ -125,14 +125,18 @@ jobs:
             echo "Metadata is already up-to-date."
           fi
 
+      - name: Setup Maven R2
+        uses: chunkzero/maven-r2@v1
+        with:
+          version: v0.1.0
+
       - name: Publish Snapshot
-        if: github.repository == 'Minestom/Minestom'
+        if: github.repository == 'chunkzero/minestom-me'
         env:
           MINESTOM_VERSION: master-SNAPSHOT
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSWORD }}
+          MAVEN_R2_SERVER: https://maven.chunkzero.com
+          MAVEN_R2_TOKEN: ${{ secrets.MAVEN_R2_TOKEN }}
         run: |
-          ./gradlew nmcpPublishAggregationToCentralPortalSnapshots
-          echo "Version: ${MINESTOM_VERSION}" >> $GITHUB_STEP_SUMMARY
+          : "${MAVEN_R2_TOKEN:?Set the Maven R2 publishing token secret}"
+          maven-r2 publish --repository default/snapshots -- ./gradlew :publishAllPublicationsToMavenR2Repository :testing:publishAllPublicationsToMavenR2Repository
+          echo "Version: ${MINESTOM_VERSION}" >> "$GITHUB_STEP_SUMMARY"
