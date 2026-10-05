@@ -1,4 +1,5 @@
 name: Release
+# Releases releaseVersion from gradle.properties. Afterwards, bump it to the next upcoming version.
 on:
   workflow_dispatch: { }
 permissions:
@@ -11,8 +12,33 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
-        with: # We have to fetch full history because we need old tags
+        with: # Fetch tags to check whether this version is already tagged
           fetch-depth: 0
+
+      - id: base
+        name: Read Release Version
+        run: echo "version=$(sed -n 's/^releaseVersion=//p' gradle.properties)" >> "$GITHUB_OUTPUT"
+
+      - id: version
+        name: Determine Version
+        uses: chunkzero/release-tools/version@v1
+        with:
+          base: ${{ steps.base.outputs.version }}
+          channel: release
+
+      - id: tag
+        name: Check Tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          COMMIT=$(git rev-parse -q --verify "refs/tags/${TAG}^{commit}" || true)
+          if [ -n "$COMMIT" ] && [ "$COMMIT" != "$GITHUB_SHA" ]; then
+            echo "::error::${TAG} already exists on ${COMMIT}. Bump releaseVersion in gradle.properties."
+            exit 1
+          fi
+          echo "exists=$([ -n "$COMMIT" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "Version: ${TAG#v}" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Setup Java
         uses: actions/setup-java@v6
         with:
@@ -35,46 +61,32 @@ jobs:
             echo "Reachability metadata is fully synchronized."
           fi
 
-      - id: version
-        name: Determine Version
-        run: |
-          DATE=$(date +'%Y.%m.%d')
-          MC_VERSION=$(./gradlew determineMinecraftVersion --quiet --console=plain)
-          if ! [[ "$MC_VERSION" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
-            echo "Unexpected Minecraft version output: $MC_VERSION"
-            exit 1
-          fi
-
-          TAGS=$(git tag --list "${DATE}*")
-          echo "Existing tags: $TAGS"
-          
-          if [ -z "$TAGS" ]; then
-            VERSION="$DATE-$MC_VERSION"
-          else
-            SUFFIXES=$(echo "$TAGS" | sed -n "s/^$DATE\([a-z]\)\-.*$/\1/p")
-            NEXT_SUFFIX="b"
-            if [ -n "$SUFFIXES" ]; then
-              LAST_SUFFIX=$(echo "$SUFFIXES" | sort | tail -n1)
-              NEXT_SUFFIX=$(printf "\\$(printf '%03o' $(( $(printf '%d' "'$LAST_SUFFIX") + 1 )) )")
-            fi
-            VERSION="${DATE}${NEXT_SUFFIX}-$MC_VERSION"
-          fi
-
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Version: ${VERSION}" >> $GITHUB_STEP_SUMMARY
-
       - name: Build javadoc
         run: ./gradlew javadoc
         env:
           MINESTOM_VERSION: ${{ steps.version.outputs.version }}
 
+      - id: check
+        name: Check Published Version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          URL="https://maven.chunkzero.com/com/chunkzero/multistom/multistom/${VERSION}/multistom-${VERSION}.pom"
+          STATUS=$(curl -sS -o /dev/null -w '%{http_code}' "$URL")
+          case "$STATUS" in
+            200) echo "publish=false" >> "$GITHUB_OUTPUT" ;;
+            404) echo "publish=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::Unexpected HTTP ${STATUS} from ${URL}"; exit 1 ;;
+          esac
+
       - name: Setup Maven R2
+        if: steps.check.outputs.publish == 'true'
         uses: chunkzero/maven-r2@v1
         with:
           version: v0.1.0
 
       - name: Publish to Maven R2
-        if: github.repository == 'chunkzero/multistom'
+        if: steps.check.outputs.publish == 'true' && github.repository == 'chunkzero/multistom'
         env:
           MINESTOM_VERSION: ${{ steps.version.outputs.version }}
           MAVEN_R2_SERVER: https://maven.chunkzero.com
@@ -94,11 +106,17 @@ jobs:
           CLEAR_GLOBS_FILE: ".github/javadoc-publish-clear"
 
       - name: Create Tag
+        if: steps.tag.outputs.exists == 'false'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          git tag ${{ steps.version.outputs.version }}
-          git push origin ${{ steps.version.outputs.version }}
+          git tag "$TAG"
+          git push origin "$TAG"
       - name: Create GitHub Release
+        if: steps.version.outputs.published != 'true'
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ steps.version.outputs.version }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+          make_latest: ${{ !contains(steps.version.outputs.version, '-') }}
           generate_release_notes: true

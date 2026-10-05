@@ -76,8 +76,8 @@ jobs:
         if: steps.native-run.outcome == 'failure'
         run: ./gradlew nativeTest
 
-  publish-snapshot:
-    name: Publish Snapshot
+  publish-nightly:
+    name: Publish Nightly
     needs: [ build, javadoc, native-test ]
     runs-on: ubuntu-latest
     concurrency:
@@ -104,6 +104,17 @@ jobs:
         with:
           cache-read-only: false
 
+      - id: base
+        name: Read Release Version
+        run: echo "version=$(sed -n 's/^releaseVersion=//p' gradle.properties)" >> "$GITHUB_OUTPUT"
+
+      - id: version
+        name: Determine Nightly Version
+        uses: chunkzero/release-tools/version@v1
+        with:
+          base: ${{ steps.base.outputs.version }}
+          channel: nightly
+
       - name: Run Tracing Agent
         if: needs.native-test.outputs.metadata-updated == 'true'
         run: ./gradlew -Pagent test
@@ -112,31 +123,57 @@ jobs:
         if: needs.native-test.outputs.metadata-updated == 'true'
         run: ./gradlew metadataCopy
 
-      - name: Commit and Push Updated Metadata
+      # The metadata commit triggers its own run, which publishes it. This run then skips publishing,
+      # so every nightly contains exactly the commit named in its version.
+      - id: metadata
+        name: Commit and Push Updated Metadata
         if: needs.native-test.outputs.metadata-updated == 'true'
         run: |
           git config --global user.name "minestom-ci[bot]"
           git config --global user.email "294309606+minestom-ci[bot]@users.noreply.github.com"
           git add src/main/resources/META-INF/native-image
           if ! git diff --cached --quiet; then
-            git commit -m "chore: update GraalVM reachability metadata [skip ci]"
+            git commit -m "chore: update GraalVM reachability metadata"
             git push origin master
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
           else
             echo "Metadata is already up-to-date."
           fi
 
+      - id: check
+        name: Check Published Version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          METADATA_PUSHED: ${{ steps.metadata.outputs.pushed == 'true' }}
+        run: |
+          if [ "$METADATA_PUSHED" = true ]; then
+            echo "Skipped ${VERSION}: the reachability metadata commit publishes its own nightly." >> "$GITHUB_STEP_SUMMARY"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          URL="https://maven.chunkzero.com/nightlies/com/chunkzero/multistom/multistom/${VERSION}/multistom-${VERSION}.pom"
+          STATUS=$(curl -sS -o /dev/null -w '%{http_code}' "$URL")
+          case "$STATUS" in
+            200)
+              echo "Version: ${VERSION} (already published)" >> "$GITHUB_STEP_SUMMARY"
+              echo "publish=false" >> "$GITHUB_OUTPUT" ;;
+            404) echo "publish=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::Unexpected HTTP ${STATUS} from ${URL}"; exit 1 ;;
+          esac
+
       - name: Setup Maven R2
+        if: steps.check.outputs.publish == 'true'
         uses: chunkzero/maven-r2@v1
         with:
           version: v0.1.0
 
-      - name: Publish Snapshot
-        if: github.repository == 'chunkzero/multistom'
+      - name: Publish Nightly
+        if: steps.check.outputs.publish == 'true' && github.repository == 'chunkzero/multistom'
         env:
-          MINESTOM_VERSION: master-SNAPSHOT
+          MINESTOM_VERSION: ${{ steps.version.outputs.version }}
           MAVEN_R2_SERVER: https://maven.chunkzero.com
           MAVEN_R2_TOKEN: ${{ secrets.MAVEN_R2_TOKEN }}
         run: |
           : "${MAVEN_R2_TOKEN:?Set the Maven R2 publishing token secret}"
-          maven-r2 publish --repository default/snapshots -- ./gradlew :publishAllPublicationsToMavenR2Repository :testing:publishAllPublicationsToMavenR2Repository
+          maven-r2 publish --repository default/nightlies -- ./gradlew :publishAllPublicationsToMavenR2Repository :testing:publishAllPublicationsToMavenR2Repository
           echo "Version: ${MINESTOM_VERSION}" >> "$GITHUB_STEP_SUMMARY"
