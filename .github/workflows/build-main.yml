@@ -133,6 +133,10 @@ jobs:
           git config --global user.email "294309606+minestom-ci[bot]@users.noreply.github.com"
           git add src/main/resources/META-INF/native-image
           if ! git diff --cached --quiet; then
+            if [ "$(git log -1 --format=%an)" = "minestom-ci[bot]" ]; then
+              echo "::error::Reachability metadata still changes after an automatic update; update it by hand."
+              exit 1
+            fi
             git commit -m "chore: update GraalVM reachability metadata"
             git push origin master
             echo "pushed=true" >> "$GITHUB_OUTPUT"
