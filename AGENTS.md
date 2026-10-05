@@ -54,7 +54,7 @@ Run commands from the repository root:
 ## Git
 
 - Use Conventional Commits for commit messages and PR titles.
-- Open PRs against `chunkzero/minestom-me`'s default branch (`master`), not upstream Minestom. Use `gh pr create --repo chunkzero/minestom-me --base master`.
+- Open PRs against `chunkzero/multistom`'s default branch (`master`), not upstream Minestom. Use `gh pr create --repo chunkzero/multistom --base master`.
 - For explicitly requested upstream submissions, follow `.github/CONTRIBUTING.md`.
 
 ## Glossary

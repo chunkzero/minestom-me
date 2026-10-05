@@ -131,7 +131,7 @@ jobs:
           version: v0.1.0
 
       - name: Publish Snapshot
-        if: github.repository == 'chunkzero/minestom-me'
+        if: github.repository == 'chunkzero/multistom'
         env:
           MINESTOM_VERSION: master-SNAPSHOT
           MAVEN_R2_SERVER: https://maven.chunkzero.com

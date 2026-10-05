@@ -10,15 +10,16 @@ val mcVersion = minestomDataVersion.split("-")[0]
 
 publishing.publications.create<MavenPublication>("maven") {
     groupId = project.group.toString()
-    artifactId = project.name // eg "minestom" or "testing"
+    // Gradle project names stay upstream's; only the published coordinates differ.
+    artifactId = if (project == rootProject) "multistom" else "multistom-${project.name}"
     version = project.version.toString()
 
     from(project.components["java"])
 
     pom {
         name.set(this@create.artifactId)
-        description.set("$mcVersion Lightweight Minecraft server")
-        url.set("https://github.com/minestom/minestom")
+        description.set("$mcVersion Lightweight Minecraft server. A fork of Minestom (https://github.com/Minestom/Minestom) that runs multiple server processes in one JVM.")
+        url.set("https://github.com/chunkzero/multistom")
 
         licenses {
             license {
@@ -40,19 +41,19 @@ publishing.publications.create<MavenPublication>("maven") {
 
         issueManagement {
             system.set("GitHub")
-            url.set("https://github.com/minestom/minestom/issues")
+            url.set("https://github.com/chunkzero/multistom/issues")
         }
 
         scm {
-            connection.set("scm:git:git://github.com/minestom/minestom.git")
-            developerConnection.set("scm:git:git@github.com:minestom/minestom.git")
-            url.set("https://github.com/minestom/minestom")
+            connection.set("scm:git:git://github.com/chunkzero/multistom.git")
+            developerConnection.set("scm:git:git@github.com:chunkzero/multistom.git")
+            url.set("https://github.com/chunkzero/multistom")
             tag.set("HEAD")
         }
 
         ciManagement {
             system.set("Github Actions")
-            url.set("https://github.com/minestom/minestom/actions")
+            url.set("https://github.com/chunkzero/multistom/actions")
         }
     }
 }
