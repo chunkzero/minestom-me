@@ -36,7 +36,7 @@ This is a developer API not meant to be used by end-users. Replacing Bukkit/Forg
 
 # Install
 
-`minestom-me` is not yet available as a maven artifact.
+`multistom` is not yet available as a maven artifact.
 
 # Usage
 An example of how to use the Minestom library is available [here](/demo).

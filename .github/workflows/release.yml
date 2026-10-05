@@ -74,7 +74,7 @@ jobs:
           version: v0.1.0
 
       - name: Publish to Maven R2
-        if: github.repository == 'chunkzero/minestom-me'
+        if: github.repository == 'chunkzero/multistom'
         env:
           MINESTOM_VERSION: ${{ steps.version.outputs.version }}
           MAVEN_R2_SERVER: https://maven.chunkzero.com

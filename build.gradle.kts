@@ -18,7 +18,7 @@ sourceSets {
                 property("COMMIT", System.getenv("GITHUB_SHA") ?: "LOCAL")
                 property("BRANCH", System.getenv("GITHUB_REF") ?: "LOCAL")
                 property("GROUP", project.group.toString())
-                property("ARTIFACT", project.name)
+                property("ARTIFACT", publishing.publications.getByName<MavenPublication>("maven").artifactId)
                 property("VERSION", project.version.toString())
             }
         }

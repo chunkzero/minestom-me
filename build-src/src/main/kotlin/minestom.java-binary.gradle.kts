@@ -6,7 +6,7 @@ plugins {
 
 val javaVersion = System.getenv("JAVA_VERSION") ?: "25"
 
-group = "net.minestom"
+group = "com.chunkzero.multistom"
 
 repositories {
     val dataVersion = libs.minestomData.get().version ?: ""

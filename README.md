@@ -1,6 +1,6 @@
-# Minestom ME
+# Multistom
 
-A fork of [Minestom](https://github.com/Minestom/Minestom), published to the chunkzero Maven repository. Artifact coordinates remain `net.minestom:minestom` and `net.minestom:testing`.
+A fork of [Minestom](https://github.com/Minestom/Minestom), published to the chunkzero Maven repository as `com.chunkzero.multistom:multistom` and `com.chunkzero.multistom:multistom-testing`. Java packages remain `net.minestom.*`, so it is a drop-in replacement for Minestom.
 
 ## Publishing
 
@@ -8,7 +8,7 @@ Successful builds on `master` publish `master-SNAPSHOT` to `default/snapshots`. 
 
 Both workflows install the Maven R2 CLI and publish the two modules together through its local proxy. Publishing here does not require Maven Central credentials or GPG signing keys.
 
-Before enabling publishing, add a repository secret named `MAVEN_R2_TOKEN`. Use a publisher service-account token with the `net/minestom` path prefix and these scopes:
+Before enabling publishing, add a repository secret named `MAVEN_R2_TOKEN`. Use a publisher service-account token with the `com/chunkzero/multistom` path prefix and these scopes:
 
 - `snapshots`: `publish:snapshot`
 - `releases`: `publish:release`
