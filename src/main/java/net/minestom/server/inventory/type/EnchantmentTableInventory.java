@@ -7,13 +7,17 @@ import net.minestom.server.inventory.InventoryProperty;
 import net.minestom.server.inventory.InventoryType;
 import net.minestom.server.item.enchant.Enchantment;
 import net.minestom.server.registry.RegistryKey;
+import net.minestom.server.utils.validate.Check;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.EnumMap;
+import java.util.Map;
 
 public class EnchantmentTableInventory extends Inventory {
 
     private final short[] levelRequirements = new short[EnchantmentSlot.values().length];
     private short seed;
-    private final short[] enchantmentShown = new short[EnchantmentSlot.values().length];
+    private final Map<EnchantmentSlot, RegistryKey<Enchantment>> enchantmentShown = new EnumMap<>(EnchantmentSlot.class);
     private final short[] enchantmentLevel = new short[EnchantmentSlot.values().length];
 
     public EnchantmentTableInventory(ServerProcess process, Component title) {
@@ -75,27 +79,32 @@ public class EnchantmentTableInventory extends Inventory {
      * @return the enchantment shown in the slot, null if it is hidden
      */
     public @Nullable RegistryKey<Enchantment> getEnchantmentShown(EnchantmentSlot enchantmentSlot) {
-        final int id = enchantmentShown[enchantmentSlot.ordinal()];
-        if (id == -1) return null;
-        return process().registries().enchantment().getKey(id);
+        return enchantmentShown.get(enchantmentSlot);
     }
 
     /**
      * Sets the enchantment shown in a slot.
-     * <p>
-     * Can be set to null to hide it.
      *
      * @param enchantmentSlot the enchantment slot
-     * @param enchantment     the enchantment
+     * @param enchantment     the enchantment, or {@code null} to hide it
+     * @throws IllegalArgumentException if the enchantment is not registered in this inventory's process
+     *                                  or its ID is too large for an inventory property
      */
     public void setEnchantmentShown(EnchantmentSlot enchantmentSlot, @Nullable RegistryKey<Enchantment> enchantment) {
-        final short id = enchantment == null ? -1 : (short) process().registries().enchantment().getId(enchantment);
+        final var enchantmentRegistry = process().registries().enchantment();
+        final int registryId = enchantment == null ? -1 : enchantmentRegistry.getId(enchantment);
+        Check.argCondition(enchantment != null && registryId == -1,
+                "Unknown enchantment {0} for registry {1}", enchantment, enchantmentRegistry.key());
+        Check.argCondition(registryId > Short.MAX_VALUE,
+                "Enchantment id {0} cannot be represented by an inventory property", registryId);
+        final short id = (short) registryId;
         switch (enchantmentSlot) {
             case TOP -> sendProperty(InventoryProperty.ENCHANTMENT_TABLE_ENCH_ID_TOP, id);
             case MIDDLE -> sendProperty(InventoryProperty.ENCHANTMENT_TABLE_ENCH_ID_MIDDLE, id);
             case BOTTOM -> sendProperty(InventoryProperty.ENCHANTMENT_TABLE_ENCH_ID_BOTTOM, id);
         }
-        this.enchantmentShown[enchantmentSlot.ordinal()] = id;
+        if (enchantment == null) this.enchantmentShown.remove(enchantmentSlot);
+        else this.enchantmentShown.put(enchantmentSlot, enchantment);
     }
 
     /**

@@ -1,5 +1,6 @@
 package net.minestom.server.instance;
 
+import net.kyori.adventure.key.Key;
 import net.minestom.server.ServerProcess;
 import net.minestom.server.tag.Tag;
 import net.minestom.server.world.DimensionType;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.TestInstance;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class InstanceContainerTest {
@@ -29,5 +31,21 @@ public class InstanceContainerTest {
         var copyInstance = instance.copy();
         var result = copyInstance.getTag(tag);
         assertEquals("123", result);
+    }
+
+    @Test
+    public void derivedInstancesPreserveProcessAndDimensionName() {
+        final Key dimensionName = Key.key("minestom:derived");
+        final InstanceContainer instance = new InstanceContainer(
+                process, UUID.randomUUID(),
+                DimensionType.OVERWORLD, null, dimensionName);
+
+        final InstanceContainer copy = instance.copy();
+        final SharedInstance shared = new SharedInstance(UUID.randomUUID(), instance);
+
+        assertSame(process, copy.process());
+        assertSame(process, shared.process());
+        assertEquals(dimensionName.asString(), copy.getDimensionName());
+        assertEquals(dimensionName.asString(), shared.getDimensionName());
     }
 }
